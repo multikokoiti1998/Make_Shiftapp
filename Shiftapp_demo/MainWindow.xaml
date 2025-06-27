@@ -6,8 +6,12 @@
         xmlns:local="clr-namespace:Shiftapp_demo"
         xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes" x:Class="Shiftapp_demo.MainWindow"
         mc:Ignorable="d"
-        Title="MainWindow" Height="660" Width="1480">
-    <Grid HorizontalAlignment="Left" Height="620" Margin="5,10,0,0" VerticalAlignment="Top" Width="1465">
-        <Calendar HorizontalAlignment="Left" Margin="475,169,0,0" VerticalAlignment="Top" FontSize="24" Height="375" Width="520" Style="{DynamicResource MaterialDesignCalendarPortrait}" CalendarDayButtonStyle="{DynamicResource MaterialDesignFlatButton}"/>
+        Title="MainWindow" Height="1080" Width="1920">
+    <Grid HorizontalAlignment="Left" Height="1045" Margin="5,0,0,0" VerticalAlignment="Center" Width="1905">
+        <Calendar HorizontalAlignment="Left" Margin="10,0,0,0" VerticalAlignment="Top" FontSize="24" Height="375" Width="520" Style="{DynamicResource MaterialDesignCalendarPortrait}" CalendarDayButtonStyle="{DynamicResource MaterialDesignFlatButton}"/>
+        <Image HorizontalAlignment="Left" Height="680" Margin="560,40,0,0" VerticalAlignment="Top" Width="1310"/>
+        <Button Content="シフト作成" HorizontalAlignment="Left" Margin="25,395,0,0" VerticalAlignment="Top" Height="70" Width="250" Cursor="Hand" FontSize="20"/>
+        <Button Content="メンバー変更" HorizontalAlignment="Left" Margin="25,500,0,0" VerticalAlignment="Top" Height="70" Width="250" Cursor="" FontSize="20"/>
+        <Button Content="メンバー変更" HorizontalAlignment="Left" Margin="25,620,0,0" VerticalAlignment="Top" Height="70" Width="250" Cursor="" FontSize="20"/>
     </Grid>
 </Window>
