@@ -4,14 +4,16 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:Shiftapp_demo"
-        xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes" x:Class="Shiftapp_demo.MainWindow"
+        xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes" xmlns:Themes="clr-namespace:Microsoft.Windows.Themes;assembly=PresentationFramework.Aero" x:Class="Shiftapp_demo.MainWindow"
         mc:Ignorable="d"
         Title="MainWindow" Height="1080" Width="1920">
     <Grid HorizontalAlignment="Left" Height="1045" Margin="5,0,0,0" VerticalAlignment="Center" Width="1905">
         <Calendar HorizontalAlignment="Left" Margin="10,0,0,0" VerticalAlignment="Top" FontSize="24" Height="375" Width="520" Style="{DynamicResource MaterialDesignCalendarPortrait}" CalendarDayButtonStyle="{DynamicResource MaterialDesignFlatButton}"/>
-        <Image HorizontalAlignment="Left" Height="680" Margin="560,40,0,0" VerticalAlignment="Top" Width="1310"/>
         <Button Content="シフト作成" HorizontalAlignment="Left" Margin="25,395,0,0" VerticalAlignment="Top" Height="70" Width="250" Cursor="Hand" FontSize="20"/>
-        <Button Content="メンバー変更" HorizontalAlignment="Left" Margin="25,500,0,0" VerticalAlignment="Top" Height="70" Width="250" Cursor="" FontSize="20"/>
-        <Button Content="メンバー変更" HorizontalAlignment="Left" Margin="25,620,0,0" VerticalAlignment="Top" Height="70" Width="250" Cursor="" FontSize="20"/>
+        <Button Content="管理者面&#xD;&#xA;" HorizontalAlignment="Left" Margin="25,510,0,0" VerticalAlignment="Top" Height="70" Width="250" Cursor="" FontSize="20"/>
+        <Button Content="メンバー変更" HorizontalAlignment="Left" Margin="25,620,0,0" VerticalAlignment="Top" Height="70" Width="250" Cursor="" FontSize="20" Click="Button_Click"/>
+        <DataGrid HorizontalAlignment="Left" Height="950" Margin="595,70,0,0" VerticalAlignment="Top" Width="1275" d:ItemsSource="{d:SampleData ItemCount=5}"/>
+        <DataGrid HorizontalAlignment="Left" Height="230" Margin="20,790,0,0" VerticalAlignment="Top" Width="495" d:ItemsSource="{d:SampleData ItemCount=5}"/>
+        <Label Content="本日の当直" HorizontalAlignment="Left" Margin="40,725,0,0" VerticalAlignment="Top" Height="45" Width="405" FontSize="22" FontWeight="Bold" BorderThickness="150,0,0,0"/>
     </Grid>
 </Window>
