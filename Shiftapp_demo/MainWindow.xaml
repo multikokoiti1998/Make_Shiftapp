@@ -11,7 +11,7 @@
         <Calendar HorizontalAlignment="Left" Margin="10,0,0,0" VerticalAlignment="Top" FontSize="24" Height="375" Width="520" Style="{DynamicResource MaterialDesignCalendarPortrait}" CalendarDayButtonStyle="{DynamicResource MaterialDesignFlatButton}"/>
         <Button Content="シフト作成" HorizontalAlignment="Left" Margin="25,395,0,0" VerticalAlignment="Top" Height="70" Width="250" Cursor="Hand" FontSize="20"/>
         <Button Content="管理者画面" HorizontalAlignment="Left" Margin="25,510,0,0" VerticalAlignment="Top" Height="70" Width="250" Cursor="" FontSize="20"/>
-        <Button Content="勤務聴修正" HorizontalAlignment="Left" Margin="25,620,0,0" VerticalAlignment="Top" Height="70" Width="250" Cursor="" FontSize="20" Click="Button_Click"/>
+        <Button Content="勤務表修正" HorizontalAlignment="Left" Margin="25,620,0,0" VerticalAlignment="Top" Height="70" Width="250" Cursor="" FontSize="20" Click="Button_Click"/>
         <DataGrid HorizontalAlignment="Left" Height="950" Margin="595,70,0,0" VerticalAlignment="Top" Width="1275" d:ItemsSource="{d:SampleData ItemCount=5}"/>
         <DataGrid HorizontalAlignment="Left" Height="230" Margin="20,790,0,0" VerticalAlignment="Top" Width="495" d:ItemsSource="{d:SampleData ItemCount=5}"/>
         <Label Content="本日の当直" HorizontalAlignment="Left" Margin="40,725,0,0" VerticalAlignment="Top" Height="45" Width="405" FontSize="22" FontWeight="Bold" BorderThickness="150,0,0,0"/>
