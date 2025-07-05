@@ -8,18 +8,9 @@ using System.Runtime.CompilerServices;
 
 namespace Shiftapp_demo
 {
-    public class Holiday : INotifyPropertyChanged
+    public class Holiday
     {
-        private DateTime _date;
-        public DateTime Date { get { return _date; } set { _date = value; OnPropertyChanged(); } }
-
-        private string _description;
-        public string Description { get { return _description; } set { _description = value; OnPropertyChanged(); } }
-
-        public event PropertyChangedEventHandler PropertyChanged;
-        protected void OnPropertyChanged([CallerMemberName] string name = null)
-        {
-            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
-        }
+        public DateTime Date { get; set; }
+        public string Description { get; set; }
     }
 }

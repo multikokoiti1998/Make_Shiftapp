@@ -22,9 +22,6 @@
             <Button Content="シフト作成" Height="70" FontSize="20" Margin="0,15,0,0"/>
             <Button Content="管理者画面" Height="70" FontSize="20" Margin="0,15,0,0" Click="Button_Click1"/>
             <Button Content="勤務表修正" Height="70" FontSize="20" Margin="0,15,0,0" Click="Button_Click"/>
-
-            <Label Content="本日の当直" FontSize="22" FontWeight="Bold" Margin="0,30,0,10"/>
-            <DataGrid Height="230" d:ItemsSource="{d:SampleData ItemCount=5}"/>
         </StackPanel>
 
         <DataGrid Grid.Column="1" Margin="10" d:ItemsSource="{d:SampleData ItemCount=5}"/>
