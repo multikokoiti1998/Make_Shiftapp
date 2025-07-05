@@ -26,5 +26,14 @@ namespace Shiftapp_demo
         {
 
         }
+
+        private void Button_Click1(object sender, RoutedEventArgs e)
+        {
+            // 1. AdminWindowのインスタンス（実体）を作成します
+            AdminWindow adminWindow = new AdminWindow();
+
+            // 2. 作成したウィンドウを表示します
+            adminWindow.Show();
+        }
     }
 }

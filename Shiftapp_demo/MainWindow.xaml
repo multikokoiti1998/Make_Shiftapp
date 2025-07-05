@@ -1,19 +1,33 @@
-﻿<Window
-        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
-        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        xmlns:local="clr-namespace:Shiftapp_demo"
-        xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes" xmlns:Themes="clr-namespace:Microsoft.Windows.Themes;assembly=PresentationFramework.Aero" x:Class="Shiftapp_demo.MainWindow"
-        mc:Ignorable="d"
-        Title="MainWindow" Height="1080" Width="1920">
-    <Grid HorizontalAlignment="Left" Height="1045" Margin="5,0,0,0" VerticalAlignment="Center" Width="1905">
-        <Calendar HorizontalAlignment="Left" Margin="10,0,0,0" VerticalAlignment="Top" FontSize="24" Height="375" Width="520" Style="{DynamicResource MaterialDesignCalendarPortrait}" CalendarDayButtonStyle="{DynamicResource MaterialDesignFlatButton}"/>
-        <Button Content="シフト作成" HorizontalAlignment="Left" Margin="25,395,0,0" VerticalAlignment="Top" Height="70" Width="250" Cursor="Hand" FontSize="20"/>
-        <Button Content="管理者画面" HorizontalAlignment="Left" Margin="25,510,0,0" VerticalAlignment="Top" Height="70" Width="250" Cursor="" FontSize="20"/>
-        <Button Content="勤務表修正" HorizontalAlignment="Left" Margin="25,620,0,0" VerticalAlignment="Top" Height="70" Width="250" Cursor="" FontSize="20" Click="Button_Click"/>
-        <DataGrid HorizontalAlignment="Left" Height="950" Margin="595,70,0,0" VerticalAlignment="Top" Width="1275" d:ItemsSource="{d:SampleData ItemCount=5}"/>
-        <DataGrid HorizontalAlignment="Left" Height="230" Margin="20,790,0,0" VerticalAlignment="Top" Width="495" d:ItemsSource="{d:SampleData ItemCount=5}"/>
-        <Label Content="本日の当直" HorizontalAlignment="Left" Margin="40,725,0,0" VerticalAlignment="Top" Height="45" Width="405" FontSize="22" FontWeight="Bold" BorderThickness="150,0,0,0"/>
+﻿<Window 
+    x:Class="Shiftapp_demo.MainWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:local="clr-namespace:Shiftapp_demo"
+    xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
+    mc:Ignorable="d"
+    Title="MainWindow"
+    WindowState="Maximized"
+    MinHeight="600" MinWidth="800">
+
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="Auto" MaxWidth="550"/>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+
+        <StackPanel Grid.Column="0" Margin="10">
+            <Calendar FontSize="24" Style="{DynamicResource MaterialDesignCalendarPortrait}" CalendarDayButtonStyle="{DynamicResource MaterialDesignFlatButton}"/>
+            <Button Content="シフト作成" Height="70" FontSize="20" Margin="0,15,0,0"/>
+            <Button Content="管理者画面" Height="70" FontSize="20" Margin="0,15,0,0" Click="Button_Click1"/>
+            <Button Content="勤務表修正" Height="70" FontSize="20" Margin="0,15,0,0" Click="Button_Click"/>
+
+            <Label Content="本日の当直" FontSize="22" FontWeight="Bold" Margin="0,30,0,10"/>
+            <DataGrid Height="230" d:ItemsSource="{d:SampleData ItemCount=5}"/>
+        </StackPanel>
+
+        <DataGrid Grid.Column="1" Margin="10" d:ItemsSource="{d:SampleData ItemCount=5}"/>
+
     </Grid>
 </Window>
