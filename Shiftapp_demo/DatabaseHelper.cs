@@ -6,6 +6,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Windows.Controls.Primitives;
 
 namespace Shiftapp_demo
 {
@@ -13,66 +14,37 @@ namespace Shiftapp_demo
     {
         private string _connectionString;
 
-        public DatabaseHelper(string databaseName = "RadiographerShifts.db")
+        public DatabaseHelper(string databaseName = "shiftapp.db")
         {
             // アプリケーションの実行ディレクトリにデータベースファイルを作成
             string dbPath = Path.Combine(Directory.GetCurrentDirectory(), databaseName);
             _connectionString = $"Data Source={dbPath}";
-
-            InitializeDatabase(); // データベースとテーブルが存在しない場合は作成
         }
 
-        private void InitializeDatabase()
-        {
-            using (var connection = new SqliteConnection(_connectionString))
-            {
-                connection.Open();
-                var command = connection.CreateCommand();
-
-                // 技師テーブルの作成
-                command.CommandText = @"
-                    CREATE TABLE IF NOT EXISTS Technicians (
-                        Id INTEGER PRIMARY KEY AUTOINCREMENT,
-                        Name TEXT NOT NULL,
-                        Contact TEXT
-                    );";
-                command.ExecuteNonQuery();
-
-                // 他のテーブル（休日、シフトなど）もここで作成
-                // 例:
-                // command.CommandText = @"
-                //    CREATE TABLE IF NOT EXISTS Holidays (
-                //        Id INTEGER PRIMARY KEY AUTOINCREMENT,
-                //        Date TEXT NOT NULL,
-                //        Description TEXT
-                //    );";
-                // command.ExecuteNonQuery();
-            }
-        }
-
-        // 技師を追加するメソッド
+        // 技師を追加するメソッド (新しいプロパティに合わせて修正)
         public void AddTechnician(Technician technician)
         {
             using (var connection = new SqliteConnection(_connectionString))
             {
                 connection.Open();
                 var command = connection.CreateCommand();
-                command.CommandText = "INSERT INTO Technicians (Name, Contact) VALUES (@Name, @Contact)";
+                command.CommandText = "INSERT INTO Technicians (Name, saturday_class, catheterization) VALUES (@Name, @saturday_class, @catheterization)";
                 command.Parameters.AddWithValue("@Name", technician.Name);
-                command.Parameters.AddWithValue("@Contact", technician.Contact);
+                command.Parameters.AddWithValue("@saturday_class", technician.saturday_class ?? (object)DBNull.Value); // null許容
+                command.Parameters.AddWithValue("@catheterization", technician.catheterization ?? (object)DBNull.Value); // null許容
                 command.ExecuteNonQuery();
             }
         }
 
-        // 全ての技師を取得するメソッド
-        public ObservableCollection<Technician> GetAllTechnicians()
+        // 全ての技師を取得するメソッド (新しいプロパティに合わせて修正)
+        public async Task< ObservableCollection<Technician>> GetAllTechnicians()
         {
             var technicians = new ObservableCollection<Technician>();
             using (var connection = new SqliteConnection(_connectionString))
             {
                 connection.Open();
                 var command = connection.CreateCommand();
-                command.CommandText = "SELECT Id, Name, Contact FROM Technicians";
+                command.CommandText = "SELECT Id, Name, saturday_class, catheterization FROM Technicians";
                 using (var reader = command.ExecuteReader())
                 {
                     while (reader.Read())
@@ -81,7 +53,8 @@ namespace Shiftapp_demo
                         {
                             Id = reader.GetInt32(0),
                             Name = reader.GetString(1),
-                            Contact = reader.IsDBNull(2) ? null : reader.GetString(2)
+                            saturday_class = reader.IsDBNull(2) ? null : reader.GetString(2),
+                            catheterization = reader.IsDBNull(3) ? null : reader.GetString(3)
                         });
                     }
                 }
@@ -89,7 +62,13 @@ namespace Shiftapp_demo
             return technicians;
         }
 
-        // 技師を検索するメソッド
+        public async Task<ObservableCollection<Technician>> GetTechniciansshift()
+        {
+            return await Task.Run(() => GetAllTechnicians()).ConfigureAwait(false);
+        }
+
+
+        // 技師を検索するメソッド (このメソッドはAdminWindow側で実装しているため、ここでは不要かもしれません)
         public ObservableCollection<Technician> SearchTechnicians(string keyword)
         {
             var technicians = new ObservableCollection<Technician>();
@@ -97,9 +76,10 @@ namespace Shiftapp_demo
             {
                 connection.Open();
                 var command = connection.CreateCommand();
-                // 名前に部分一致するものを検索
-                command.CommandText = "SELECT Id, Name, Contact FROM Technicians WHERE Name LIKE @Keyword OR Contact LIKE @Keyword";
-                command.Parameters.AddWithValue("@Keyword", $"%{keyword}%"); // 部分一致検索
+                // 新しいプロパティに合わせて検索対象を修正
+                command.CommandText = "SELECT employee_id, employee_name, saturday_class, CanDoCatherization " +
+                    "FROM employee WHERE employee_name LIKE @Keyword OR saturday_class LIKE @Keyword OR CanDoCatherization LIKE @Keyword";
+                command.Parameters.AddWithValue("@Keyword", $"%{keyword}%");
                 using (var reader = command.ExecuteReader())
                 {
                     while (reader.Read())
@@ -108,7 +88,8 @@ namespace Shiftapp_demo
                         {
                             Id = reader.GetInt32(0),
                             Name = reader.GetString(1),
-                            Contact = reader.IsDBNull(2) ? null : reader.GetString(2)
+                            saturday_class = reader.IsDBNull(2) ? null : reader.GetString(2),
+                            catheterization = reader.IsDBNull(3) ? null : reader.GetString(3)
                         });
                     }
                 }
@@ -116,7 +97,7 @@ namespace Shiftapp_demo
             return technicians;
         }
 
-        // 技師を削除するメソッド (例)
+        // 技師を削除するメソッド
         public void DeleteTechnician(int id)
         {
             using (var connection = new SqliteConnection(_connectionString))
@@ -129,16 +110,17 @@ namespace Shiftapp_demo
             }
         }
 
-        // 技師を更新するメソッド (例)
+        // 技師を更新するメソッド (新しいプロパティに合わせて修正)
         public void UpdateTechnician(Technician technician)
         {
             using (var connection = new SqliteConnection(_connectionString))
             {
                 connection.Open();
                 var command = connection.CreateCommand();
-                command.CommandText = "UPDATE Technicians SET Name = @Name, Contact = @Contact WHERE Id = @Id";
+                command.CommandText = "UPDATE Technicians SET Name = @Name, saturday_class = @saturday_class, catheterization = @catheterization WHERE Id = @Id";
                 command.Parameters.AddWithValue("@Name", technician.Name);
-                command.Parameters.AddWithValue("@Contact", technician.Contact);
+                command.Parameters.AddWithValue("@saturday_class", technician.saturday_class ?? (object)DBNull.Value);
+                command.Parameters.AddWithValue("@catheterization", technician.catheterization ?? (object)DBNull.Value);
                 command.Parameters.AddWithValue("@Id", technician.Id);
                 command.ExecuteNonQuery();
             }

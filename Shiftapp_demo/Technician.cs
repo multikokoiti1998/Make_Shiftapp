@@ -12,6 +12,9 @@ namespace Shiftapp_demo
     {
         public int Id { get; set; }
         public string Name { get; set; }
-        public string Contact { get; set; }
+
+        public string saturday_class { get; set; }
+
+        public string catheterization { get; set; }
     }
 }

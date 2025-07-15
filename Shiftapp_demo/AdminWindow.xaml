@@ -17,6 +17,8 @@
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
         <TextBlock Grid.Row="0" Text="技師情報管理" FontSize="20" FontWeight="Bold" Margin="0,0,0,10"/>
@@ -28,8 +30,8 @@
             <DataGrid.Columns>
                 <DataGridTextColumn Header="ID" Binding="{Binding Id}" IsReadOnly="True" Width="Auto"/>
                 <DataGridTextColumn Header="氏名" Binding="{Binding Name}" Width="*"/>
-                <DataGridTextColumn Header="土曜日勤務班" Binding="{Binding Contact}" Width="*"/>
-                <DataGridTextColumn Header="カテーテル対応可否" Binding="{Binding Contact}" Width="*"/>
+                <DataGridTextColumn Header="土曜日勤務班" Binding="{Binding saturday_class}" Width="*"/>
+                <DataGridTextColumn Header="カテーテル対応可否" Binding="{Binding catheterization}" Width="*"/>
             </DataGrid.Columns>
         </DataGrid>
 
@@ -46,7 +48,6 @@
             <Button Content="検索" Width="80" Margin="5" Click="SearchTechnicians_Click"/>
             <Button Content="選択技師編集" Padding="10,5" Margin="5" Click="EditSelectedTechnician_Click"/>
             <Button Content="選択技師削除" Padding="10,5" Margin="5" Click="DeleteSelectedTechnician_Click"/>
-            <Button Content="有給設定" Padding="10,5" Margin="5"/>
         </StackPanel>
 
         <DataGrid Grid.Row="5" x:Name="SearchResultsDataGrid"
@@ -56,7 +57,23 @@
                   IsReadOnly="True"
                   Margin="0,0,0,10"/>
 
-        <TextBlock Grid.Row="6" Text="年間休日設定" FontSize="20" FontWeight="Bold" Margin="0,20,0,10"/>
+        <TextBlock Grid.Row="6" Text="祝日設定" FontSize="20" FontWeight="Bold" Margin="0,20,0,10"/>
+
+
+        <DataGrid Grid.Row="7" x:Name="HolidaysDataGrid"
+                  AutoGenerateColumns="False"
+                  CanUserAddRows="False"
+                  CanUserDeleteRows="False"
+                  Margin="0,0,0,10">
+            <DataGrid.Columns>
+                <DataGridTextColumn Header="日付" Binding="{Binding Date, StringFormat=yyyy-MM-dd}" Width="*"/>
+            </DataGrid.Columns>
+        </DataGrid>
+
+        <StackPanel Grid.Row="8" Orientation="Horizontal" HorizontalAlignment="Right">
+            <Button Content="休日追加" Padding="10,5" Margin="5"/>
+            <Button Content="選択休日削除" Padding="10,5" Margin="5"/>
+        </StackPanel>
 
     </Grid>
 </Window>

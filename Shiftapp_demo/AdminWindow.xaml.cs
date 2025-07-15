@@ -50,11 +50,10 @@ namespace Shiftapp_demo
             string keyword = SearchKeywordTextBox.Text;
             SearchResults.Clear();
 
-            var sourceList = Technicians; // データベースに再アクセスする代わりに、メモリ上のリストを検索
+            var sourceList = Technicians;
 
             if (string.IsNullOrWhiteSpace(keyword))
             {
-                // キーワードが空の場合は、全技師を表示
                 foreach (var tech in sourceList)
                 {
                     SearchResults.Add(tech);
@@ -62,8 +61,12 @@ namespace Shiftapp_demo
             }
             else
             {
-                // 検索を実行
-                var results = sourceList.Where(t => t.Name.Contains(keyword) || (t.Contact != null && t.Contact.Contains(keyword)));
+                // 検索ロジックを新しいプロパティに合わせて修正
+                var results = sourceList.Where(t =>
+                    t.Name.Contains(keyword) ||
+                    (t.saturday_class != null && t.saturday_class.Contains(keyword)) ||
+                    (t.catheterization != null && t.catheterization.Contains(keyword))
+                );
                 foreach (var tech in results)
                 {
                     SearchResults.Add(tech);

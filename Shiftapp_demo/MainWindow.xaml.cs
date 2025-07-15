@@ -19,7 +19,6 @@ namespace Shiftapp_demo
         public MainWindow()
         {
             InitializeComponent();
-            
         }
 
         private void Button_Click(object sender, RoutedEventArgs e)
