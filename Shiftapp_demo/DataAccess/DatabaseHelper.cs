@@ -129,13 +129,10 @@ namespace Shiftapp_demo.DataAccess
 
             var command = connection.CreateCommand();
             command.CommandText = @"
-                UPDATE employee SET
-                    employee_name = @Name,
-                    saturday_class = @SaturdayClass,
-                    MonthlyDutyLimit = @Limit,
-                    CanDoCatheterization = @CanDo
-                WHERE employee_id = @Id";
-
+    SELECT *
+    FROM daily_employee_shifts
+    WHERE shift_date = '2025/07/07';
+";
             command.Parameters.AddWithValue("@Name", employee.EmployeeName);
             command.Parameters.AddWithValue("@SaturdayClass", employee.SaturdayClass);
             command.Parameters.AddWithValue("@Limit", employee.MonthlyDutyLimit);
@@ -154,18 +151,19 @@ namespace Shiftapp_demo.DataAccess
 
             var command = connection.CreateCommand();
             command.CommandText = @"
-        SELECT e.employee_id, e.employee_name, s.shift_date, t.symbol
-        FROM daily_employee_shifts s
-        JOIN employee e ON s.employee_id = e.employee_id
-        JOIN shift_types t ON s.shift_type_id = t.shift_type_id
-        WHERE DATE(s.shift_date) BETWEEN DATE(@start) AND DATE(@end)
-        ORDER BY e.employee_id, s.shift_date
-    ";
+    SELECT e.employee_id, e.employee_name, s.shift_date, t.symbol
+    FROM daily_employee_shifts s
+    JOIN employee e ON s.employee_id = e.employee_id
+    JOIN shift_types t ON s.shift_type_id = t.shift_type_id
+    WHERE DATE(s.shift_date) BETWEEN DATE(@start) AND DATE(@end)
+";
 
-            command.Parameters.AddWithValue("@start", startDate.Date);
-            command.Parameters.AddWithValue("@end", endDate.Date);
+            command.Parameters.AddWithValue("@start", startDate.ToString("yyyy-MM-dd"));
+            command.Parameters.AddWithValue("@end", endDate.ToString("yyyy-MM-dd"));
+
 
             using var reader = command.ExecuteReader();
+            Console.WriteLine("HasRows: " + reader.HasRows);
             while (reader.Read())
             {
                 result.Add(new Shift
@@ -173,7 +171,7 @@ namespace Shiftapp_demo.DataAccess
                     EmployeeId = reader.GetInt32(0),
                     EmployeeName = reader.GetString(1),
                     ShiftDate = DateTime.Parse(reader.GetString(2)),
-                    Symbol = reader.GetString(3)
+
                 });
             }
 
