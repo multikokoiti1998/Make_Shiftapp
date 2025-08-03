@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 using System.Drawing;
 
 
-namespace Shiftapp_demo
+namespace Shiftapp_demo.DataAccess
 {
     class GridHelperClass
     {

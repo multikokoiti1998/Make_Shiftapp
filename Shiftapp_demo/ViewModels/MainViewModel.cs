@@ -1,14 +1,11 @@
 ﻿// MainViewModel.cs
-using System;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
-using System.Linq;
 using System.Windows.Input; // ICommand用
-using System.Windows.Controls; // DataGridColumn, TextBlock を参照するため
+using System.Windows.Controls;
+using Shiftapp_demo.Business; // DataGridColumn, TextBlock を参照するため
 
 // モデルとデータアクセス層のNamespaceを追加
-using Shiftapp_demo.Models;
-using Shiftapp_demo.DataAccess;
 
 namespace Shiftapp_demo.ViewModels
 {
@@ -16,9 +13,9 @@ namespace Shiftapp_demo.ViewModels
     {
         private ShiftDataLoader _dataLoader; // Model層 (データアクセス)
         
-        // DataGridのItemsSourceにバインド
-        private ObservableCollection<ShiftData> _shiftDataCollection;
-        public ObservableCollection<ShiftData> ShiftDataCollection
+        // DataGridのItemsSourceにバインド グリッドの行データを保持
+        private ObservableCollection<ShiftDataLoader> _shiftDataCollection;
+        public ObservableCollection<ShiftDataLoader> ShiftDataCollection
         {
             get { return _shiftDataCollection; }
             set
@@ -76,14 +73,11 @@ namespace Shiftapp_demo.ViewModels
         public MainViewModel()
         {
             // DBパスはここでViewModelに渡すか、設定ファイルから読み込む
-            _dataLoader = new ShiftDataLoader("C:\\path\\to\\your\\shift_db.sqlite"); 
-            ShiftDataCollection = new ObservableCollection<ShiftData>();
+            _dataLoader = new ShiftDataLoader(); 
+            ShiftDataCollection = new ObservableCollection<ShiftDataLoader>();
             ShiftGridColumns = new ObservableCollection<DataGridColumn>(); // 列コレクションの初期化
             
-            // カレンダーの初期選択範囲はView側で設定し、ViewModelのSelectedDatesにバインドする
-            // その後、SelectedDates_CollectionChangedイベントでUpdateHeaderAndLoadDataが呼ばれる
 
-            // LoadShiftCommand = new RelayCommand(param => LoadShiftData());
         }
 
         // SelectedDatesコレクションの変更を監視するためのイベントハンドラ
@@ -149,13 +143,7 @@ namespace Shiftapp_demo.ViewModels
             }
             ShiftGridColumns = columns; // 生成した列コレクションをViewModelのプロパティに設定
 
-            // データをロード
-            var loadedData = _dataLoader.LoadShiftData(currentStartDate, currentEndDate);
-            ShiftDataCollection.Clear();
-            foreach (var item in loadedData)
-            {
-                ShiftDataCollection.Add(item);
-            }
+      
         }
 
         // INotifyPropertyChanged の実装

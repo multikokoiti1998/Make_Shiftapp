@@ -1,4 +1,6 @@
-﻿using System.Collections.ObjectModel;
+﻿using Shiftapp_demo.DataAccess;
+using Shiftapp_demo.Models;
+using System.Collections.ObjectModel;
 using System.Windows;
 
 namespace Shiftapp_demo

@@ -5,26 +5,6 @@ VisualStudioVersion = 17.14.36109.1
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Shiftapp_demo", "Shiftapp_demo\Shiftapp_demo.csproj", "{4588F4FB-075D-46B9-9E55-EFDEAD2FA696}"
 EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "View_Layyer", "View_Layyer", "{DDB4EF12-CC4E-5E88-E6FC-71A802F4DE97}"
-	ProjectSection(SolutionItems) = preProject
-		Shiftapp_demo\AdminWindow.xaml = Shiftapp_demo\AdminWindow.xaml
-		Shiftapp_demo\AdminWindow.xaml.cs = Shiftapp_demo\AdminWindow.xaml.cs
-		Shiftapp_demo\MainWindow.xaml = Shiftapp_demo\MainWindow.xaml
-		Shiftapp_demo\MainWindow.xaml.cs = Shiftapp_demo\MainWindow.xaml.cs
-	EndProjectSection
-EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Business Logic Layer", "Business Logic Layer", "{3F806F86-E400-422E-99CB-40ECC768EDEB}"
-	ProjectSection(SolutionItems) = preProject
-		Shiftapp_demo\ShiftDataLoader.cs = Shiftapp_demo\ShiftDataLoader.cs
-	EndProjectSection
-EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Data Access Layer", "Data Access Layer", "{4CF76C5E-01C5-4A8C-BD72-A2657AB8077B}"
-	ProjectSection(SolutionItems) = preProject
-		Shiftapp_demo\DatabaseHelper.cs = Shiftapp_demo\DatabaseHelper.cs
-		Shiftapp_demo\Holiday.cs = Shiftapp_demo\Holiday.cs
-		Shiftapp_demo\Technician.cs = Shiftapp_demo\Technician.cs
-	EndProjectSection
-EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU

@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 
-namespace Shiftapp_demo
+namespace Shiftapp_demo.Models
 {
     public class Holiday
     {
