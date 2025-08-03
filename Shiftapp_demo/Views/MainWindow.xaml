@@ -6,14 +6,11 @@
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:local="clr-namespace:Shiftapp_demo"
     xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
-    xmlns:vm="clr-namespace:Shiftapp_demo.ViewModels" mc:Ignorable="d"
+    xmlns:vm="clr-namespace:Shiftapp_demo.ViewModels" d:DataContext="{d:DesignInstance Type=vm:MainViewModel}" mc:Ignorable="d"
     Title="MainWindow"
     WindowState="Maximized"
     MinHeight="600" MinWidth="800">
 
-    <Window.DataContext>
-        <vm:MainViewModel/>
-    </Window.DataContext>
 
     <Grid>
         <Grid.ColumnDefinitions>
@@ -31,6 +28,7 @@
                       FontSize="24"
                       Style="{DynamicResource MaterialDesignCalendarPortrait}"
                       CalendarDayButtonStyle="{DynamicResource MaterialDesignFlatButton}"
+                      DisplayDateChanged="ShiftCalendar_DisplayDateChanged"
                       SelectionMode="MultipleRange">
             </Calendar>
 

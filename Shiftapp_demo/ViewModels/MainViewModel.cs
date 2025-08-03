@@ -1,9 +1,11 @@
 ﻿// MainViewModel.cs
+using Shiftapp_demo.Business; // DataGridColumn, TextBlock を参照するため
 using System.Collections.ObjectModel;
 using System.ComponentModel;
-using System.Windows.Input; // ICommand用
 using System.Windows.Controls;
-using Shiftapp_demo.Business; // DataGridColumn, TextBlock を参照するため
+using System.Windows.Input; // ICommand用
+using Shiftapp_demo.DataAccess; // DatabaseHelperを参照するため
+
 
 // モデルとデータアクセス層のNamespaceを追加
 
@@ -25,9 +27,6 @@ namespace Shiftapp_demo.ViewModels
             }
         }
 
-        // DataGridの列コレクションにバインド (UI固有の要素を含むため注意が必要)
-        // 通常はViewModelにUI要素を含めないが、DataGridの動的列生成は特殊
-        // もしくは、コードビハインドで列生成のみ行う
         private ObservableCollection<DataGridColumn> _shiftGridColumns;
         public ObservableCollection<DataGridColumn> ShiftGridColumns
         {
@@ -63,21 +62,19 @@ namespace Shiftapp_demo.ViewModels
             set
             {
                 _monthHeaderText = value;
+
                 OnPropertyChanged(nameof(MonthHeaderText));
             }
         }
-
-        // コマンド (今回は使わないが、ボタンクリックなどに利用)
-        public ICommand LoadShiftCommand { get; private set; }
 
         public MainViewModel()
         {
             // DBパスはここでViewModelに渡すか、設定ファイルから読み込む
             _dataLoader = new ShiftDataLoader(); 
-            ShiftDataCollection = new ObservableCollection<ShiftDataLoader>();
-            ShiftGridColumns = new ObservableCollection<DataGridColumn>(); // 列コレクションの初期化
-            
 
+            ShiftDataCollection = new ObservableCollection<ShiftDataLoader>();
+
+            ShiftGridColumns = new ObservableCollection<DataGridColumn>(); // 列コレクションの初期化
         }
 
         // SelectedDatesコレクションの変更を監視するためのイベントハンドラ
@@ -112,11 +109,34 @@ namespace Shiftapp_demo.ViewModels
                 MonthHeaderText = $"{currentStartDate.Year}年 {currentStartDate.Month}月 - {currentEndDate.Month}月";
             }
 
+            // 1. シフトデータを取得（DatabaseHelper を内部に持つようにしておく）
+            var db = new DatabaseHelper();
+            var shifts = db.GetShifts(currentStartDate, currentEndDate);
+
+            // 2. 従業員ごとの辞書にまとめる
+            var grouped = shifts
+                .GroupBy(s => new { s.EmployeeId, s.EmployeeName })
+                .Select(g =>
+                {
+                    var loader = new ShiftDataLoader
+                    {
+                        EmployeeId = g.Key.EmployeeId,
+                        EmployeeName = g.Key.EmployeeName
+                    };
+
+                    foreach (var shift in g)
+                    {
+                        loader.Shifts[shift.ShiftDate] = shift.Symbol;
+                    }
+
+                    return loader;
+                }).ToList();
+
+            // 3. ViewModelに反映
+            ShiftDataCollection = new ObservableCollection<ShiftDataLoader>(grouped);
+
             // DataGridの列を生成
-            // ViewModelからUI要素（DataGridColumn, TextBlock, DataTemplate, FrameworkElementFactory）を直接生成するのは、
-            // MVVMの原則に厳密には反するが、DataGridの動的列生成はこのパターンがよく使われる。
-            // もしくは、列生成はコードビハインドに残し、データコレクションのみViewModelから取得する。
-            // ここではViewModelで全て生成する例を示す。
+
             var columns = new ObservableCollection<DataGridColumn>();
             columns.Add(new DataGridTextColumn { Header = "ID", Binding = new System.Windows.Data.Binding("EmployeeId"), Width = DataGridLength.Auto });
             columns.Add(new DataGridTextColumn { Header = "従業員名", Binding = new System.Windows.Data.Binding("EmployeeName"), Width = DataGridLength.Auto });
@@ -153,7 +173,4 @@ namespace Shiftapp_demo.ViewModels
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
         }
     }
-
-    // 必要に応じてRelayCommandなどのICommand実装クラスを定義 (例: MVVM Light Toolkitなどを使用しない場合)
-    // public class RelayCommand : ICommand { /* ... */ }
 }

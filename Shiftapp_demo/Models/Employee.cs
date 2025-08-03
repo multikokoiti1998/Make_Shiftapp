@@ -1,38 +1,36 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using System.ComponentModel;
-using System.Runtime.CompilerServices;
 
 namespace Shiftapp_demo.Models
 {
     public class Employee
     {
-        public int Id { get; set; }
-        public string Name { get; set; }
+        // --- データベースの employee テーブルと対応 ---
 
-        // --- 属性（固定情報） ---
-        public string? SaturdayClass { get; set; }         // A班 or B班
-        public bool CanDoCatheterization { get; set; }     // カテ可否
+        public int EmployeeId { get; set; }               // DB: employee_id
+        public string EmployeeName { get; set; } = "";    // DB: employee_name
 
-        // --- シフト状況（動的） ---
+        public String  SaturdayClass { get; set; }            // DB: saturday_class（例: 0=A班, 1=B班）
+        public int MonthlyDutyLimit { get; set; }         // DB: MonthlyDutyLimit（最大勤務数）
+        public bool CanDoCatheterization { get; set; }    // DB: CanDoCatheterization（0 or 1 → bool）
+
+        // --- シフト状況の辞書（動的データ） ---
         public Dictionary<DateTime, string> ShiftMap { get; set; } = new();
 
+        // --- インデクサー：日付から直接シフト記号を取得・設定 ---
         public string this[DateTime date]
         {
             get => ShiftMap.TryGetValue(date, out var v) ? v : "";
             set => ShiftMap[date] = value;
         }
 
-        // --- 月間の当直回数を計算するためのプロパティ ---
+        // --- 月間の当直回数（A・B）を数える ---
         public int GetDutyCount(DateTime month)
         {
             return ShiftMap.Count(kv =>
                 kv.Key.Year == month.Year &&
                 kv.Key.Month == month.Month &&
-                (kv.Value == "A" || kv.Value == "B")); // 当直とするシフト名に応じて調整
+                (kv.Value == "当" )); // A or Bが当直とみなす
         }
     }
 }
