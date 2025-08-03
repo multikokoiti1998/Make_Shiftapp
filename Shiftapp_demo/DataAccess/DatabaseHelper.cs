@@ -24,7 +24,7 @@ namespace Shiftapp_demo.DataAccess
         }
 
         // 技師を追加するメソッド (新しいプロパティに合わせて修正)
-        public void AddTechnician(Technician technician)
+        public void AddTechnician(Employee technician)
         {
             using (var connection = new SqliteConnection(_connectionString))
             {
@@ -40,9 +40,9 @@ namespace Shiftapp_demo.DataAccess
 
 
         // 全ての技師を取得するメソッド (新しいプロパティに合わせて修正)
-        public async Task<ObservableCollection<Technician>> GetAllTechnicians()
+        public async Task<ObservableCollection<Employee>> GetAllTechnicians()
         {
-            var technicians = new ObservableCollection<Technician>();
+            var technicians = new ObservableCollection<Employee>();
             using (var connection = new SqliteConnection(_connectionString))
             {
                 connection.Open();
@@ -52,7 +52,7 @@ namespace Shiftapp_demo.DataAccess
                 {
                     while (reader.Read())
                     {
-                        technicians.Add(new Technician
+                        technicians.Add(new Employee
                         {
                             Id = reader.GetInt32(0),
                             Name = reader.GetString(1),
@@ -69,9 +69,9 @@ namespace Shiftapp_demo.DataAccess
 
 
         // 技師を検索するメソッド (このメソッドはAdminWindow側で実装しているため、ここでは不要かもしれません)
-        public ObservableCollection<Technician> SearchTechnicians(string keyword)
+        public ObservableCollection<Employee> SearchTechnicians(string keyword)
         {
-            var technicians = new ObservableCollection<Technician>();
+            var technicians = new ObservableCollection<Employee>();
             using (var connection = new SqliteConnection(_connectionString))
             {
                 connection.Open();
@@ -89,7 +89,7 @@ namespace Shiftapp_demo.DataAccess
                 {
                     while (reader.Read())
                     {
-                        technicians.Add(new Technician
+                        technicians.Add(new Employee
                         {
                             Id = reader.GetInt32(0),
                             Name = reader.GetString(1),
@@ -118,7 +118,7 @@ namespace Shiftapp_demo.DataAccess
 
 
         // 技師を更新するメソッド (新しいプロパティに合わせて修正)
-        public void UpdateTechnician(Technician technician)
+        public void UpdateTechnician(Employee technician)
         {
             using (var connection = new SqliteConnection(_connectionString))
             {

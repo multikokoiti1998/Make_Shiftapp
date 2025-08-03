@@ -8,7 +8,7 @@ using System.Runtime.CompilerServices;
 
 namespace Shiftapp_demo.Models
 {
-    public class Technician
+    public class Employee
     {
         public int Id { get; set; }
         public string Name { get; set; }

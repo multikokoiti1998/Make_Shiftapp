@@ -8,8 +8,8 @@ namespace Shiftapp_demo
     public partial class AdminWindow : Window
     {
         private DatabaseHelper _dbHelper;
-        public ObservableCollection<Technician> Technicians { get; set; }
-        public ObservableCollection<Technician> SearchResults { get; set; } // 検索結果用
+        public ObservableCollection<Employee> Technicians { get; set; }
+        public ObservableCollection<Employee> SearchResults { get; set; } // 検索結果用
         public ObservableCollection<Holiday> Holidays { get; set; }
 
         public AdminWindow()
@@ -25,7 +25,7 @@ namespace Shiftapp_demo
                 TechniciansDataGrid.ItemsSource = Technicians;
 
                 // 検索結果の初期化
-                SearchResults = new ObservableCollection<Technician>();
+                SearchResults = new ObservableCollection<Employee>();
                 SearchResultsDataGrid.ItemsSource = SearchResults;
 
                 // 休日データのロード (仮)
@@ -79,7 +79,7 @@ namespace Shiftapp_demo
         // 「選択技師削除」ボタンのクリックイベント
         private void DeleteSelectedTechnician_Click(object sender, RoutedEventArgs e)
         {
-            if (TechniciansDataGrid.SelectedItem is Technician selectedTechnician)
+            if (TechniciansDataGrid.SelectedItem is Employee selectedTechnician)
             {
                 MessageBoxResult result = MessageBox.Show(
                     $"{selectedTechnician.Name} を削除しますか？",
@@ -110,7 +110,7 @@ namespace Shiftapp_demo
         // 「選択技師編集」ボタンのクリックイベント
         private void EditSelectedTechnician_Click(object sender, RoutedEventArgs e)
         {
-            if (TechniciansDataGrid.SelectedItem is Technician selectedTechnician)
+            if (TechniciansDataGrid.SelectedItem is Employee selectedTechnician)
             {
                 MessageBox.Show($"{selectedTechnician.Name} の編集機能を実装してください。", "TODO", MessageBoxButton.OK, MessageBoxImage.Information);
             }

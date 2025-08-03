@@ -59,8 +59,9 @@
                       CanUserAddRows="False"
                       CanUserDeleteRows="False"
                       IsReadOnly="True"
-                      ItemsSource="{Binding ShiftDataCollection}"
-                      Columns="{Binding ShiftGridColumns}"></DataGrid>
+                      ItemsSource="{Binding ShiftDataCollection}">
+                
+            </DataGrid>
         </Grid>
     </Grid>
 </Window>
