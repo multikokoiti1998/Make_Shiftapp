@@ -40,19 +40,19 @@ namespace Shiftapp_demo.ViewModels
 
         // カレンダーの選択範囲にバインド
         // ObservableCollection<DateTime> もしくは、Min/Maxをプロパティとして持つ
-        private ObservableCollection<DateTime> _selectedDates;
-        public ObservableCollection<DateTime> SelectedDates
-        {
-            get { return _selectedDates; }
-            set
-            {
-                if (_selectedDates != null) _selectedDates.CollectionChanged -= SelectedDates_CollectionChanged;
-                _selectedDates = value;
-                if (_selectedDates != null) _selectedDates.CollectionChanged += SelectedDates_CollectionChanged;
-                OnPropertyChanged(nameof(SelectedDates));
-                UpdateHeaderAndLoadData(); // 日付変更時にデータロード
-            }
-        }
+        //private ObservableCollection<DateTime> _selectedDates;
+        //public ObservableCollection<DateTime> SelectedDates
+        //{
+        //    get { return _selectedDates; }
+        //    set
+        //    {
+        //        if (_selectedDates != null) _selectedDates.CollectionChanged -= SelectedDates_CollectionChanged;
+        //        _selectedDates = value;
+        //        if (_selectedDates != null) _selectedDates.CollectionChanged += SelectedDates_CollectionChanged;
+        //        OnPropertyChanged(nameof(SelectedDates));
+        //        UpdateHeaderAndLoadData(); // 日付変更時にデータロード
+        //    }
+        //}
 
         // 月ヘッダーのテキストにバインド
         private string _monthHeaderText;

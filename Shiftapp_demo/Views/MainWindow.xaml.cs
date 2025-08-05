@@ -1,9 +1,10 @@
 ﻿// MainWindow.xaml.cs
+using Shiftapp_demo.Helper;
+using Shiftapp_demo.ViewModels;
+using System.Linq; // For Min/Max on SelectedDates
 using System.Windows;
 using System.Windows.Controls;
-using System.Linq; // For Min/Max on SelectedDates
-
-using Shiftapp_demo.ViewModels;
+using static MaterialDesignThemes.Wpf.Theme;
 
 namespace Shiftapp_demo.Views
 {
@@ -40,6 +41,15 @@ namespace Shiftapp_demo.Views
             foreach (var column in ViewModel.ShiftGridColumns)
             {
                 ShiftDataGrid.Columns.Add(column);
+            }
+
+            // ★ DataGrid.Columns を ViewModel から追加（xamlには Columns={} は不要！
+            var columns = GridHelperClass.GenerateColumnsForMonth(firstDayOfMonth);
+            ViewModel.ShiftGridColumns = columns;
+            ShiftDataGrid.Columns.Clear();
+            foreach (var col in ViewModel.ShiftGridColumns)
+            {
+                ShiftDataGrid.Columns.Add(col);
             }
 
         }
