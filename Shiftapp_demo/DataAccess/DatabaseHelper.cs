@@ -158,7 +158,7 @@ namespace Shiftapp_demo.DataAccess
     WHERE DATE(s.shift_date) BETWEEN DATE(@start) AND DATE(@end)
 ";
 
-            command.Parameters.AddWithValue("@start", startDate.ToString("yyyy-MM-dd"));
+            command.Parameters.AddWithValue("@start", startDate.ToString("yyyy-MM-dd")); //startに値追加
             command.Parameters.AddWithValue("@end", endDate.ToString("yyyy-MM-dd"));
 
 
@@ -171,11 +171,12 @@ namespace Shiftapp_demo.DataAccess
                     EmployeeId = reader.GetInt32(0),
                     EmployeeName = reader.GetString(1),
                     ShiftDate = DateTime.Parse(reader.GetString(2)),
+                    Symbol = reader.GetString(3)
 
                 });
             }
 
-            return result;
+            return result; 
         }
 
 

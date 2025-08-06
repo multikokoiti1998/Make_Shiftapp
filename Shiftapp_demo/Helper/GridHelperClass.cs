@@ -43,12 +43,12 @@ namespace Shiftapp_demo.Helper
                 var col = new DataGridTemplateColumn();
                 col.Header = d.Day.ToString();
 
-                var factory = new FrameworkElementFactory(typeof(TextBlock));
-                factory.SetBinding(TextBlock.TextProperty, new Binding($"Shifts[{d.Date}]"));
+                //var factory = new FrameworkElementFactory(typeof(TextBlock));
+                //factory.SetBinding(TextBlock.TextProperty, new Binding($"{d.Date}"));
 
-                factory.SetValue(FrameworkElement.HorizontalAlignmentProperty, HorizontalAlignment.Center);
-                col.CellTemplate = new DataTemplate { VisualTree = factory };
-                col.Width = new DataGridLength(30);
+                //factory.SetValue(FrameworkElement.HorizontalAlignmentProperty, HorizontalAlignment.Center);
+                //col.CellTemplate = new DataTemplate { VisualTree = factory };
+                //col.Width = new DataGridLength(30);
 
                 columns.Add(col);
             }

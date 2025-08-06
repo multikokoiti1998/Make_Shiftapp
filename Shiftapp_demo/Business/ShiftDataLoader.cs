@@ -20,17 +20,6 @@ namespace Shiftapp_demo.Business
             }
         }
 
-        // インデクサー：DataGrid動的列のBindingに使う
-        public string this[DateTime date]
-        {
-            get => _shifts.TryGetValue(date.Date, out var val) ? val : "";
-            set
-            {
-                _shifts[date.Date] = value;
-                OnPropertyChanged($"Item[{date.Date}]");
-            }
-        }
-
         public event PropertyChangedEventHandler PropertyChanged;
         protected void OnPropertyChanged(string propertyName)
         {

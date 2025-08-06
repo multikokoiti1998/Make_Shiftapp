@@ -1,10 +1,11 @@
 ﻿// MainViewModel.cs
 using Shiftapp_demo.Business; // DataGridColumn, TextBlock を参照するため
+using Shiftapp_demo.DataAccess; // DatabaseHelperを参照するため
+using Shiftapp_demo.Helper;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Windows.Controls;
 using System.Windows.Input; // ICommand用
-using Shiftapp_demo.DataAccess; // DatabaseHelperを参照するため
 
 
 // モデルとデータアクセス層のNamespaceを追加
@@ -38,21 +39,7 @@ namespace Shiftapp_demo.ViewModels
             }
         }
 
-        // カレンダーの選択範囲にバインド
-        // ObservableCollection<DateTime> もしくは、Min/Maxをプロパティとして持つ
-        //private ObservableCollection<DateTime> _selectedDates;
-        //public ObservableCollection<DateTime> SelectedDates
-        //{
-        //    get { return _selectedDates; }
-        //    set
-        //    {
-        //        if (_selectedDates != null) _selectedDates.CollectionChanged -= SelectedDates_CollectionChanged;
-        //        _selectedDates = value;
-        //        if (_selectedDates != null) _selectedDates.CollectionChanged += SelectedDates_CollectionChanged;
-        //        OnPropertyChanged(nameof(SelectedDates));
-        //        UpdateHeaderAndLoadData(); // 日付変更時にデータロード
-        //    }
-        //}
+
 
         // 月ヘッダーのテキストにバインド
         private string _monthHeaderText;
@@ -77,43 +64,19 @@ namespace Shiftapp_demo.ViewModels
             ShiftGridColumns = new ObservableCollection<DataGridColumn>(); // 列コレクションの初期化
         }
 
-        // SelectedDatesコレクションの変更を監視するためのイベントハンドラ
-        private void SelectedDates_CollectionChanged(object sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
+        public void LoadShiftDataForMonth(DateTime month)
         {
-            UpdateHeaderAndLoadData();
-        }
+            DateTime firstDay = new DateTime(month.Year, month.Month, 1);
+            DateTime lastDay = firstDay.AddMonths(1).AddDays(-1);
 
-        // データをロードし、ヘッダーと列を更新するメインメソッド
-        private void UpdateHeaderAndLoadData()
-        {
-            if (SelectedDates == null || SelectedDates.Count == 0)
-            {
-                ShiftDataCollection.Clear();
-                ShiftGridColumns.Clear();
-                ShiftGridColumns.Add(new DataGridTextColumn { Header = "ID", Binding = new System.Windows.Data.Binding("EmployeeId"), Width = DataGridLength.Auto });
-                ShiftGridColumns.Add(new DataGridTextColumn { Header = "従業員名", Binding = new System.Windows.Data.Binding("EmployeeName"), Width = DataGridLength.Auto });
-                MonthHeaderText = "日付を選択してください";
-                return;
-            }
+            // ヘッダー表示
+            MonthHeaderText = $"{month.Year}年 {month.Month}月";
 
-            DateTime currentStartDate = SelectedDates.Min().Date;
-            DateTime currentEndDate = SelectedDates.Max().Date;
-
-            // 月ヘッダーのテキストを設定
-            if (currentStartDate.Month == currentEndDate.Month && currentStartDate.Year == currentEndDate.Year)
-            {
-                MonthHeaderText = $"{currentStartDate.Year}年 {currentStartDate.Month}月";
-            }
-            else
-            {
-                MonthHeaderText = $"{currentStartDate.Year}年 {currentStartDate.Month}月 - {currentEndDate.Month}月";
-            }
-
-            // 1. シフトデータを取得（DatabaseHelper を内部に持つようにしておく）
+            // DB取得
             var db = new DatabaseHelper();
-            var shifts = db.GetShifts(currentStartDate, currentEndDate);
+            var shifts = db.GetShifts(firstDay, lastDay);
 
-            // 2. 従業員ごとの辞書にまとめる
+            // グループ化
             var grouped = shifts
                 .GroupBy(s => new { s.EmployeeId, s.EmployeeName })
                 .Select(g =>
@@ -132,39 +95,12 @@ namespace Shiftapp_demo.ViewModels
                     return loader;
                 }).ToList();
 
-            // 3. ViewModelに反映
             ShiftDataCollection = new ObservableCollection<ShiftDataLoader>(grouped);
 
-            // DataGridの列を生成
-
-            var columns = new ObservableCollection<DataGridColumn>();
-            columns.Add(new DataGridTextColumn { Header = "ID", Binding = new System.Windows.Data.Binding("EmployeeId"), Width = DataGridLength.Auto });
-            columns.Add(new DataGridTextColumn { Header = "従業員名", Binding = new System.Windows.Data.Binding("EmployeeName"), Width = DataGridLength.Auto });
-
-            for (DateTime date = currentStartDate; date <= currentEndDate; date = date.AddDays(1))
-            {
-                DataGridTemplateColumn dateColumn = new DataGridTemplateColumn();
-                dateColumn.Header = date.Day.ToString();
-                
-                // BindingOperations.SetBinding を使用してBindingを設定（UIスレッドで実行する必要がある場合など）
-                // FrameworkElementFactory は XAML でのインスタンス化を模倣している
-                System.Windows.FrameworkElementFactory textBlockFactory = new System.Windows.FrameworkElementFactory(typeof(TextBlock));
-                textBlockFactory.SetBinding(TextBlock.TextProperty, new System.Windows.Data.Binding($"[{date.Date}]")); 
-
-                textBlockFactory.SetValue(TextBlock.HorizontalAlignmentProperty, System.Windows.HorizontalAlignment.Center);
-                textBlockFactory.SetValue(TextBlock.VerticalAlignmentProperty, System.Windows.VerticalAlignment.Center);
-
-                System.Windows.DataTemplate cellTemplate = new System.Windows.DataTemplate();
-                cellTemplate.VisualTree = textBlockFactory;
-                dateColumn.CellTemplate = cellTemplate;
-                dateColumn.Width = new DataGridLength(30);
-
-                columns.Add(dateColumn);
-            }
-            ShiftGridColumns = columns; // 生成した列コレクションをViewModelのプロパティに設定
-
-      
+            // 列生成
+            ShiftGridColumns = GridHelperClass.GenerateColumnsForMonth(month);
         }
+
 
         // INotifyPropertyChanged の実装
         public event PropertyChangedEventHandler PropertyChanged;
