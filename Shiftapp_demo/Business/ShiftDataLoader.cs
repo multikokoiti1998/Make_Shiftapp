@@ -9,8 +9,8 @@ namespace Shiftapp_demo.Business
         public int EmployeeId { get; set; }
         public string EmployeeName { get; set; }
 
-        private Dictionary<DateTime, string> _shifts = new();
-        public Dictionary<DateTime, string> Shifts
+        private Dictionary<string, string> _shifts = new();
+        public Dictionary<string, string> Shifts
         {
             get => _shifts;
             set

@@ -170,7 +170,7 @@ namespace Shiftapp_demo.DataAccess
                 {
                     EmployeeId = reader.GetInt32(0),
                     EmployeeName = reader.GetString(1),
-                    ShiftDate = DateTime.Parse(reader.GetString(2)),
+                    ShiftDate = DateTime.Parse(reader.GetString(2)).Date,
                     Symbol = reader.GetString(3)
 
                 });

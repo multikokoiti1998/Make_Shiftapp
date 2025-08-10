@@ -89,16 +89,17 @@ namespace Shiftapp_demo.ViewModels
 
                     foreach (var shift in g)
                     {
-                        loader.Shifts[shift.ShiftDate] = shift.Symbol;
+                        loader.Shifts[shift.ShiftDate.ToString("yyyy-MM-dd")] = shift.Symbol;
                     }
-
-                    return loader;
+                        return loader;
                 }).ToList();
 
+            //一人ひとりのシフトデータをShiftDataCollectionに設定
+            //DataGrid.Columnsにaddしてセットする
             ShiftDataCollection = new ObservableCollection<ShiftDataLoader>(grouped);
-
-            // 列生成
-            ShiftGridColumns = GridHelperClass.GenerateColumnsForMonth(month);
+            
+           //UIにバインディングされている、月の列を作成
+            ShiftGridColumns = GridHelperClass.GenerateColumnsForMonth(month);// 月の列を生成
         }
 
 

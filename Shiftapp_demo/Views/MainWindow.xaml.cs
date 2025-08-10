@@ -28,6 +28,7 @@ namespace Shiftapp_demo.Views
 
             // 列の更新
             ShiftDataGrid.Columns.Clear();
+
             foreach (var col in ViewModel.ShiftGridColumns)
             {
                 ShiftDataGrid.Columns.Add(col);
