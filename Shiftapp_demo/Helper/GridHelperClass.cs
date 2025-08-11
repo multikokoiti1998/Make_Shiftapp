@@ -40,16 +40,13 @@ namespace Shiftapp_demo.Helper
 
             for (DateTime d = firstDay; d <= lastDay; d = d.AddDays(1))
             {
-                var col = new DataGridTemplateColumn();
-                col.Header = d.Day.ToString();
-
-                //var factory = new FrameworkElementFactory(typeof(TextBlock));
-                //factory.SetBinding(TextBlock.TextProperty, new Binding($"{d.Date}"));
-
-                //factory.SetValue(FrameworkElement.HorizontalAlignmentProperty, HorizontalAlignment.Center);
-                //col.CellTemplate = new DataTemplate { VisualTree = factory };
-                //col.Width = new DataGridLength(30);
-
+                var col = new DataGridTextColumn
+                {
+                    Header = d.Day.ToString(),
+                    // ★ ここが肝：Shifts[yyyy-MM-dd] にバインド
+                    Binding = new Binding($"Shifts[{d:yyyy-MM-dd}]"),
+                    Width = new DataGridLength(30)
+                };
                 columns.Add(col);
             }
 
