@@ -66,41 +66,50 @@ namespace Shiftapp_demo.ViewModels
 
         public void LoadShiftDataForMonth(DateTime month)
         {
-            DateTime firstDay = new DateTime(month.Year, month.Month, 1);
-            DateTime lastDay = firstDay.AddMonths(1).AddDays(-1);
+            var firstDay = new DateTime(month.Year, month.Month, 1);
+            var lastDay = firstDay.AddMonths(1).AddDays(-1);
 
-            // ヘッダー表示
+            // ヘッダー
             MonthHeaderText = $"{month.Year}年 {month.Month}月";
 
-            // DB取得
             var db = new DatabaseHelper();
-            var shifts = db.GetShifts(firstDay, lastDay);
 
-            //グループ化
-           var grouped = shifts
-               .GroupBy(s => new { s.EmployeeId, s.EmployeeName })
-               .Select(g =>
-               {
-                   var loader = new ShiftDataLoader
-                   {
-                       EmployeeId = g.Key.EmployeeId,
-                       EmployeeName = g.Key.EmployeeName
-                   };
+            // 1) 全社員（ID／名前）を取得
+            var employees = db.GetAllEmployees(); // List<Employee> { EmployeeId, EmployeeName }
 
-                   foreach (var shift in g)
-                   {
-                       loader.Shifts[shift.ShiftDate.ToString("yyyy-MM-dd")] = shift.Symbol;
-                   }
-                   return loader;
-               }).ToList();
+            // 2) 期間内の実シフトだけ取得（無い日は返らない）
+            var shifts = db.GetShiftsOnly(firstDay, lastDay); // List<Shift> { EmployeeId, ShiftDate, Symbol }
 
-            //一人ひとりのシフトデータをShiftDataCollectionに設定
-            //DataGrid.Columnsにaddしてセットする
-            ShiftDataCollection = new ObservableCollection<ShiftDataLoader>(grouped);
+            // 3) 社員ごとにまとめて、全日を空で初期化→存在するシフトだけ上書き
+            var loaders = new List<ShiftDataLoader>(employees.Count);
+            foreach (var e in employees.OrderBy(x => x.EmployeeId))
+            {
+                var loader = new ShiftDataLoader
+                {
+                    EmployeeId = e.EmployeeId,
+                    EmployeeName = e.EmployeeName
+                };
 
-            //UIにバインディングされている、月の列を作成
-            ShiftGridColumns = GridHelperClass.GenerateColumnsForMonth(month);// 月の列を生成
+                // 3-1) その月の全日付キーを空で用意
+                for (var d = firstDay; d <= lastDay; d = d.AddDays(1))
+                {
+                    loader.Shifts[d.ToString("yyyy-MM-dd")] = string.Empty;
+                }
 
+                // 3-2) 実シフトを上書き
+                foreach (var s in shifts.Where(s => s.EmployeeId == e.EmployeeId))
+                {
+                    loader.Shifts[s.ShiftDate.ToString("yyyy-MM-dd")] = s.Symbol ?? string.Empty;
+                }
+
+                loaders.Add(loader);
+            }
+
+            // 4) DataGridへ
+            ShiftDataCollection = new ObservableCollection<ShiftDataLoader>(loaders);
+
+            // 5) 列（ID/名前＋1..末日）
+            ShiftGridColumns = GridHelperClass.GenerateColumnsForMonth(month);
         }
 
 

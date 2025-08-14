@@ -129,10 +129,10 @@ namespace Shiftapp_demo.DataAccess
 
             var command = connection.CreateCommand();
             command.CommandText = @"
-    SELECT *
-    FROM daily_employee_shifts
-    WHERE shift_date = '2025/07/07';
-";
+            SELECT *
+            FROM daily_employee_shifts
+            WHERE shift_date = '2025/07/07';
+            ";
             command.Parameters.AddWithValue("@Name", employee.EmployeeName);
             command.Parameters.AddWithValue("@SaturdayClass", employee.SaturdayClass);
             command.Parameters.AddWithValue("@Limit", employee.MonthlyDutyLimit);
@@ -141,42 +141,54 @@ namespace Shiftapp_demo.DataAccess
 
             command.ExecuteNonQuery();
         }
-    
 
-        public List<Shift> GetShifts(DateTime startDate, DateTime endDate)
+        public List<Employee> GetAllEmployees()
+        {
+            var employees = new List<Employee>();
+            using var connection = new SqliteConnection(_connectionString);
+            connection.Open();
+
+            var cmd = connection.CreateCommand();
+            cmd.CommandText = "SELECT employee_id, employee_name FROM employee ORDER BY employee_id";
+
+            using var reader = cmd.ExecuteReader();
+            while (reader.Read())
+            {
+                employees.Add(new Employee
+                {
+                    EmployeeId = reader.GetInt32(0),
+                    EmployeeName = reader.GetString(1)
+                });
+            }
+            return employees;
+        }
+
+        public List<Shift> GetShiftsOnly(DateTime startDate, DateTime endDate)
         {
             var result = new List<Shift>();
             using var connection = new SqliteConnection(_connectionString);
             connection.Open();
 
-            var command = connection.CreateCommand();
-            command.CommandText = @"
-    SELECT e.employee_id, e.employee_name, s.shift_date, t.symbol
-    FROM daily_employee_shifts s
-    JOIN employee e ON s.employee_id = e.employee_id
-    JOIN shift_types t ON s.shift_type_id = t.shift_type_id
-    WHERE DATE(s.shift_date) BETWEEN DATE(@start) AND DATE(@end)
-";
+            var cmd = connection.CreateCommand();
+            cmd.CommandText = @"
+            SELECT s.employee_id, s.shift_date, t.symbol
+            FROM daily_employee_shifts s
+            LEFT JOIN shift_types t ON s.shift_type_id = t.shift_type_id
+            WHERE DATE(s.shift_date) BETWEEN DATE(@start) AND DATE(@end)";
+            cmd.Parameters.AddWithValue("@start", startDate.ToString("yyyy-MM-dd"));
+            cmd.Parameters.AddWithValue("@end", endDate.ToString("yyyy-MM-dd"));
 
-            command.Parameters.AddWithValue("@start", startDate.ToString("yyyy-MM-dd")); //startに値追加
-            command.Parameters.AddWithValue("@end", endDate.ToString("yyyy-MM-dd"));
-
-
-            using var reader = command.ExecuteReader();
-            Console.WriteLine("HasRows: " + reader.HasRows);
+            using var reader = cmd.ExecuteReader();
             while (reader.Read())
             {
                 result.Add(new Shift
                 {
                     EmployeeId = reader.GetInt32(0),
-                    EmployeeName = reader.GetString(1),
-                    ShiftDate = DateTime.Parse(reader.GetString(2)).Date,
-                    Symbol = reader.GetString(3)
-
+                    ShiftDate = DateTime.Parse(reader.GetString(1)).Date,
+                    Symbol = reader.IsDBNull(2) ? "" : reader.GetString(2)
                 });
             }
-
-            return result; 
+            return result;
         }
 
 
