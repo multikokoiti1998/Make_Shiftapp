@@ -149,7 +149,7 @@ namespace Shiftapp_demo.DataAccess
             connection.Open();
 
             var cmd = connection.CreateCommand();
-            cmd.CommandText = "SELECT employee_id, employee_name FROM employee ORDER BY employee_id";
+            cmd.CommandText = "SELECT employee_id, employee_name,Role FROM employee ORDER BY employee_id";
 
             using var reader = cmd.ExecuteReader();
             while (reader.Read())
@@ -157,7 +157,8 @@ namespace Shiftapp_demo.DataAccess
                 employees.Add(new Employee
                 {
                     EmployeeId = reader.GetInt32(0),
-                    EmployeeName = reader.GetString(1)
+                    EmployeeName = reader.GetString(1),
+                    Role=reader.GetInt32(2)
                 });
             }
             return employees;

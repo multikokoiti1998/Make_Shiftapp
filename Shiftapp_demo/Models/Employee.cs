@@ -14,6 +14,8 @@ namespace Shiftapp_demo.Models
         public int MonthlyDutyLimit { get; set; }         // DB: MonthlyDutyLimit（最大勤務数）
         public bool CanDoCatheterization { get; set; }    // DB: CanDoCatheterization（0 or 1 → bool）
 
+        public int Role { get; set; }
+
         // --- シフト状況の辞書（動的データ） ---
         public Dictionary<DateTime, string> ShiftMap { get; set; } = new();
 

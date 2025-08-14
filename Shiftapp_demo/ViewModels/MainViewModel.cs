@@ -15,7 +15,7 @@ namespace Shiftapp_demo.ViewModels
     public class MainViewModel : INotifyPropertyChanged
     {
         private ShiftDataLoader _dataLoader; // Model層 (データアクセス)
-        
+
         // DataGridのItemsSourceにバインド グリッドの行データを保持
         private ObservableCollection<ShiftDataLoader> _shiftDataCollection;
         public ObservableCollection<ShiftDataLoader> ShiftDataCollection
@@ -57,7 +57,7 @@ namespace Shiftapp_demo.ViewModels
         public MainViewModel()
         {
             // DBパスはここでViewModelに渡すか、設定ファイルから読み込む
-            _dataLoader = new ShiftDataLoader(); 
+            _dataLoader = new ShiftDataLoader();
 
             ShiftDataCollection = new ObservableCollection<ShiftDataLoader>();
 
@@ -87,7 +87,8 @@ namespace Shiftapp_demo.ViewModels
                 var loader = new ShiftDataLoader
                 {
                     EmployeeId = e.EmployeeId,
-                    EmployeeName = e.EmployeeName
+                    EmployeeName = e.EmployeeName,
+                    Role = e.Role
                 };
 
                 // 3-1) その月の全日付キーを空で用意
@@ -104,9 +105,12 @@ namespace Shiftapp_demo.ViewModels
 
                 loaders.Add(loader);
             }
+            var ordered = loaders
+                   .OrderBy(x => x.Role)        // 1,2,3,4
+                   .ThenBy(x => x.EmployeeId)
+                   .ToList();
 
-            // 4) DataGridへ
-            ShiftDataCollection = new ObservableCollection<ShiftDataLoader>(loaders);
+            ShiftDataCollection = new ObservableCollection<ShiftDataLoader>(ordered);
 
             // 5) 列（ID/名前＋1..末日）
             ShiftGridColumns = GridHelperClass.GenerateColumnsForMonth(month);
