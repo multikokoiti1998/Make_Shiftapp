@@ -76,30 +76,31 @@ namespace Shiftapp_demo.ViewModels
             var db = new DatabaseHelper();
             var shifts = db.GetShifts(firstDay, lastDay);
 
-            // グループ化
-            var grouped = shifts
-                .GroupBy(s => new { s.EmployeeId, s.EmployeeName })
-                .Select(g =>
-                {
-                    var loader = new ShiftDataLoader
-                    {
-                        EmployeeId = g.Key.EmployeeId,
-                        EmployeeName = g.Key.EmployeeName
-                    };
+            //グループ化
+           var grouped = shifts
+               .GroupBy(s => new { s.EmployeeId, s.EmployeeName })
+               .Select(g =>
+               {
+                   var loader = new ShiftDataLoader
+                   {
+                       EmployeeId = g.Key.EmployeeId,
+                       EmployeeName = g.Key.EmployeeName
+                   };
 
-                    foreach (var shift in g)
-                    {
-                        loader.Shifts[shift.ShiftDate.ToString("yyyy-MM-dd")] = shift.Symbol;
-                    }
-                        return loader;
-                }).ToList();
+                   foreach (var shift in g)
+                   {
+                       loader.Shifts[shift.ShiftDate.ToString("yyyy-MM-dd")] = shift.Symbol;
+                   }
+                   return loader;
+               }).ToList();
 
             //一人ひとりのシフトデータをShiftDataCollectionに設定
             //DataGrid.Columnsにaddしてセットする
             ShiftDataCollection = new ObservableCollection<ShiftDataLoader>(grouped);
-            
-           //UIにバインディングされている、月の列を作成
+
+            //UIにバインディングされている、月の列を作成
             ShiftGridColumns = GridHelperClass.GenerateColumnsForMonth(month);// 月の列を生成
+
         }
 
 
