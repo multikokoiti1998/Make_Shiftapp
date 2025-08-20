@@ -62,6 +62,7 @@
               IsReadOnly="True"
               ScrollViewer.HorizontalScrollBarVisibility="Auto"
               ScrollViewer.VerticalScrollBarVisibility="Auto"
+              GridLinesVisibility="All"
               FrozenColumnCount="2"
               ColumnWidth="*"
               MinColumnWidth="28"

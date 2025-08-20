@@ -24,6 +24,7 @@ namespace Shiftapp_demo.Views
         private void MainWindow_Loaded(object sender, RoutedEventArgs e)
         {
             DateTime today = DateTime.Today;
+
             ViewModel.LoadShiftDataForMonth(today);
 
             // 列の更新

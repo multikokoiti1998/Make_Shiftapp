@@ -5,8 +5,6 @@ using Shiftapp_demo.Helper;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Windows.Controls;
-using System.Windows.Input; // ICommand用
-
 
 // モデルとデータアクセス層のNamespaceを追加
 
@@ -54,6 +52,8 @@ namespace Shiftapp_demo.ViewModels
             }
         }
 
+        private readonly ShiftBusiness _business;
+
         public MainViewModel()
         {
             // DBパスはここでViewModelに渡すか、設定ファイルから読み込む
@@ -61,11 +61,28 @@ namespace Shiftapp_demo.ViewModels
 
             ShiftDataCollection = new ObservableCollection<ShiftDataLoader>();
 
-            ShiftGridColumns = new ObservableCollection<DataGridColumn>(); // 列コレクションの初期化
+            ShiftGridColumns = new ObservableCollection<DataGridColumn>();
+
+            var db = new DatabaseHelper();
+            _business = new ShiftBusiness(db);
+        }
+
+        public void GenerateSaturdayShifts(DateTime month)
+        {
+            // 例えば8/16を基準に、B班からスタート
+            _business.UpdateSaturdayShifts(
+                month,
+                new DateTime(2025, 8, 16),
+                "B"
+            );
+
+            // 生成後、再読込して DataGrid に反映
+            LoadShiftDataForMonth(month);
         }
 
         public void LoadShiftDataForMonth(DateTime month)
         {
+            //日付取得
             var firstDay = new DateTime(month.Year, month.Month, 1);
             var lastDay = firstDay.AddMonths(1).AddDays(-1);
 
@@ -105,8 +122,9 @@ namespace Shiftapp_demo.ViewModels
 
                 loaders.Add(loader);
             }
+
             var ordered = loaders
-                   .OrderBy(x => x.Role)        // 1,2,3,4
+                   .OrderBy(x => x.Role)  
                    .ThenBy(x => x.EmployeeId)
                    .ToList();
 

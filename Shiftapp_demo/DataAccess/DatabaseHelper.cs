@@ -1,9 +1,11 @@
-﻿using Microsoft.Data.Sqlite;
+﻿using MaterialDesignThemes.Wpf;
+using Microsoft.Data.Sqlite;
 using Shiftapp_demo.Business;
 using Shiftapp_demo.Models;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -149,7 +151,11 @@ namespace Shiftapp_demo.DataAccess
             connection.Open();
 
             var cmd = connection.CreateCommand();
-            cmd.CommandText = "SELECT employee_id, employee_name,Role FROM employee ORDER BY employee_id";
+            cmd.CommandText = @"
+            SELECT employee_id, employee_name, Role, is_active
+            FROM employee
+            WHERE is_active = 1
+            ORDER BY employee_id";
 
             using var reader = cmd.ExecuteReader();
             while (reader.Read())
@@ -158,7 +164,7 @@ namespace Shiftapp_demo.DataAccess
                 {
                     EmployeeId = reader.GetInt32(0),
                     EmployeeName = reader.GetString(1),
-                    Role=reader.GetInt32(2)
+                    Role = reader.GetInt32(2)
                 });
             }
             return employees;
@@ -174,8 +180,10 @@ namespace Shiftapp_demo.DataAccess
             cmd.CommandText = @"
             SELECT s.employee_id, s.shift_date, t.symbol
             FROM daily_employee_shifts s
-            LEFT JOIN shift_types t ON s.shift_type_id = t.shift_type_id
-            WHERE DATE(s.shift_date) BETWEEN DATE(@start) AND DATE(@end)";
+            JOIN employee e ON e.employee_id = s.employee_id   
+            LEFT JOIN shift_types t ON s.shift_type_id = t.shift_type_id 
+            WHERE e.is_active = 1
+            AND DATE(s.shift_date) BETWEEN DATE(@start) AND DATE(@end)";
             cmd.Parameters.AddWithValue("@start", startDate.ToString("yyyy-MM-dd"));
             cmd.Parameters.AddWithValue("@end", endDate.ToString("yyyy-MM-dd"));
 
@@ -191,8 +199,124 @@ namespace Shiftapp_demo.DataAccess
             }
             return result;
         }
+        //各技師の土曜日の班を取得
+        public List<Employee> GetActiveEmployeesWithSaturdayClass()
+        {
+            var result = new List<Employee>();
+            using var connection = new SqliteConnection(_connectionString);
+            connection.Open();
 
+            var cmd = connection.CreateCommand();
+            cmd.CommandText = @"
+            SELECT employee_id, saturday_class
+            FROM employee 
+            WHERE is_active = 1";
 
+            using var reader = cmd.ExecuteReader();
+            while (reader.Read())
+            {
+                result.Add(new Employee
+                {
+                    EmployeeId = reader.GetInt32(0),
 
+                    SaturdayClass = reader.GetString(1)
+                });
+            }
+            return result;
+        }
+
+        //各シフトのシンボル取得
+        public int GetShiftTypeIdBySymbol(string symbol)
+        {
+            using var con = new SqliteConnection(_connectionString);
+            con.Open();
+            using var cmd = con.CreateCommand();
+            cmd.CommandText = @"SELECT shift_type_id FROM shift_types WHERE symbol = @sym;";
+            cmd.Parameters.AddWithValue("@sym", symbol);
+            var obj = cmd.ExecuteScalar();
+            if (obj == null || obj == DBNull.Value) throw new InvalidOperationException($"symbol '{symbol}' not found");
+            return Convert.ToInt32(obj);
+        }
+
+        // daily_employee_shifts に UNIQUE(employee_id, shift_date) 制約がある前提
+        public void BulkUpsertShifts(IEnumerable<(int EmployeeId, DateTime Date, int ShiftTypeId)> items, bool forceOverride = false)
+        {
+            using var con = new SqliteConnection(_connectionString);
+            con.Open();
+            using var tx = con.BeginTransaction();
+
+            using var cmd = con.CreateCommand();
+            cmd.Transaction = tx;
+            cmd.CommandText = forceOverride
+        ? @"
+            INSERT INTO daily_employee_shifts (employee_id, shift_date, shift_type_id, is_active)
+            VALUES (@eid, @date, @stid, 1)
+            ON CONFLICT(employee_id, shift_date) DO UPDATE SET
+            shift_type_id = excluded.shift_type_id,
+            is_active = 1"
+       : @"
+           INSERT INTO daily_employee_shifts (employee_id, shift_date, shift_type_id, is_active)
+           VALUES (@eid, @date, @stid, 1)
+           ON CONFLICT(employee_id, shift_date) DO UPDATE SET
+           shift_type_id = CASE
+           WHEN COALESCE((SELECT priority FROM shift_types WHERE shift_type_id = excluded.shift_type_id), 0)
+           >= COALESCE((SELECT priority FROM shift_types WHERE shift_type_id = daily_employee_shifts.shift_type_id), 0)
+           THEN excluded.shift_type_id
+           ELSE daily_employee_shifts.shift_type_id
+           END,
+           is_active = 1";
+
+            var pEid = cmd.CreateParameter(); pEid.ParameterName = "@eid"; cmd.Parameters.Add(pEid);
+            var pDate = cmd.CreateParameter(); pDate.ParameterName = "@date"; cmd.Parameters.Add(pDate);
+            var pStid = cmd.CreateParameter(); pStid.ParameterName = "@stid"; cmd.Parameters.Add(pStid);
+
+            foreach (var (eid, d, stid) in items)
+            {
+                pEid.Value = eid;
+                pDate.Value = d.ToString("yyyy-MM-dd");   // TEXT(ISO8601)で保存
+                pStid.Value = stid;
+                cmd.ExecuteNonQuery();
+            }
+
+            tx.Commit();
+        }
+
+        public Dictionary<(int EmployeeId, DateTime Date), int> GetShiftMap(DateTime start, DateTime end)
+        {
+            var map = new Dictionary<(int, DateTime), int>();
+
+            using var con = new SqliteConnection(_connectionString);
+            con.Open();
+
+            using var cmd = con.CreateCommand();
+            cmd.CommandText = @"
+            SELECT e.employee_id,
+            DATE(s.shift_date) AS d,
+            s.shift_type_id
+            FROM daily_employee_shifts s
+            JOIN employee e ON e.employee_id = s.employee_id
+            WHERE /* e.is_active = 1 AND */       
+            /* s.is_active = 1 AND */       
+            DATE(s.shift_date) BETWEEN DATE(@start) AND DATE(@end);";
+            cmd.Parameters.AddWithValue("@start", start.ToString("yyyy-MM-dd"));
+            cmd.Parameters.AddWithValue("@end", end.ToString("yyyy-MM-dd"));
+
+            using var r = cmd.ExecuteReader();
+            while (r.Read())
+            {
+                int eid = r.GetInt32(0);
+                // SQLiteのDATEはTEXTで返ることが多いので安全にParseExact
+                string ds = r.GetString(1);
+                var date = DateTime.ParseExact(ds, "yyyy-MM-dd", CultureInfo.InvariantCulture);
+
+                int? stid = r.IsDBNull(2) ? (int?)null : r.GetInt32(2);
+                if (stid.HasValue)
+                {
+                    map[(eid, date)] = stid.Value;
+                }
+            }
+
+            return map;
+        }
     }
 }

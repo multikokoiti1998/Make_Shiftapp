@@ -42,8 +42,7 @@ namespace Shiftapp_demo
                 // 休日データのロード (仮)
                 Holidays = new ObservableCollection<Holiday>
         {
-            new Holiday { Date = new DateTime(2025, 1, 1), Description = "元日" },
-            new Holiday { Date = new DateTime(2025, 5, 5), Description = "こどもの日" }
+     
         };
                 // HolidaysDataGrid.ItemsSource = Holidays; // 必要に応じて
             }
