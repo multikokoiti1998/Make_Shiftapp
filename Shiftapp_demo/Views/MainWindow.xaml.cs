@@ -25,6 +25,8 @@ namespace Shiftapp_demo.Views
         {
             DateTime today = DateTime.Today;
 
+            ViewModel.GenerateOffShift(today);
+
             ViewModel.LoadShiftDataForMonth(today);
 
             // 列の更新
@@ -42,6 +44,9 @@ namespace Shiftapp_demo.Views
         private void ShiftCalendar_DisplayDateChanged(object sender, CalendarDateChangedEventArgs e)
         {
             DateTime currentMonth = ShiftCalendar.DisplayDate;
+
+            ViewModel.GenerateOffShift(currentMonth);
+
             ViewModel.LoadShiftDataForMonth(currentMonth);
 
             // DataGrid更新
@@ -61,9 +66,12 @@ namespace Shiftapp_demo.Views
         private void Button_Click1(object sender, RoutedEventArgs e)
         {
             // 管理者画面ボタンのクリックイベント (ViewModelにコマンドとして公開することも検討)
+
         }
 
-
-
+        private void Button_Click_1(object sender, RoutedEventArgs e)
+        {
+            ViewModel.
+        }
     }
 }

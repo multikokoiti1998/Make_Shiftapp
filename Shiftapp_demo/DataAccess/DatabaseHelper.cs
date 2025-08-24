@@ -24,6 +24,7 @@ namespace Shiftapp_demo.DataAccess
         }
 
         // 技師を追加するメソッド (新しいプロパティに合わせて修正)
+        //Todo　不完全
         public void AddEmployee(Employee employee)
         {
             using var connection = new SqliteConnection(_connectionString);
@@ -45,6 +46,7 @@ namespace Shiftapp_demo.DataAccess
 
 
         // 全ての技師を取得するメソッド (新しいプロパティに合わせて修正)
+        //Todo　不完全
         public async Task<ObservableCollection<Employee>> GetAllEmployeesAsync()
         {
             var employees = new ObservableCollection<Employee>();
@@ -280,7 +282,6 @@ namespace Shiftapp_demo.DataAccess
 
             tx.Commit();
         }
-
         public Dictionary<(int EmployeeId, DateTime Date), int> GetShiftMap(DateTime start, DateTime end)
         {
             var map = new Dictionary<(int, DateTime), int>();
@@ -317,6 +318,33 @@ namespace Shiftapp_demo.DataAccess
             }
 
             return map;
+        }
+
+        public List<Employee> GetActiveEmployeesWithNightDutyClass()
+        {
+            var result = new List<Employee>();
+            using var connection = new SqliteConnection(_connectionString);
+            connection.Open();
+
+            var cmd = connection.CreateCommand();
+            cmd.CommandText = @"
+            SELECT employee_id, CanDoNightDuty,CanDoCatheterization
+            FROM employee 
+            WHERE is_active = 1";
+
+            using var reader = cmd.ExecuteReader();
+            while (reader.Read())
+            {
+                result.Add(new Employee
+                {
+                    EmployeeId = reader.GetInt32(0),
+
+                    CanDoNightDuty = reader.GetInt32(1),
+
+                    CanDoCatheterization = reader.GetInt32(2) == 1
+                });
+            }
+            return result;
         }
     }
 }

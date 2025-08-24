@@ -64,20 +64,17 @@ namespace Shiftapp_demo.ViewModels
             ShiftGridColumns = new ObservableCollection<DataGridColumn>();
 
             var db = new DatabaseHelper();
+
             _business = new ShiftBusiness(db);
         }
 
-        public void GenerateSaturdayShifts(DateTime month)
+        public void GenerateOffShift(DateTime month)
         {
             // 例えば8/16を基準に、B班からスタート
-            _business.UpdateSaturdayShifts(
-                month,
-                new DateTime(2025, 8, 16),
-                "B"
-            );
+            _business.UpdateSaturdayShifts(month);
 
-            // 生成後、再読込して DataGrid に反映
-            LoadShiftDataForMonth(month);
+            //日曜日や祭日のシフト作成
+            _business.UpdateSundayShifts(month);
         }
 
         public void LoadShiftDataForMonth(DateTime month)
@@ -124,7 +121,7 @@ namespace Shiftapp_demo.ViewModels
             }
 
             var ordered = loaders
-                   .OrderBy(x => x.Role)  
+                   .OrderBy(x => x.Role)
                    .ThenBy(x => x.EmployeeId)
                    .ToList();
 

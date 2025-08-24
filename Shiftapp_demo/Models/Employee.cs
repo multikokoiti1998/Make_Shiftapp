@@ -6,16 +6,18 @@ namespace Shiftapp_demo.Models
     public class Employee
     {
         // --- データベースの employee テーブルと対応 ---
+        //ToDo　当直可能かなど対応させてない
 
         public int EmployeeId { get; set; }               // DB: employee_id
         public string EmployeeName { get; set; } = "";    // DB: employee_name
 
         public String  SaturdayClass { get; set; }            // DB: saturday_class（例: 0=A班, 1=B班）
         public int MonthlyDutyLimit { get; set; }         // DB: MonthlyDutyLimit（最大勤務数）
-        public bool CanDoCatheterization { get; set; }    // DB: CanDoCatheterization（0 or 1 → bool）
+        public bool  CanDoCatheterization { get; set; }    // DB: CanDoCatheterization（0 or 1 → bool）
 
         public int Role { get; set; }
 
+        public int CanDoNightDuty {  get; set; }
         // --- シフト状況の辞書（動的データ） ---
         public Dictionary<DateTime, string> ShiftMap { get; set; } = new();
 
