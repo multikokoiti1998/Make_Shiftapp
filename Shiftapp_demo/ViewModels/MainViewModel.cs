@@ -76,6 +76,12 @@ namespace Shiftapp_demo.ViewModels
             //日曜日や祭日のシフト作成
             _business.UpdateSundayShifts(month);
         }
+        public void MakeNightDuty(DateTime month)
+        {
+            _business.GenerateNightDutiesForMonth(month);
+
+            LoadShiftDataForMonth(month);
+        }
 
         public void LoadShiftDataForMonth(DateTime month)
         {

@@ -1,0 +1,83 @@
+﻿using Shiftapp_demo.DataAccess;
+using System;
+using System.Collections.Generic;
+using System.Globalization;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using static Shiftapp_demo.Helper.CsvHelperClass;
+
+namespace Shiftapp_demo.Business
+{
+
+    internal class ShiftExporterService
+    {
+        private readonly DatabaseHelper _db;
+        private readonly IHolidayService _holiday;
+        private readonly IShiftCsvExporter _csv;
+
+        public ShiftExporterService(DatabaseHelper db, IHolidayService holiday, IShiftCsvExporter csv)
+        {
+            _db = db;
+            _holiday = holiday;
+            _csv = csv;
+        }
+
+        // シンボル → CSV「シフト区分」変換（必要に応じて調整）
+        private static string MapSymbolToShiftName(string? symbol)
+            => symbol switch
+            {
+                "半" => "半日",
+                "当" => "当直",
+                "〇" => "日勤",
+                "/" => "日勤",
+                null or "" => "日勤",
+                _ => "日勤"
+            };
+
+        public async Task ExportMonthAsync(DateTime month, string savePath, CancellationToken ct = default)
+        {
+            var first = new DateTime(month.Year, month.Month, 1);
+            var last = first.AddMonths(1).AddDays(-1);
+
+            // ① 全社員
+            var employees = _db.GetActiveEmployees();
+
+            // ② 最新レコードを辞書化 (eid,date) → (symbol, reg, name)
+            var latestList = _db.GetLatestShifts(first, last);
+            var latestMap = latestList.ToDictionary(
+                x => (x.EmployeeId, x.Date.Date),
+                x => (x.Symbol, x.RegisteredAt, x.EmployeeName)
+            );
+
+            // ③ 全員×全日で前処理してCSV行を作る
+            var rows = new List<ShiftCsvRow>(capacity: employees.Count * DateTime.DaysInMonth(month.Year, month.Month));
+            foreach (var (eid, name) in employees)
+            {
+                for (var d = first; d <= last; d = d.AddDays(1))
+                {
+                    ct.ThrowIfCancellationRequested();
+
+                    latestMap.TryGetValue((eid, d.Date), out var found);
+                    var symbol = found.Symbol; // null可
+
+                    rows.Add(new ShiftCsvRow
+                    {
+                        個人コード = eid,
+                        氏名 = name,
+                        処理日 = d.ToString("yyyy/MM/dd", CultureInfo.InvariantCulture),
+                        カレンダー = _holiday.IsHoliday(d) ? "休日" : "勤務",
+                        勤怠区分 = "なし",
+                        シフト区分 = MapSymbolToShiftName(symbol),
+                        出勤例外 = "なし",
+                        退勤例外 = "なし",
+                        修正処理日 = d.ToString("yyyy/M/d", CultureInfo.InvariantCulture) // Excelに合わせ素朴表記
+                    });
+                }
+            }
+
+            // ④ 書き出し（CsvHelper 実装）
+            await _csv.ExportAsync(rows, savePath, ct);
+        }
+    }
+}
