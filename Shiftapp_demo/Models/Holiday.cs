@@ -10,9 +10,8 @@ namespace Shiftapp_demo.Models
 {
     public class Holiday
     {
-        public int request_id { get; set; }
-        public int employee_id { get; set; }
-        public DateTime request_date { get; set; }
-        public int leave_type { get; set; }
+        public int holiday_id { get; set; }
+        public int date { get; set; }
+
     }
 }

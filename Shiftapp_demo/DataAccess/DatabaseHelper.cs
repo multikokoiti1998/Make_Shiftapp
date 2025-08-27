@@ -11,6 +11,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Controls.Primitives;
+using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace Shiftapp_demo.DataAccess
 {
@@ -241,7 +242,7 @@ namespace Shiftapp_demo.DataAccess
         }
 
         // daily_employee_shifts に UNIQUE(employee_id, shift_date) 制約がある前提
-        public void BulkUpsertShifts(IEnumerable<(int EmployeeId, DateTime Date, int ShiftTypeId)> items, bool forceOverride = false)
+        public void BulkUpsertShifts(IEnumerable<(int EmployeeId, DateTime Date, int ShiftTypeId)> items)
         {
             using var con = new SqliteConnection(_connectionString);
             con.Open();
@@ -249,24 +250,12 @@ namespace Shiftapp_demo.DataAccess
 
             using var cmd = con.CreateCommand();
             cmd.Transaction = tx;
-            cmd.CommandText = forceOverride
-        ? @"
-            INSERT INTO daily_employee_shifts (employee_id, shift_date, shift_type_id, is_active)
-            VALUES (@eid, @date, @stid, 1)
-            ON CONFLICT(employee_id, shift_date) DO UPDATE SET
-            shift_type_id = excluded.shift_type_id,
-            is_active = 1"
-       : @"
-           INSERT INTO daily_employee_shifts (employee_id, shift_date, shift_type_id, is_active)
-           VALUES (@eid, @date, @stid, 1)
-           ON CONFLICT(employee_id, shift_date) DO UPDATE SET
-           shift_type_id = CASE
-           WHEN COALESCE((SELECT priority FROM shift_types WHERE shift_type_id = excluded.shift_type_id), 0)
-           >= COALESCE((SELECT priority FROM shift_types WHERE shift_type_id = daily_employee_shifts.shift_type_id), 0)
-           THEN excluded.shift_type_id
-           ELSE daily_employee_shifts.shift_type_id
-           END,
-           is_active = 1";
+            cmd.CommandText =
+            @"
+            INSERT INTO daily_employee_shifts
+            (employee_id, shift_date, shift_type_id, registered_at)
+            VALUES
+            (@eid, @date, @stid, CURRENT_TIMESTAMP);";
 
             var pEid = cmd.CreateParameter(); pEid.ParameterName = "@eid"; cmd.Parameters.Add(pEid);
             var pDate = cmd.CreateParameter(); pDate.ParameterName = "@date"; cmd.Parameters.Add(pDate);
@@ -319,6 +308,30 @@ namespace Shiftapp_demo.DataAccess
 
             return map;
         }
+
+        public List<DateTime> GetHolidays(DateTime start, DateTime end)
+        {
+            var result = new List<DateTime>();
+            using var con = new SqliteConnection(_connectionString);
+            con.Open();
+
+            using var cmd = con.CreateCommand();
+            cmd.CommandText = @"
+             SELECT date
+             FROM holiday
+             WHERE DATE(date) BETWEEN DATE(@start) AND DATE(@end)";
+            cmd.Parameters.AddWithValue("@start", start.ToString("yyyy-MM-dd"));
+            cmd.Parameters.AddWithValue("@end", end.ToString("yyyy-MM-dd"));
+
+            using var reader = cmd.ExecuteReader();
+            while (reader.Read())
+            {
+                result.Add(DateTime.Parse(reader.GetString(0)));
+            }
+
+            return result;
+        }
+
 
         public List<Employee> GetActiveEmployeesWithNightDutyClass()
         {

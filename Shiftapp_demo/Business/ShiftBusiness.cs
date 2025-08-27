@@ -25,11 +25,11 @@ namespace Shiftapp_demo.Business
             _db = db;
 
             // シンボルID取得（※あなたのDBに合わせて）
-            var stidWork = _db.GetShiftTypeIdBySymbol("/");   // 土曜出勤
-            var stidOff = _db.GetShiftTypeIdBySymbol("〇");   // 日・祭日休み
-            var stidDuty = _db.GetShiftTypeIdBySymbol("当");  // 当直
-            var stidSubstituteOff = _db.GetShiftTypeIdBySymbol("●");  // 代休
-            var stidAfterDuty = _db.GetShiftTypeIdBySymbol("明");  // 明け
+            stidWork = _db.GetShiftTypeIdBySymbol("/");   // 土曜出勤
+            stidOff = _db.GetShiftTypeIdBySymbol("〇");   // 日・祭日休み
+            stidDuty = _db.GetShiftTypeIdBySymbol("当");  // 当直
+            stidSubstituteOff = _db.GetShiftTypeIdBySymbol("●");  // 代休
+            stidAfterDuty = _db.GetShiftTypeIdBySymbol("明");  // 明け
 
         }
         //その月の土曜日を取得するメソッド
@@ -53,6 +53,14 @@ namespace Shiftapp_demo.Business
             return list;
         }
 
+        //その月の祝日を取得するメソッド
+        public List<DateTime> GetHolidaysInMonth(DateTime month)
+        {
+            var first = new DateTime(month.Year, month.Month, 1);
+            var last = first.AddMonths(1).AddDays(-1);
+            return _db.GetHolidays(first, last);
+        }
+
         // 土曜日勤務登録
         public void UpdateSaturdayShifts(DateTime month, string worksClassAtBaseline = "B")
         {
@@ -60,7 +68,6 @@ namespace Shiftapp_demo.Business
             var employees = _db.GetActiveEmployeesWithSaturdayClass(); // EmployeeId, SaturdayClass("A"/"B")
             var saturdays = GetSaturdaysInMonth(month);
 
-            // 月間の既存シフト（当直など）があれば優先したいので先に取得
             // 返り値の想定: Dictionary<(int EmployeeId, DateTime Date), int ShiftTypeId>
             var first = new DateTime(month.Year, month.Month, 1);
             var last = first.AddMonths(1).AddDays(-1);
@@ -98,14 +105,6 @@ namespace Shiftapp_demo.Business
                     if (string.IsNullOrWhiteSpace(emp.SaturdayClass)) continue;
 
                     bool isWorker = emp.SaturdayClass.Equals(workingClass, StringComparison.OrdinalIgnoreCase);
-                    var key = (emp.EmployeeId, sat);
-
-                    // 既に“当直”が入っている場合はそれを尊重（上書きしない）
-                    if (existing.TryGetValue(key, out var currentStid) && currentStid == stidDuty)
-                    {
-                        // 当直を優先: 何も入れない（＝現状維持）
-                        continue;
-                    }
 
                     // 出勤者には "/"、休みには "〇" を入れる
                     assigns.Add((emp.EmployeeId, sat, isWorker ? stidWork : stidOff));
@@ -132,18 +131,9 @@ namespace Shiftapp_demo.Business
             var assigns = new List<(int eid, DateTime date, int stid)>();
 
             foreach (var sunday in sundays)
-            {                
+            {
                 foreach (var emp in employees)
                 {
-                    var key = (emp.EmployeeId, sunday);
-
-                    // 既に“当直”が入っている場合はそれを尊重（上書きしない）
-                    if (existing.TryGetValue(key, out var currentStid) && currentStid == stidDuty)
-                    {
-                        // 当直を優先: 何も入れない（＝現状維持）
-                        continue;
-                    }
-                    // 出勤者には "/"、休みには "〇" を入れる
                     assigns.Add((emp.EmployeeId, sunday, stidOff));
                 }
             }
@@ -151,7 +141,7 @@ namespace Shiftapp_demo.Business
             // 4) 一括Upsert
             if (assigns.Count > 0)
                 _db.BulkUpsertShifts(assigns);
-        
+
         }
 
         /// <summary>
@@ -180,9 +170,10 @@ namespace Shiftapp_demo.Business
             var existingMap = _db.GetShiftMap(preloadStart, preloadEnd);
             // existingMap: Dictionary<(int EmployeeId, DateTime Date), int shiftTypeId>
 
-            // 3) 各人の「次に入れる日」・当月カウントを初期化
-            var nextAvailable = new Dictionary<int, DateTime>();   // EmployeeId -> Date
-            var dutyCount = new Dictionary<int, int>();        // EmployeeId -> 当月の当直回数
+            // 3) 各人の「次に入れる日」・当月カウントを初期化    
+            var nextAvailable = new Dictionary<int, DateTime>();     // EmployeeId -> Date
+            var dayWorkCount = new Dictionary<int, int>();           // EmployeeId -> 当月の日勤回数
+            var dutyCount = new Dictionary<int, int>();              // EmployeeId -> 当月の当直回数
             foreach (var e in employees)
             {
                 nextAvailable[e.EmployeeId] = preloadStart; // とりあえず最小に
@@ -196,16 +187,12 @@ namespace Shiftapp_demo.Business
                 {
                     if (existingMap.TryGetValue((e.EmployeeId, d), out var stid))
                     {
-                        if (stid == stidWork)
+                        if (stid == stidDuty)
                         {
                             // 当直済み → 翌日を少なくとも明けとしてブロック
                             var na = d.AddDays(1);
                             if (nextAvailable[e.EmployeeId] < na)
                                 nextAvailable[e.EmployeeId] = na;
-
-                            // 当月分だけカウント
-                            if (d.Year == month.Year && d.Month == month.Month)
-                                dutyCount[e.EmployeeId]++;
                         }
                         else if (stid == stidOff)
                         {
@@ -248,7 +235,6 @@ namespace Shiftapp_demo.Business
                     continue;
                 }
 
-                // 当直をセット（当＞〇＞／の優先で上書きしない）
                 TrySet(existingMap, upserts, cand1.EmployeeId, day, stidWork);
                 TrySet(existingMap, upserts, cand2.EmployeeId, day, stidWork);
 
@@ -257,15 +243,15 @@ namespace Shiftapp_demo.Business
 
                 // 明け休（翌日）をセット
                 var nextDay = day.AddDays(1);
-                TrySetOffIfNoStronger(existingMap, upserts, cand1.EmployeeId, nextDay);
-                TrySetOffIfNoStronger(existingMap, upserts, cand2.EmployeeId, nextDay);
+                TrySetOffIfNoStronger(existingMap, upserts, cand1.EmployeeId, nextDay, stidAfterDuty);
+                TrySetOffIfNoStronger(existingMap, upserts, cand2.EmployeeId, nextDay, stidAfterDuty);
 
                 // 週末代休
                 var comp = GetCompDayOff(day);
                 if (comp.HasValue)
                 {
-                    TrySetOffIfNoStronger(existingMap, upserts, cand1.EmployeeId, comp.Value);
-                    TrySetOffIfNoStronger(existingMap, upserts, cand2.EmployeeId, comp.Value);
+                    TrySetOffIfNoStronger(existingMap, upserts, cand1.EmployeeId, comp.Value, stidSubstituteOff);
+                    TrySetOffIfNoStronger(existingMap, upserts, cand2.EmployeeId, comp.Value, stidSubstituteOff);
                 }
 
                 // 次に入れる日は最低でも翌日以降（明け休が入ったため）
@@ -281,7 +267,6 @@ namespace Shiftapp_demo.Business
         }
 
         /// <summary>
-        /// 「当＞〇＞／」の優先度を想定し、当直は常に最優先でセットする。
         /// すでに当が入っていればそのまま。休みや日勤があっても当で上書きする。
         /// </summary>
         private void TrySet(
@@ -289,20 +274,8 @@ namespace Shiftapp_demo.Business
             List<(int EmployeeId, DateTime Date, int ShiftTypeId)> upserts,
             int eid, DateTime d, int stid)
         {
-            if (map.TryGetValue((eid, d), out var exist))
-            {
-                if (exist == stidWork)
-                    return; // 既に当なら何もしない
-
-                // 当は最優先、上書きする
-                map[(eid, d)] = stidWork;
-                upserts.Add((eid, d, stidWork));
-            }
-            else
-            {
-                map[(eid, d)] = stid;
-                upserts.Add((eid, d, stid));
-            }
+            map[(eid, d)] = stid;
+            upserts.Add((eid, d, stid));
         }
 
         /// <summary>
@@ -312,24 +285,10 @@ namespace Shiftapp_demo.Business
         private void TrySetOffIfNoStronger(
             Dictionary<(int EmployeeId, DateTime Date), int> map,
             List<(int EmployeeId, DateTime Date, int ShiftTypeId)> upserts,
-            int eid, DateTime d)
+            int eid, DateTime d, int stid)
         {
-            if (d < new DateTime(1900, 1, 1)) return; // 念のため
-
-            if (map.TryGetValue((eid, d), out var exist))
-            {
-                if (exist == stidWork) return; // 当直は崩さない
-                if (exist == stidOff) return; // 既に休みならOK（何もしない）
-                // 日勤などがある場合、ここで上書きするかは方針次第。
-                // 明け休や代休を優先したいなら上書きする:
-                map[(eid, d)] = stidOff;
-                upserts.Add((eid, d, stidOff));
-            }
-            else
-            {
-                map[(eid, d)] = stidOff;
-                upserts.Add((eid, d, stidOff));
-            }
+            map[(eid, d)] = stid;
+            upserts.Add((eid, d, stid));
         }
 
         /// <summary>

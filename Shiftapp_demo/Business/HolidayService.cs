@@ -10,7 +10,7 @@ namespace Shiftapp_demo.Business
 {
     internal class HolidayService
     {
-
+        //週末の休日
         public sealed class WeekendHolidayService : IHolidayService
         {
             private readonly bool _treatSaturdayAsHoliday;
