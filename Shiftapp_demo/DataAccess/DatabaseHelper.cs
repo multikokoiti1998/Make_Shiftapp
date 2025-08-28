@@ -359,5 +359,30 @@ namespace Shiftapp_demo.DataAccess
             }
             return result;
         }
+
+        public List<Employee> GetActiveEmployeesWithDayDutyClass()
+        {
+            var result = new List<Employee>();
+            using var connection = new SqliteConnection(_connectionString);
+            connection.Open();
+
+            var cmd = connection.CreateCommand();
+            cmd.CommandText = @"
+            SELECT employee_id, CanDoDayduty,CanDoCatheterization
+            FROM employee 
+            WHERE is_active = 1 and CanDoCatheterization=0";
+
+            using var reader = cmd.ExecuteReader();
+            while (reader.Read())
+            {
+                result.Add(new Employee
+                {
+                    EmployeeId = reader.GetInt32(0),
+
+                    CanDoNightDuty = reader.GetInt32(1),
+                });
+            }
+            return result;
+        }
     }
 }
