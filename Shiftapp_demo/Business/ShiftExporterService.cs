@@ -41,24 +41,31 @@ namespace Shiftapp_demo.Business
             var last = first.AddMonths(1).AddDays(-1);
 
             // ① 全社員
-            var employees = _db.GetActiveEmployees();
+            var employees = _db.GetAllEmployees();
 
             // ② 最新レコードを辞書化 (eid,date) → (symbol, reg, name)
-            var latestList = _db.GetLatestShifts(first, last);
+            var latestList = _db.GetShiftsOnly(first, last);
+
             var latestMap = latestList.ToDictionary(
-                x => (x.EmployeeId, x.Date.Date),
-                x => (x.Symbol, x.RegisteredAt, x.EmployeeName)
+                x => (x.EmployeeId, x.ShiftDate.Date),
+                x => (x.Symbol, x.EmployeeName)
             );
 
             // ③ 全員×全日で前処理してCSV行を作る
             var rows = new List<ShiftCsvRow>(capacity: employees.Count * DateTime.DaysInMonth(month.Year, month.Month));
-            foreach (var (eid, name) in employees)
+
+            foreach (var e in employees)
             {
+                int eid = e.EmployeeId;
+
+                string name = e.EmployeeName;
+
                 for (var d = first; d <= last; d = d.AddDays(1))
                 {
                     ct.ThrowIfCancellationRequested();
 
                     latestMap.TryGetValue((eid, d.Date), out var found);
+
                     var symbol = found.Symbol; // null可
 
                     rows.Add(new ShiftCsvRow
@@ -71,7 +78,7 @@ namespace Shiftapp_demo.Business
                         シフト区分 = MapSymbolToShiftName(symbol),
                         出勤例外 = "なし",
                         退勤例外 = "なし",
-                        修正処理日 = d.ToString("yyyy/M/d", CultureInfo.InvariantCulture) // Excelに合わせ素朴表記
+                        修正処理日 = d.ToString("yyyy/M/d", CultureInfo.InvariantCulture) 
                     });
                 }
             }

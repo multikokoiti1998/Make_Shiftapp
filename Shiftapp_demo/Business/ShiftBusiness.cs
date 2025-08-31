@@ -26,7 +26,7 @@ namespace Shiftapp_demo.Business
 
             // シンボルID取得（※あなたのDBに合わせて）
             stidWork = _db.GetShiftTypeIdBySymbol("/");   // 土曜出勤
-            stidOff = _db.GetShiftTypeIdBySymbol("〇");   // 日・祭日休み
+            stidOff = _db.GetShiftTypeIdBySymbol("○");   // 日・祭日休み
             stidDuty = _db.GetShiftTypeIdBySymbol("当");  // 当直
             stidSubstituteOff = _db.GetShiftTypeIdBySymbol("●");  // 代休
             stidAfterDuty = _db.GetShiftTypeIdBySymbol("明");  // 明け
@@ -157,13 +157,13 @@ namespace Shiftapp_demo.Business
             var last = first.AddMonths(1).AddDays(-1);
 
             // 1) 対象社員の取得（is_active=1、夜勤できる前提）
-            var employees = _db.GetActiveEmployeesWithNightDutyClass();
+            var employees_Night_duty = _db.GetActiveEmployeesWithNightDutyClass();
 
             var canDayduty = _db.GetActiveEmployeesWithDayDutyClass();
 
             // カテ可/不可でリスト分割
-            var canCath = employees.Where(e => e.CanDoCatheterization && e.CanDoNightDuty == 1).ToList();
-            var cannotCath = employees.Where(e => !e.CanDoCatheterization && e.CanDoNightDuty == 1).ToList();
+            var canCath = employees_Night_duty.Where(e => e.CanDoCatheterization && e.CanDoNightDuty == 1).ToList();
+            var cannotCath = employees_Night_duty.Where(e => !e.CanDoCatheterization && e.CanDoNightDuty == 1).ToList();
 
             if (canCath.Count == 0 || cannotCath.Count == 0)
                 throw new InvalidOperationException("当直編成に必要な人員（カテ可/不可）が不足しています。");
@@ -180,14 +180,20 @@ namespace Shiftapp_demo.Business
             var nextAvailable = new Dictionary<int, DateTime>();     // EmployeeId -> Date
             var dayWorkCount = new Dictionary<int, int>();           // EmployeeId -> 当月の日勤回数
             var dutyCount = new Dictionary<int, int>();              // EmployeeId -> 当月の当直回数
-            foreach (var e in employees)
+            foreach (var e in employees_Night_duty)
             {
                 nextAvailable[e.EmployeeId] = preloadStart; // とりあえず最小に
                 dutyCount[e.EmployeeId] = 0;
             }
 
+            foreach (var e in canDayduty)
+            {
+                nextAvailable[e.EmployeeId] = preloadStart; // とりあえず最小に
+                dayWorkCount[e.EmployeeId] = 0;
+            }
+
             // 4) 当月すでに存在する当直をカウント＆明け休から nextAvailable を更新
-            foreach (var e in employees)
+            foreach (var e in employees_Night_duty)
             {
                 for (var d = preloadStart; d <= preloadEnd; d = d.AddDays(1))
                 {
@@ -210,7 +216,6 @@ namespace Shiftapp_demo.Business
             }
 
             // 5) 選抜アルゴリズム（フェアネス：当月回数が少ない人→次に早く入れる人→ラウンド）
-            int rrCan = 0, rrCannot = 0;
 
             List<(int EmployeeId, DateTime Date, int ShiftTypeId)> upserts = new();
 
@@ -236,13 +241,15 @@ namespace Shiftapp_demo.Business
                     .ThenBy(e => nextAvailable[e.EmployeeId])
                     .ThenBy(_ => rand.Next())  // 乱数を並べ替えに混ぜる
                     .FirstOrDefault();
-
+                //日勤候補
                 Models.Employee? cand3 = null;
 
+                //祝日候補
                 Models.Employee? cand4 = null;
                 if (day.DayOfWeek == DayOfWeek.Sunday)
                 {
                     DateTime prevDay = day.AddDays(-1);
+                    
                     cand3 = canDayduty
                        .Where(e => existingMap.TryGetValue(
                        (e.EmployeeId, prevDay), out var stid) && stid == stidOff)
@@ -259,24 +266,28 @@ namespace Shiftapp_demo.Business
                        .FirstOrDefault();
                 }
 
-                TrySet(existingMap, upserts, cand1.EmployeeId, day, stidWork);
-                TrySet(existingMap, upserts, cand2.EmployeeId, day, stidWork);
+                TrySet(existingMap, upserts, cand1.EmployeeId, day, stidDuty);
+                TrySet(existingMap, upserts, cand2.EmployeeId, day, stidDuty);
 
                 if (cand3 != null)
                 {
                     TrySet(existingMap, upserts, cand3.EmployeeId, day, stidDayWork);
+
+                    dayWorkCount[cand3.EmployeeId]++;
                 }
 
                 if (cand4 != null)
                 {
                     TrySet(existingMap, upserts, cand4.EmployeeId, day, stidDayWork);
+
+                    dayWorkCount[cand4.EmployeeId]++;
                 }
 
 
                 dutyCount[cand1.EmployeeId]++;
                 dutyCount[cand2.EmployeeId]++;
-                dayWorkCount[cand3.EmployeeId]++;
-                dayWorkCount[cand4.EmployeeId]++;
+
+
 
                 // 明け休（翌日）をセット
                 var nextDay = day.AddDays(1);
@@ -284,17 +295,25 @@ namespace Shiftapp_demo.Business
                 TrySetOffIfNoStronger(existingMap, upserts, cand2.EmployeeId, nextDay, stidAfterDuty);
 
                 // 週末代休
-                var comp = GetCompDayOff(day);
+                var comp = GetCompDayOff(day, holidays);
                 if (comp.HasValue)
                 {
                     TrySetOffIfNoStronger(existingMap, upserts, cand1.EmployeeId, comp.Value, stidSubstituteOff);
                     TrySetOffIfNoStronger(existingMap, upserts, cand2.EmployeeId, comp.Value, stidSubstituteOff);
+                    if (cand3 != null)
+                    {
+                        TrySetOffIfNoStronger(existingMap, upserts, cand3.EmployeeId, comp.Value, stidSubstituteOff);
+                    }
+                    if (cand4 != null)
+                    {
+                        TrySetOffIfNoStronger(existingMap, upserts, cand4.EmployeeId, comp.Value, stidSubstituteOff);
+                    }
                 }
 
                 // 次に入れる日は最低でも翌日以降（明け休が入ったため）
                 nextAvailable[cand1.EmployeeId] = nextDay;
                 nextAvailable[cand2.EmployeeId] = nextDay;
-                
+
             }
 
             // 6) 一括反映
@@ -318,7 +337,6 @@ namespace Shiftapp_demo.Business
 
         /// <summary>
         /// 休み（／）を「当を潰さない」形でセット。
-        /// 既に当が入っていれば何もしない。空欄や既存の／は／でOK。
         /// </summary>
         private void TrySetOffIfNoStronger(
             Dictionary<(int EmployeeId, DateTime Date), int> map,
@@ -334,15 +352,22 @@ namespace Shiftapp_demo.Business
         /// 金曜→次水 / 土曜→次月 / 日曜→次火
         /// それ以外は null。
         /// </summary>
-        private DateTime? GetCompDayOff(DateTime dutyDay)
+        /// <summary>
+        /// 週末当直日の代休日を返す（必ず平日に補正）。
+        /// 金曜→次水 / 土曜→次月 / 日曜→次火 を起点に、土日祝なら次の営業日にずらす。
+        /// それ以外は null。
+        /// </summary>
+        private DateTime? GetCompDayOff(DateTime dutyDay, List<DateTime> holidays)
         {
-            return dutyDay.DayOfWeek switch
+            DateTime? raw = dutyDay.DayOfWeek switch
             {
                 DayOfWeek.Friday => NextWeekday(dutyDay, DayOfWeek.Wednesday),
                 DayOfWeek.Saturday => dutyDay.AddDays(2), // 月
                 DayOfWeek.Sunday => dutyDay.AddDays(2), // 火
                 _ => null
             };
+
+            return raw.HasValue ? BumpToNextBusinessDay(raw.Value, holidays) : null;
         }
 
         private DateTime NextWeekday(DateTime from, DayOfWeek target)
@@ -351,6 +376,20 @@ namespace Shiftapp_demo.Business
             int diff = ((int)target - (int)from.DayOfWeek + 7) % 7;
             if (diff == 0) diff = 7;
             return from.AddDays(diff);
+        }
+
+        // 平日の営業日 (Mon-Fri かつ 祝日でない)
+        private static bool IsBusinessDay(DateTime d, List<DateTime> holidays)
+            => d.DayOfWeek is >= DayOfWeek.Monday and <= DayOfWeek.Friday
+               && !holidays.Contains(d.Date);
+
+        // 営業日に前進（自分が営業日ならそのまま）
+        private static DateTime BumpToNextBusinessDay(DateTime d, List<DateTime> holidays)
+        {
+            var x = d.Date;
+            while (!IsBusinessDay(x, holidays))
+                x = x.AddDays(1);
+            return x;
         }
     }
 

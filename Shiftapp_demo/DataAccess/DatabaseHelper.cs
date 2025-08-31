@@ -11,6 +11,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Controls.Primitives;
+using static System.Net.Mime.MediaTypeNames;
 using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace Shiftapp_demo.DataAccess
@@ -181,22 +182,38 @@ namespace Shiftapp_demo.DataAccess
 
             var cmd = connection.CreateCommand();
             cmd.CommandText = @"
-            SELECT s.employee_id, s.shift_date, t.symbol
+            SELECT
+            s.employee_id,
+            s.shift_date,
+            COALESCE(t.symbol, '') AS symbol
             FROM daily_employee_shifts s
-            JOIN employee e ON e.employee_id = s.employee_id   
-            LEFT JOIN shift_types t ON s.shift_type_id = t.shift_type_id 
-            WHERE e.is_active = 1
-            AND DATE(s.shift_date) BETWEEN DATE(@start) AND DATE(@end)";
-            cmd.Parameters.AddWithValue("@start", startDate.ToString("yyyy-MM-dd"));
-            cmd.Parameters.AddWithValue("@end", endDate.ToString("yyyy-MM-dd"));
+            JOIN employee e
+            ON e.employee_id = s.employee_id
+            AND e.is_active = 1
+            LEFT JOIN shift_types t
+                ON t.shift_type_id = s.shift_type_id
+                WHERE
+                    s.shift_date >= DATE(@start)
+                    AND s.shift_date <  DATE(@end, '+1 day')
+                     AND s.shifts_id = (
+                        SELECT s2.shifts_id
+                        FROM daily_employee_shifts s2
+                        WHERE s2.employee_id = s.employee_id
+                          AND s2.shift_date  = s.shift_date
+                        ORDER BY s2.registered_at DESC, s2.shifts_id DESC
+                        LIMIT 1);";
 
+            cmd.Parameters.AddWithValue("@start", startDate.Date.ToString("yyyy-MM-dd"));
+            cmd.Parameters.AddWithValue("@end", endDate.ToString("yyyy-MM-dd"));
             using var reader = cmd.ExecuteReader();
             while (reader.Read())
             {
                 result.Add(new Shift
                 {
                     EmployeeId = reader.GetInt32(0),
+
                     ShiftDate = DateTime.Parse(reader.GetString(1)).Date,
+
                     Symbol = reader.IsDBNull(2) ? "" : reader.GetString(2)
                 });
             }
@@ -264,7 +281,7 @@ namespace Shiftapp_demo.DataAccess
             foreach (var (eid, d, stid) in items)
             {
                 pEid.Value = eid;
-                pDate.Value = d.ToString("yyyy-MM-dd");   // TEXT(ISO8601)で保存
+                pDate.Value = d.ToString("yyyy-MM-dd");
                 pStid.Value = stid;
                 cmd.ExecuteNonQuery();
             }
@@ -280,32 +297,36 @@ namespace Shiftapp_demo.DataAccess
 
             using var cmd = con.CreateCommand();
             cmd.CommandText = @"
-            SELECT e.employee_id,
-            DATE(s.shift_date) AS d,
-            s.shift_type_id
-            FROM daily_employee_shifts s
-            JOIN employee e ON e.employee_id = s.employee_id
-            WHERE /* e.is_active = 1 AND */       
-            /* s.is_active = 1 AND */       
-            DATE(s.shift_date) BETWEEN DATE(@start) AND DATE(@end);";
-            cmd.Parameters.AddWithValue("@start", start.ToString("yyyy-MM-dd"));
-            cmd.Parameters.AddWithValue("@end", end.ToString("yyyy-MM-dd"));
+            SELECT s.employee_id,
+                   s.shift_date,
+                   s.shift_type_id
+            FROM (
+              SELECT s.employee_id,
+                     s.shift_date,
+                     s.shift_type_id,
+                     ROW_NUMBER() OVER (
+                       PARTITION BY s.employee_id, s.shift_date
+                       ORDER BY s.registered_at DESC, s.shifts_id DESC
+                     ) AS rn
+              FROM daily_employee_shifts s
+              WHERE s.shift_date >= @start
+                AND s.shift_date <  @next
+            ) s
+            JOIN employee e ON e.employee_id = s.employee_id AND e.is_active = 1
+            WHERE s.rn = 1;";
+
+            var next = end.Date.AddDays(1);
+            cmd.Parameters.AddWithValue("@start", start.Date.ToString("yyyy-MM-dd"));
+            cmd.Parameters.AddWithValue("@next", next.ToString("yyyy-MM-dd"));
 
             using var r = cmd.ExecuteReader();
             while (r.Read())
             {
                 int eid = r.GetInt32(0);
-                // SQLiteのDATEはTEXTで返ることが多いので安全にParseExact
-                string ds = r.GetString(1);
-                var date = DateTime.ParseExact(ds, "yyyy-MM-dd", CultureInfo.InvariantCulture);
-
-                int? stid = r.IsDBNull(2) ? (int?)null : r.GetInt32(2);
-                if (stid.HasValue)
-                {
-                    map[(eid, date)] = stid.Value;
-                }
+                var date = DateTime.Parse(r.GetString(1));         // 'yyyy-MM-dd' を想定
+                int stid = r.GetInt32(2);
+                map[(eid, date.Date)] = stid;                      // ← 1日1件だけ入る
             }
-
             return map;
         }
 
@@ -370,7 +391,7 @@ namespace Shiftapp_demo.DataAccess
             cmd.CommandText = @"
             SELECT employee_id, CanDoDayduty,CanDoCatheterization
             FROM employee 
-            WHERE is_active = 1 and CanDoCatheterization=0";
+            WHERE is_active = 1 and CanDoCatheterization==0 and CanDoDayduty==1 ";
 
             using var reader = cmd.ExecuteReader();
             while (reader.Read())
