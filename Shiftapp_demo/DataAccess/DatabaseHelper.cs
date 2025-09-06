@@ -182,29 +182,67 @@ namespace Shiftapp_demo.DataAccess
 
             var cmd = connection.CreateCommand();
             cmd.CommandText = @"
+            WITH latest AS (
+              SELECT s.*,
+                     ROW_NUMBER() OVER (
+                       PARTITION BY s.employee_id, s.shift_date
+                       ORDER BY s.registered_at DESC, s.shifts_id DESC
+                     ) AS rn
+              FROM daily_employee_shifts s
+              WHERE s.shift_date >= @start AND s.shift_date < @end
+            ),
+            base AS (SELECT * FROM latest WHERE rn = 1),
+            orig_duty AS (  -- 明け判定用：当直のみ
+              SELECT b.shifts_id, b.employee_id, b.shift_date
+              FROM base b
+              WHERE b.shift_type_id = @stidDuty
+            ),
+            resolved AS (  -- 不整合を潰した最終シフト種別ID
+              SELECT
+                b.employee_id,
+                b.shift_date,
+                CASE
+                  -- 明け：前日の当直（origin）が無ければ無効
+                  WHEN b.shift_type_id = @stidAke
+                    AND NOT EXISTS (
+                      SELECT 1 FROM orig_duty o
+                      WHERE o.shifts_id   = b.origin_shifts_id
+                        AND o.employee_id = b.employee_id
+                        AND o.shift_date  = DATE(b.shift_date, '-1 day')
+                    )
+                  THEN NULL
+
+                  -- 代休：元が 当 or 日 or 土曜出勤(/) に該当しなければ無効
+                  WHEN b.shift_type_id = @stidDaikyu
+                    AND NOT EXISTS (
+                      SELECT 1 FROM base o
+                      WHERE o.shifts_id    = b.origin_shifts_id
+                        AND o.employee_id  = b.employee_id
+                        AND o.shift_type_id IN (@stidDuty, @stidDayDuty, @stidSatWork)
+                    )
+                  THEN NULL
+
+                  ELSE b.shift_type_id
+                END AS final_shift_type_id
+              FROM base b
+            )
             SELECT
-            s.employee_id,
-            s.shift_date,
-            COALESCE(t.symbol, '') AS symbol
-            FROM daily_employee_shifts s
-            JOIN employee e
-            ON e.employee_id = s.employee_id
-            AND e.is_active = 1
-            LEFT JOIN shift_types t
-                ON t.shift_type_id = s.shift_type_id
-                WHERE
-                    s.shift_date >= DATE(@start)
-                    AND s.shift_date <  DATE(@end, '+1 day')
-                     AND s.shifts_id = (
-                        SELECT s2.shifts_id
-                        FROM daily_employee_shifts s2
-                        WHERE s2.employee_id = s.employee_id
-                          AND s2.shift_date  = s.shift_date
-                        ORDER BY s2.registered_at DESC, s2.shifts_id DESC
-                        LIMIT 1);";
+              r.employee_id,
+              r.shift_date,
+              COALESCE(t.symbol, '') AS symbol,       -- これをUI表示に使う
+              r.final_shift_type_id                   -- 必要なら内部用途で
+            FROM resolved r
+            LEFT JOIN shift_types t ON t.shift_type_id = r.final_shift_type_id
+            JOIN employee e ON e.employee_id = r.employee_id AND e.is_active = 1
+            ORDER BY r.employee_id, r.shift_date;";
 
             cmd.Parameters.AddWithValue("@start", startDate.Date.ToString("yyyy-MM-dd"));
             cmd.Parameters.AddWithValue("@end", endDate.ToString("yyyy-MM-dd"));
+            cmd.Parameters.AddWithValue("@stidDuty", 1); // 当
+            cmd.Parameters.AddWithValue("@stidDayDuty", 0); // 日
+            cmd.Parameters.AddWithValue("@stidSatWork", 5); // /
+            cmd.Parameters.AddWithValue("@stidAke", 2); // 明
+            cmd.Parameters.AddWithValue("@stidDaikyu", 3); // 代
             using var reader = cmd.ExecuteReader();
             while (reader.Read())
             {
@@ -258,36 +296,6 @@ namespace Shiftapp_demo.DataAccess
             return Convert.ToInt32(obj);
         }
 
-        // daily_employee_shifts に UNIQUE(employee_id, shift_date) 制約がある前提
-        public void BulkUpsertShifts(IEnumerable<(int EmployeeId, DateTime Date, int ShiftTypeId)> items)
-        {
-            using var con = new SqliteConnection(_connectionString);
-            con.Open();
-            using var tx = con.BeginTransaction();
-
-            using var cmd = con.CreateCommand();
-            cmd.Transaction = tx;
-            cmd.CommandText =
-            @"
-            INSERT INTO daily_employee_shifts
-            (employee_id, shift_date, shift_type_id, registered_at)
-            VALUES
-            (@eid, @date, @stid, CURRENT_TIMESTAMP);";
-
-            var pEid = cmd.CreateParameter(); pEid.ParameterName = "@eid"; cmd.Parameters.Add(pEid);
-            var pDate = cmd.CreateParameter(); pDate.ParameterName = "@date"; cmd.Parameters.Add(pDate);
-            var pStid = cmd.CreateParameter(); pStid.ParameterName = "@stid"; cmd.Parameters.Add(pStid);
-
-            foreach (var (eid, d, stid) in items)
-            {
-                pEid.Value = eid;
-                pDate.Value = d.ToString("yyyy-MM-dd");
-                pStid.Value = stid;
-                cmd.ExecuteNonQuery();
-            }
-
-            tx.Commit();
-        }
         public Dictionary<(int EmployeeId, DateTime Date), int> GetShiftMap(DateTime start, DateTime end)
         {
             var map = new Dictionary<(int, DateTime), int>();
@@ -297,37 +305,103 @@ namespace Shiftapp_demo.DataAccess
 
             using var cmd = con.CreateCommand();
             cmd.CommandText = @"
-            SELECT s.employee_id,
-                   s.shift_date,
-                   s.shift_type_id
-            FROM (
-              SELECT s.employee_id,
-                     s.shift_date,
-                     s.shift_type_id,
+            WITH latest AS (
+              SELECT s.*,
                      ROW_NUMBER() OVER (
                        PARTITION BY s.employee_id, s.shift_date
                        ORDER BY s.registered_at DESC, s.shifts_id DESC
                      ) AS rn
               FROM daily_employee_shifts s
-              WHERE s.shift_date >= @start
-                AND s.shift_date <  @next
-            ) s
-            JOIN employee e ON e.employee_id = s.employee_id AND e.is_active = 1
-            WHERE s.rn = 1;";
+              WHERE s.shift_date >= @start AND s.shift_date < @next
+            ),
+            base AS (SELECT * FROM latest WHERE rn = 1)
+            SELECT
+              b.employee_id,
+              b.shift_date,
+              CASE
+                -- 明け：前日の当直(origin)が無ければ空文字
+                WHEN b.shift_type_id = @stidAke
+                  AND NOT EXISTS (
+                    SELECT 1
+                    FROM daily_employee_shifts o
+                    WHERE o.shifts_id    = b.origin_shifts_id
+                      AND o.employee_id  = b.employee_id
+                      AND o.shift_type_id = @stidDuty
+                      AND o.shift_date   = DATE(b.shift_date, '-1 day')
+                  )
+                THEN ''
+
+                -- 代休：元が 当 or 日 のいずれでも無ければ空文字（※土曜出勤は対象外）
+                WHEN b.shift_type_id = @stidDaikyu
+                  AND NOT EXISTS (
+                    SELECT 1
+                    FROM daily_employee_shifts o
+                    WHERE o.shifts_id    = b.origin_shifts_id
+                      AND o.employee_id  = b.employee_id
+                      AND o.shift_type_id IN (@stidDuty, @stidDayDuty)
+                  )
+                THEN ''
+
+                ELSE COALESCE(t.symbol,'')
+              END AS symbol
+            FROM base b
+            LEFT JOIN shift_types t ON t.shift_type_id = b.shift_type_id
+            JOIN employee e ON e.employee_id = b.employee_id AND e.is_active = 1
+            ORDER BY b.employee_id, b.shift_date;";
 
             var next = end.Date.AddDays(1);
             cmd.Parameters.AddWithValue("@start", start.Date.ToString("yyyy-MM-dd"));
             cmd.Parameters.AddWithValue("@next", next.ToString("yyyy-MM-dd"));
+            cmd.Parameters.AddWithValue("@stidDuty", 1);
+            cmd.Parameters.AddWithValue("@stidDayDuty", 0);
+            cmd.Parameters.AddWithValue("@stidAke", 5);
+            cmd.Parameters.AddWithValue("@stidDaikyu", 2);
 
             using var r = cmd.ExecuteReader();
             while (r.Read())
             {
                 int eid = r.GetInt32(0);
-                var date = DateTime.Parse(r.GetString(1));         // 'yyyy-MM-dd' を想定
+                var date = DateTime.Parse(r.GetString(1));
                 int stid = r.GetInt32(2);
-                map[(eid, date.Date)] = stid;                      // ← 1日1件だけ入る
+                map[(eid, date.Date)] = stid;
             }
             return map;
+        }
+
+        // daily_employee_shifts に UNIQUE(employee_id, shift_date) 制約がある前提
+        public void BulkUpsertShifts(IEnumerable<(int EmployeeId, DateTime Date, int ShiftTypeId)> items)
+        {
+            using var con = new SqliteConnection(_connectionString);
+            con.Open();
+            using (var pragma = con.CreateCommand())
+            {   // 連打でのロック緩和（任意）
+                pragma.CommandText = "PRAGMA journal_mode=WAL; PRAGMA busy_timeout=5000;";
+                pragma.ExecuteNonQuery();
+            }
+
+            using var tx = con.BeginTransaction();
+
+            using var cmd = con.CreateCommand();
+
+            cmd.Transaction = tx;
+            cmd.CommandText = @"
+            INSERT INTO daily_employee_shifts (employee_id, shift_date, shift_type_id, registered_at)
+            VALUES (@eid, @date, @stid, CURRENT_TIMESTAMP)
+            ON CONFLICT(employee_id, shift_date) DO UPDATE SET
+              shift_type_id = excluded.shift_type_id,
+              registered_at = CURRENT_TIMESTAMP;";
+            var pEid = cmd.CreateParameter(); pEid.ParameterName = "@eid"; cmd.Parameters.Add(pEid);
+            var pDate = cmd.CreateParameter(); pDate.ParameterName = "@date"; cmd.Parameters.Add(pDate);
+            var pSid = cmd.CreateParameter(); pSid.ParameterName = "@stid"; cmd.Parameters.Add(pSid);
+
+            foreach (var (eid, d, stid) in items)
+            {
+                pEid.Value = eid;
+                pDate.Value = d.ToString("yyyy-MM-dd");
+                pSid.Value = stid;
+                cmd.ExecuteNonQuery();
+            }
+            tx.Commit();
         }
 
         public List<DateTime> GetHolidays(DateTime start, DateTime end)
@@ -357,7 +431,9 @@ namespace Shiftapp_demo.DataAccess
         public List<Employee> GetActiveEmployeesWithNightDutyClass()
         {
             var result = new List<Employee>();
+
             using var connection = new SqliteConnection(_connectionString);
+
             connection.Open();
 
             var cmd = connection.CreateCommand();

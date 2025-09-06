@@ -9,16 +9,19 @@ namespace Shiftapp_demo.Business
 {
     internal class ShiftBusiness
     {
-        DateTime baseSaturday = new DateTime(2025, 8, 16);
-
+        private DateTime baseSaturday = new DateTime(2025, 8, 16);
         private readonly DatabaseHelper _db;
-
+        private Random rand = new Random();
         private readonly int stidWork;
         private readonly int stidOff;
         private readonly int stidDuty;
         private readonly int stidSubstituteOff;
         private readonly int stidAfterDuty;
         private readonly int stidDayWork;
+        const int MinDutyGapDays = 3;
+
+        static int GetOrZero(Dictionary<int, int> dict, int key)
+            => dict.TryGetValue(key, out var v) ? v : 0;
 
         public ShiftBusiness(DatabaseHelper db)
         {
@@ -222,7 +225,7 @@ namespace Shiftapp_demo.Business
             for (var day = first; day <= last; day = day.AddDays(1))
             {
 
-                var rand = new Random();
+
                 // その日にすでに当直が入っていればスキップ
                 // 今回は作成者なので、既存当直は尊重しつつ足りない側だけ補完したければ、
                 // 片側ずつ判定するロジックに分ける。ここではシンプルに新規作成前提。
@@ -242,28 +245,30 @@ namespace Shiftapp_demo.Business
                     .ThenBy(_ => rand.Next())  // 乱数を並べ替えに混ぜる
                     .FirstOrDefault();
                 //日勤候補
-                Models.Employee? cand3 = null;
+                Models.Employee? cand3 = null, cand4 = null;
 
                 //祝日候補
-                Models.Employee? cand4 = null;
                 if (day.DayOfWeek == DayOfWeek.Sunday)
                 {
                     DateTime prevDay = day.AddDays(-1);
-                    
+
                     cand3 = canDayduty
-                       .Where(e => existingMap.TryGetValue(
-                       (e.EmployeeId, prevDay), out var stid) && stid == stidOff)
-                       .OrderBy(e => dayWorkCount[e.EmployeeId])
-                       .ThenBy(_ => rand.Next())
-                       .FirstOrDefault();
+                    .Where(e => e.EmployeeId != cand1?.EmployeeId
+                    && e.EmployeeId != cand2?.EmployeeId
+                    && existingMap.TryGetValue((e.EmployeeId, prevDay), out var st) && st == stidOff)
+                    .OrderBy(e => GetOrZero(dayWorkCount, e.EmployeeId))
+                    .ThenBy(_ => rand.Next())
+                    .FirstOrDefault();
                 }
 
                 else if (holidays.Contains(day))
                 {
                     cand4 = canDayduty
-                       .OrderBy(e => dayWorkCount[e.EmployeeId])
-                       .ThenBy(_ => rand.Next())
-                       .FirstOrDefault();
+                    .Where(e => e.EmployeeId != cand1?.EmployeeId
+                             && e.EmployeeId != cand2?.EmployeeId)
+                    .OrderBy(e => GetOrZero(dayWorkCount, e.EmployeeId))
+                    .ThenBy(_ => rand.Next())
+                    .FirstOrDefault();
                 }
 
                 TrySet(existingMap, upserts, cand1.EmployeeId, day, stidDuty);
