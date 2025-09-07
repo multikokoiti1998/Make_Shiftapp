@@ -71,7 +71,7 @@ namespace Shiftapp_demo.Views
 
         private void Button_Click_1(object sender, RoutedEventArgs e)
         {
-            DateTime today = DateTime.Today;
+            DateTime today = ShiftCalendar.DisplayDate;
 
             ShiftCalendar.DisplayDate = today;
 
