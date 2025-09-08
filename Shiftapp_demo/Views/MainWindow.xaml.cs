@@ -75,6 +75,8 @@ namespace Shiftapp_demo.Views
 
             ShiftCalendar.DisplayDate = today;
 
+            ViewModel.GenerateOffShift(today);
+
             ViewModel.MakeNightDuty(today);
         }
     }

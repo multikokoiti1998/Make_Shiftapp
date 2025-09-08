@@ -128,6 +128,7 @@ namespace Shiftapp_demo.Business
             // 1) データ取得
             var employees = _db.GetAllEmployees();
             var sundays = GetSundaysInMonth(month);
+            var holidays = GetHolidaysInMonth(month);
 
             // 月間の既存シフト（当直など）があれば優先したいので先に取得
             // 返り値の想定: Dictionary<(int EmployeeId, DateTime Date), int ShiftTypeId>
@@ -137,12 +138,13 @@ namespace Shiftapp_demo.Business
 
             var assigns = new List<(int eid, DateTime date, int stid)>();
 
-            foreach (var sunday in sundays)
+            var days = sundays.Select(d => d.Date)
+                              .Union(holidays.Select(d => d.Date)); // 重複自動除去
+
+            foreach (var day in days)
             {
                 foreach (var emp in employees)
-                {
-                    assigns.Add((emp.EmployeeId, sunday, stidOff));
-                }
+                    assigns.Add((emp.EmployeeId, day, stidOff));
             }
 
             // 4) 一括Upsert
@@ -290,18 +292,19 @@ namespace Shiftapp_demo.Business
                     SetOverwrite(existingMap, upserts, cand4.EmployeeId, day, stidDayWork);
                     dayWorkCount[cand4.EmployeeId] = dayWorkCount.TryGetValue(cand4.EmployeeId, out var w4) ? w4 + 1 : 1;
                 }
-
-                // 明け（翌日）← 上書きOKで置く
-                var nextDay = day.AddDays(1);
+                 
+                DateTime nextDay = day.Date.AddDays(1);
                 if (placed1) SetOverwrite(existingMap, upserts, cand1!.EmployeeId, nextDay, stidAfterDuty);
                 if (placed2) SetOverwrite(existingMap, upserts, cand2!.EmployeeId, nextDay, stidAfterDuty);
 
                 // （必要なら）週末代休も復活：当直者にのみ付与（上書きOK）
+                DateTime? comp1 = null, comp2 = null;
+
                 var comp = GetCompDayOff(day, holidays);
                 if (comp.HasValue)
                 {
-                    if (placed1) SetOverwrite(existingMap, upserts, cand1!.EmployeeId, comp.Value, stidSubstituteOff);
-                    if (placed2) SetOverwrite(existingMap, upserts, cand2!.EmployeeId, comp.Value, stidSubstituteOff);
+                    if (placed1) { SetChildWithOrigin(existingMap, upserts, cand1!.EmployeeId, comp.Value, stidSubstituteOff, day); comp1 = comp.Value; }
+                    if (placed2) { SetChildWithOrigin(existingMap, upserts, cand2!.EmployeeId, comp.Value, stidSubstituteOff, day); comp2 = comp.Value; }
                 }
 
                 // 連勤ガード（例：3日空け）
@@ -314,7 +317,7 @@ namespace Shiftapp_demo.Business
             // 6) 一括反映
             if (upserts.Count > 0)
             {
-                _db.BulkUpsert_Duty_Shifts(upserts);
+                _db.BulkUpsert_Duty_Shifts(upserts,month);
             }
         }
 
@@ -390,6 +393,7 @@ namespace Shiftapp_demo.Business
                 x = x.AddDays(1);
             return x;
         }
+
     }
 
 }

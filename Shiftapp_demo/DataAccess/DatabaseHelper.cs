@@ -172,7 +172,7 @@ namespace Shiftapp_demo.DataAccess
                        ORDER BY s.registered_at DESC, s.shifts_id DESC
                      ) AS rn
               FROM daily_employee_shifts s
-              WHERE s.shift_date >= @start AND s.shift_date < @end
+              WHERE s.shift_date >= @start AND s.shift_date < @next
             ),
             base AS (SELECT * FROM latest WHERE rn = 1),
             orig_duty AS (  -- 明け判定用：当直のみ
@@ -219,8 +219,10 @@ namespace Shiftapp_demo.DataAccess
             JOIN employee e ON e.employee_id = r.employee_id AND e.is_active = 1
             ORDER BY r.employee_id, r.shift_date;";
 
+            var next = endDate.AddDays(1);
+
             cmd.Parameters.AddWithValue("@start", startDate.Date.ToString("yyyy-MM-dd"));
-            cmd.Parameters.AddWithValue("@end", endDate.ToString("yyyy-MM-dd"));
+            cmd.Parameters.AddWithValue("@next", next.ToString("yyyy-MM-dd"));
             cmd.Parameters.AddWithValue("@stidDuty", 1); // 当
             cmd.Parameters.AddWithValue("@stidDayDuty", 0); // 日
             cmd.Parameters.AddWithValue("@stidSatWork", 5); // /
@@ -295,42 +297,50 @@ namespace Shiftapp_demo.DataAccess
                        ORDER BY s.registered_at DESC, s.shifts_id DESC
                      ) AS rn
               FROM daily_employee_shifts s
-              WHERE s.shift_date >= @start AND s.shift_date < @next
+              WHERE s.shift_date >= DATE(@start, '-1 day') AND s.shift_date < @next
             ),
-            base AS (SELECT * FROM latest WHERE rn = 1)
+            base AS (SELECT * FROM latest WHERE rn = 1),
+            orig_duty AS (
+              SELECT b.employee_id, b.shift_date, b.shifts_id
+              FROM base b
+              WHERE b.shift_type_id = @stidDuty
+            ),
+            resolved AS (
+              SELECT
+                b.employee_id,
+                b.shift_date,
+                CASE
+                  -- 明：前日の当が見つからなければ無効（ID一致 or 日付一致のどちらかでOK）
+                  WHEN b.shift_type_id = @stidAke
+                    AND NOT EXISTS (
+                      SELECT 1 FROM orig_duty o
+                      WHERE o.employee_id = b.employee_id
+                        AND o.shift_date  = DATE(b.shift_date, '-1 day')
+                    )
+                  THEN NULL
+
+                  WHEN b.shift_type_id = @stidDaikyu
+                    AND NOT EXISTS (
+                      SELECT 1
+                      FROM base o
+                      WHERE o.employee_id  = b.employee_id
+                        AND o.shifts_id    = b.origin_shifts_id
+                        AND o.shift_type_id IN (@stidDuty, @stidDayDuty /*, @stidSatWork*/)
+                    )
+                  THEN NULL
+
+                  ELSE b.shift_type_id
+                END AS final_shift_type_id
+              FROM base b
+            )
             SELECT
-              b.employee_id,
-              b.shift_date,
-              CASE
-                -- 明け：前日の当直(origin)が無ければ空文字
-                WHEN b.shift_type_id = @stidAke
-                  AND NOT EXISTS (
-                    SELECT 1
-                    FROM daily_employee_shifts o
-                    WHERE o.shifts_id    = b.origin_shifts_id
-                      AND o.employee_id  = b.employee_id
-                      AND o.shift_type_id = @stidDuty
-                      AND o.shift_date   = DATE(b.shift_date, '-1 day')
-                  )
-                THEN ''
-
-                -- 代休：元が 当 or 日 のいずれでも無ければ空文字（※土曜出勤は対象外）
-                WHEN b.shift_type_id = @stidDaikyu
-                  AND NOT EXISTS (
-                    SELECT 1
-                    FROM daily_employee_shifts o
-                    WHERE o.shifts_id    = b.origin_shifts_id
-                      AND o.employee_id  = b.employee_id
-                      AND o.shift_type_id IN (@stidDuty, @stidDayDuty)
-                  )
-                THEN ''
-
-                ELSE COALESCE(t.symbol,'')
-              END AS symbol
-            FROM base b
-            LEFT JOIN shift_types t ON t.shift_type_id = b.shift_type_id
-            JOIN employee e ON e.employee_id = b.employee_id AND e.is_active = 1
-            ORDER BY b.employee_id, b.shift_date;";
+              r.employee_id,
+              r.shift_date,
+              COALESCE(r.final_shift_type_id, 0) AS final_shift_type_id  -- ← int で返す
+            FROM resolved r
+            JOIN employee e ON e.employee_id = r.employee_id AND e.is_active = 1
+            WHERE r.shift_date >= @start AND r.shift_date < @next
+            ORDER BY r.employee_id, r.shift_date;";
 
             var next = end.Date.AddDays(1);
             cmd.Parameters.AddWithValue("@start", start.Date.ToString("yyyy-MM-dd"));
@@ -359,7 +369,6 @@ namespace Shiftapp_demo.DataAccess
             var first = new DateTime(monthFirst.Year, monthFirst.Month, 1);
             var next = first.AddMonths(1);
 
-            // 接続ごとに有効化（保険）
             using (var fk = con.CreateCommand())
             {
                 fk.Transaction = tx;
@@ -436,7 +445,7 @@ namespace Shiftapp_demo.DataAccess
 
 
         // 当直日勤や代休の登録
-        public void BulkUpsert_Duty_Shifts(IEnumerable<ShiftWrite> items)
+        public void BulkUpsert_Duty_Shifts(IEnumerable<ShiftWrite> items,DateTime month)
         {
             using var con = new SqliteConnection($"{_connectionString};Foreign Keys=True;");
             con.Open();
@@ -450,7 +459,7 @@ namespace Shiftapp_demo.DataAccess
             );
 
             // 対象月（itemsは単月想定）
-            var monthFirst = new DateTime(items.Min(x => x.Date).Year, items.Min(x => x.Date).Month, 1);
+            var monthFirst = new DateTime(month.Year, month.Month, 1);
 
             // ★ 当月の「親：当直・日勤」だけ削除（子はCASCADEで自動削除）
             DeleteMonthDutyAndDayParentsWithCascade(con, tx, monthFirst, raw.StidDuty, raw.StidDayDuty);
@@ -483,7 +492,7 @@ namespace Shiftapp_demo.DataAccess
                 foreach (var r in parentsDuty)
                 {
                     pEid.Value = r.EmployeeId;
-                    pDate.Value = r.Date.ToString("yyyy-MM-dd");                 // DateTime でOK
+                    pDate.Value = r.Date.ToString("yyyy-MM-dd");                 
                     pSid.Value = raw.StidDuty;
                     var obj = cmd.ExecuteScalar();
                     var id = (obj is long l) ? l : throw new InvalidOperationException("RETURNING failed for duty parent.");
@@ -590,7 +599,7 @@ namespace Shiftapp_demo.DataAccess
                                 FROM daily_employee_shifts
                                 WHERE employee_id=@eid AND shift_date=@date AND shift_type_id IN (@sidDuty, @sidDay)";
                                 look.Parameters.AddWithValue("@eid", r.EmployeeId);
-                                look.Parameters.AddWithValue("@date", od);
+                                look.Parameters.AddWithValue("@date", od.ToString("yyyy-MM-dd"));
                                 look.Parameters.AddWithValue("@sidDuty", raw.StidDuty);
                                 look.Parameters.AddWithValue("@sidDay", raw.StidDayDuty);
                                 var obj = look.ExecuteScalar();
@@ -608,7 +617,7 @@ namespace Shiftapp_demo.DataAccess
                                 WHERE employee_id=@eid AND shift_date=@date AND shift_type_id=@sidDay
                                 LIMIT 1;";
                                 look2.Parameters.AddWithValue("@eid", r.EmployeeId);
-                                look2.Parameters.AddWithValue("@date", od);
+                                look2.Parameters.AddWithValue("@date", od.ToString("yyyy-MM-dd"));
                                 look2.Parameters.AddWithValue("@sidDay", raw.StidDayDuty);
                                 var obj2 = look2.ExecuteScalar();
                                 if (obj2 != null && obj2 != DBNull.Value) found = Convert.ToInt64(obj2);
@@ -624,7 +633,7 @@ namespace Shiftapp_demo.DataAccess
 
                     // 子のUPSERT
                     pEid.Value = r.EmployeeId;
-                    pDate.Value = r.Date;
+                    pDate.Value = r.Date.ToString("yyyy-MM-dd");
                     pSid.Value = r.ShiftTypeId;
                     pOrigin.Value = originId.Value;
                     cmd.ExecuteNonQuery();
