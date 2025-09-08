@@ -165,69 +165,29 @@ namespace Shiftapp_demo.DataAccess
 
             var cmd = connection.CreateCommand();
             cmd.CommandText = @"
-            WITH latest AS (
-              SELECT s.*,
-                     ROW_NUMBER() OVER (
-                       PARTITION BY s.employee_id, s.shift_date
-                       ORDER BY s.registered_at DESC, s.shifts_id DESC
-                     ) AS rn
-              FROM daily_employee_shifts s
-              WHERE s.shift_date >= @start AND s.shift_date < @next
-            ),
-            base AS (SELECT * FROM latest WHERE rn = 1),
-            orig_duty AS (  -- 明け判定用：当直のみ
-              SELECT b.shifts_id, b.employee_id, b.shift_date
-              FROM base b
-              WHERE b.shift_type_id = @stidDuty
-            ),
-            resolved AS (  -- 不整合を潰した最終シフト種別ID
-              SELECT
-                b.employee_id,
-                b.shift_date,
-                CASE
-                  -- 明け：前日の当直（origin）が無ければ無効
-                  WHEN b.shift_type_id = @stidAke
-                    AND NOT EXISTS (
-                      SELECT 1 FROM orig_duty o
-                      WHERE o.shifts_id   = b.origin_shifts_id
-                        AND o.employee_id = b.employee_id
-                        AND o.shift_date  = DATE(b.shift_date, '-1 day')
-                    )
-                  THEN NULL
-
-                  -- 代休：元が 当 or 日 or 土曜出勤(/) に該当しなければ無効
-                  WHEN b.shift_type_id = @stidDaikyu
-                    AND NOT EXISTS (
-                      SELECT 1 FROM base o
-                      WHERE o.shifts_id    = b.origin_shifts_id
-                        AND o.employee_id  = b.employee_id
-                        AND o.shift_type_id IN (@stidDuty, @stidDayDuty, @stidSatWork)
-                    )
-                  THEN NULL
-
-                  ELSE b.shift_type_id
-                END AS final_shift_type_id
-              FROM base b
-            )
             SELECT
-              r.employee_id,
-              r.shift_date,
-              COALESCE(t.symbol, '') AS symbol,       -- これをUI表示に使う
-              r.final_shift_type_id                   -- 必要なら内部用途で
-            FROM resolved r
-            LEFT JOIN shift_types t ON t.shift_type_id = r.final_shift_type_id
-            JOIN employee e ON e.employee_id = r.employee_id AND e.is_active = 1
-            ORDER BY r.employee_id, r.shift_date;";
+              b.employee_id,
+              b.shift_date,
+              COALESCE(t.symbol, '') AS symbol,       -- UI用
+              b.shift_type_id         AS final_shift_type_id
+            FROM daily_employee_shifts b
+            JOIN employee e
+              ON e.employee_id = b.employee_id AND e.is_active = 1
+            LEFT JOIN shift_types t
+              ON t.shift_type_id = b.shift_type_id
+            WHERE DATE(b.shift_date) >= DATE(@start)
+              AND DATE(b.shift_date) <  DATE(@next)
+            ORDER BY b.employee_id, b.shift_date;";
 
             var next = endDate.AddDays(1);
 
             cmd.Parameters.AddWithValue("@start", startDate.Date.ToString("yyyy-MM-dd"));
             cmd.Parameters.AddWithValue("@next", next.ToString("yyyy-MM-dd"));
-            cmd.Parameters.AddWithValue("@stidDuty", 1); // 当
-            cmd.Parameters.AddWithValue("@stidDayDuty", 0); // 日
-            cmd.Parameters.AddWithValue("@stidSatWork", 5); // /
-            cmd.Parameters.AddWithValue("@stidAke", 2); // 明
-            cmd.Parameters.AddWithValue("@stidDaikyu", 3); // 代
+            cmd.Parameters.AddWithValue("@stidDuty", GetShiftTypeIdBySymbol("当"));
+            cmd.Parameters.AddWithValue("@stidDayDuty", GetShiftTypeIdBySymbol("日"));
+            cmd.Parameters.AddWithValue("@stidSatWork", GetShiftTypeIdBySymbol("/"));
+            cmd.Parameters.AddWithValue("@stidAke", GetShiftTypeIdBySymbol("明"));
+            cmd.Parameters.AddWithValue("@stidDaikyu", GetShiftTypeIdBySymbol("●"));
             using var reader = cmd.ExecuteReader();
             while (reader.Read())
             {
