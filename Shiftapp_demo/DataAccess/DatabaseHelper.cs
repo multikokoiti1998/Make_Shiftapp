@@ -290,57 +290,15 @@ namespace Shiftapp_demo.DataAccess
 
             using var cmd = con.CreateCommand();
             cmd.CommandText = @"
-            WITH latest AS (
-              SELECT s.*,
-                     ROW_NUMBER() OVER (
-                       PARTITION BY s.employee_id, s.shift_date
-                       ORDER BY s.registered_at DESC, s.shifts_id DESC
-                     ) AS rn
-              FROM daily_employee_shifts s
-              WHERE s.shift_date >= DATE(@start, '-1 day') AND s.shift_date < @next
-            ),
-            base AS (SELECT * FROM latest WHERE rn = 1),
-            orig_duty AS (
-              SELECT b.employee_id, b.shift_date, b.shifts_id
-              FROM base b
-              WHERE b.shift_type_id = @stidDuty
-            ),
-            resolved AS (
-              SELECT
-                b.employee_id,
-                b.shift_date,
-                CASE
-                  -- 明：前日の当が見つからなければ無効（ID一致 or 日付一致のどちらかでOK）
-                  WHEN b.shift_type_id = @stidAke
-                    AND NOT EXISTS (
-                      SELECT 1 FROM orig_duty o
-                      WHERE o.employee_id = b.employee_id
-                        AND o.shift_date  = DATE(b.shift_date, '-1 day')
-                    )
-                  THEN NULL
-
-                  WHEN b.shift_type_id = @stidDaikyu
-                    AND NOT EXISTS (
-                      SELECT 1
-                      FROM base o
-                      WHERE o.employee_id  = b.employee_id
-                        AND o.shifts_id    = b.origin_shifts_id
-                        AND o.shift_type_id IN (@stidDuty, @stidDayDuty /*, @stidSatWork*/)
-                    )
-                  THEN NULL
-
-                  ELSE b.shift_type_id
-                END AS final_shift_type_id
-              FROM base b
-            )
             SELECT
-              r.employee_id,
-              r.shift_date,
-              COALESCE(r.final_shift_type_id, 0) AS final_shift_type_id  -- ← int で返す
-            FROM resolved r
-            JOIN employee e ON e.employee_id = r.employee_id AND e.is_active = 1
-            WHERE r.shift_date >= @start AND r.shift_date < @next
-            ORDER BY r.employee_id, r.shift_date;";
+              b.employee_id,
+              b.shift_date,
+              b.shift_type_id
+            FROM daily_employee_shifts b
+            JOIN employee e ON e.employee_id = b.employee_id AND e.is_active = 1
+            WHERE DATE(b.shift_date) >= DATE(@start)
+              AND DATE(b.shift_date) <  DATE(@next)
+            ORDER BY b.employee_id, b.shift_date;";
 
             var next = end.Date.AddDays(1);
             cmd.Parameters.AddWithValue("@start", start.Date.ToString("yyyy-MM-dd"));

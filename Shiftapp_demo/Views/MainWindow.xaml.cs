@@ -25,7 +25,7 @@ namespace Shiftapp_demo.Views
         {
             DateTime today = DateTime.Today;
 
-            ViewModel.GenerateOffShift(today);
+            //ViewModel.GenerateOffShift(today);
 
             ViewModel.LoadShiftDataForMonth(today);
 
@@ -45,7 +45,7 @@ namespace Shiftapp_demo.Views
         {
             DateTime currentMonth = ShiftCalendar.DisplayDate;
 
-            ViewModel.GenerateOffShift(currentMonth);
+            //ViewModel.GenerateOffShift(currentMonth);
 
             ViewModel.LoadShiftDataForMonth(currentMonth);
 
