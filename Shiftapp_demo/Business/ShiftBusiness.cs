@@ -120,7 +120,7 @@ namespace Shiftapp_demo.Business
 
             // 4) 一括Upsert
             if (assigns.Count > 0)
-                _db.BulkUpsertShifts(assigns);
+                _db.BulkUpsertShifts(assigns,month);
         }
         //日曜日勤務登録
         public void UpdateSundayShifts(DateTime month)
@@ -149,7 +149,7 @@ namespace Shiftapp_demo.Business
 
             // 4) 一括Upsert
             if (assigns.Count > 0)
-                _db.BulkUpsertShifts(assigns);
+                _db.BulkUpsertShifts(assigns,month);
 
         }
 
@@ -254,6 +254,7 @@ namespace Shiftapp_demo.Business
                                  && e.EmployeeId != cand2?.EmployeeId
                                  && existingMap.TryGetValue((e.EmployeeId, prevDay), out var st) && st == stidOff)
                         .OrderBy(e => dayWorkCount.TryGetValue(e.EmployeeId, out var v) ? v : 0)
+                        .ThenBy(e => nextAvailable[e.EmployeeId])
                         .ThenBy(_ => rand.Next())
                         .FirstOrDefault();
                 }
@@ -262,6 +263,7 @@ namespace Shiftapp_demo.Business
                     cand4 = canDayduty
                         .Where(e => e.EmployeeId != cand1?.EmployeeId && e.EmployeeId != cand2?.EmployeeId)
                         .OrderBy(e => dayWorkCount.TryGetValue(e.EmployeeId, out var v) ? v : 0)
+                        .ThenBy(e => nextAvailable[e.EmployeeId])
                         .ThenBy(_ => rand.Next())
                         .FirstOrDefault();
                 }
@@ -269,6 +271,8 @@ namespace Shiftapp_demo.Business
                 // 当直（上書きOK、nullガード）
                 var placed1 = false;
                 var placed2 = false;
+                var placed3 = false;
+                var placed4 = false;
 
                 if (cand1 != null)
                 {
@@ -284,12 +288,12 @@ namespace Shiftapp_demo.Business
                 // 日勤（同一人物の重複は避ける。上書きOK）
                 if (cand3 != null && cand3.EmployeeId != cand1?.EmployeeId && cand3.EmployeeId != cand2?.EmployeeId)
                 {
-                    SetOverwrite(existingMap, upserts, cand3.EmployeeId, day, stidDayWork);
+                    placed3=SetOverwrite(existingMap, upserts, cand3.EmployeeId, day, stidDayWork);
                     dayWorkCount[cand3.EmployeeId] = dayWorkCount.TryGetValue(cand3.EmployeeId, out var w3) ? w3 + 1 : 1;
                 }
                 if (cand4 != null && cand4.EmployeeId != cand1?.EmployeeId && cand4.EmployeeId != cand2?.EmployeeId)
                 {
-                    SetOverwrite(existingMap, upserts, cand4.EmployeeId, day, stidDayWork);
+                    placed4=SetOverwrite(existingMap, upserts, cand4.EmployeeId, day, stidDayWork);
                     dayWorkCount[cand4.EmployeeId] = dayWorkCount.TryGetValue(cand4.EmployeeId, out var w4) ? w4 + 1 : 1;
                 }
                  
@@ -299,19 +303,27 @@ namespace Shiftapp_demo.Business
 
                 // （必要なら）週末代休も復活：当直者にのみ付与（上書きOK）
                 DateTime? comp1 = null, comp2 = null;
-
-                var comp = GetCompDayOff(day, holidays);
+                var comp = GetCompDutyDayOff(day, holidays);
                 if (comp.HasValue)
                 {
                     if (placed1) { SetChildWithOrigin(existingMap, upserts, cand1!.EmployeeId, comp.Value, stidSubstituteOff, day); comp1 = comp.Value; }
                     if (placed2) { SetChildWithOrigin(existingMap, upserts, cand2!.EmployeeId, comp.Value, stidSubstituteOff, day); comp2 = comp.Value; }
                 }
 
+                DateTime? comp3 = null, comp4 = null;
+                var comp_day = GetCompDayWorkOff(day, holidays);
+                if(comp_day.HasValue)
+                {
+                    if (placed3) { SetChildWithOrigin(existingMap, upserts, cand3!.EmployeeId, comp_day.Value, stidSubstituteOff, day); comp3 = comp_day.Value; }
+                    if (placed4) { SetChildWithOrigin(existingMap, upserts, cand4!.EmployeeId, comp_day.Value, stidSubstituteOff, day); comp4 = comp_day.Value; }
+                }
+
                 // 連勤ガード（例：3日空け）
                 const int MinDutyGapDays = 3;
                 if (placed1) nextAvailable[cand1!.EmployeeId] = day.AddDays(MinDutyGapDays);
                 if (placed2) nextAvailable[cand2!.EmployeeId] = day.AddDays(MinDutyGapDays);
-
+                if (placed3) nextAvailable[cand3!.EmployeeId] = day.AddDays(MinDutyGapDays);
+                if (placed4) nextAvailable[cand4!.EmployeeId] = day.AddDays(MinDutyGapDays);
             }
 
             // 6) 一括反映
@@ -345,7 +357,7 @@ namespace Shiftapp_demo.Business
         /// 金曜→次水 / 土曜→次月 / 日曜→次火 を起点に、土日祝なら次の営業日にずらす。
         /// それ以外は null。
         /// </summary>
-        private DateTime? GetCompDayOff(DateTime dutyDay, List<DateTime> holidays)
+        private DateTime? GetCompDutyDayOff(DateTime dutyDay, List<DateTime> holidays)
         {
             DateTime? raw = dutyDay.DayOfWeek switch
             {
@@ -357,6 +369,60 @@ namespace Shiftapp_demo.Business
 
             return raw.HasValue ? BumpToNextBusinessDay(raw.Value, holidays) : null;
         }
+
+        private DateTime? GetCompDayWorkOff(DateTime dutyDay, List<DateTime> holidays)
+        {
+            DateTime? raw = dutyDay.Date;
+
+            // 翌月に行かないようにするため、月末日を計算
+            var lastDayOfMonth = new DateTime(dutyDay.Year, dutyDay.Month,
+                                              DateTime.DaysInMonth(dutyDay.Year, dutyDay.Month));
+
+            if (holidays.Contains(raw.Value))
+            {
+                raw = dutyDay.AddDays(3);
+                return raw;
+            }
+
+            if (raw.Value.DayOfWeek == DayOfWeek.Sunday)
+            {
+                raw = dutyDay.AddDays(3); // 水曜日
+            }
+            else
+            {
+                raw = null;
+            }
+
+            return raw.HasValue
+                ? BumpToNextBusinessDay(raw.Value, holidays)
+                : null;
+        }
+
+        //private DateTime? GetCompDayWorkOff(DateTime dutyDay, List<DateTime> holidays)
+        //{
+        //    var raw = dutyDay.Date;
+
+        //    // 代休付与対象：当直日が祝日 or 当直日が日曜
+        //    var applies =
+        //        holidays.Contains(raw) ||
+        //        raw.DayOfWeek == DayOfWeek.Sunday;
+
+        //    if (!applies)
+        //        return null;
+
+        //    // 通常は +3日（例：日曜→水曜）
+        //    var candidate = dutyDay.AddDays(3);
+
+        //    // +3日が翌月にズレるなら、「一週間前の前営業日」に付け替え
+        //    if (candidate.Month != dutyDay.Month)
+        //    {
+        //        var oneWeekBefore = dutyDay.AddDays(-7);
+        //        return BumpToPrevBusinessDay(oneWeekBefore, holidays);
+        //    }
+
+        //    // 月内に収まるなら、通常どおり“次の営業日”に寄せる
+        //    return BumpToNextBusinessDay(candidate, holidays);
+        //}
 
         private static void SetChildWithOrigin(
             Dictionary<(int EmployeeId, DateTime Date), int> map,
@@ -393,6 +459,18 @@ namespace Shiftapp_demo.Business
                 x = x.AddDays(1);
             return x;
         }
+
+        // 週末 or 祝日なら前営業日にずらす
+        //private static DateTime BumpToPrevBusinessDay(DateTime date, List<DateTime> holidays)
+        //{
+        //    while (date.DayOfWeek == DayOfWeek.Saturday
+        //        || date.DayOfWeek == DayOfWeek.Sunday
+        //        || holidays.Contains(date.Date))
+        //    {
+        //        date = date.AddDays(-1);
+        //    }
+        //    return date;
+        //}
 
     }
 

@@ -12,6 +12,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Controls.Primitives;
+using System.Windows.Media;
 using static System.Net.Mime.MediaTypeNames;
 using static System.Runtime.InteropServices.JavaScript.JSType;
 
@@ -280,9 +281,7 @@ namespace Shiftapp_demo.DataAccess
         }
 
         //シフト削除
-        private static void DeleteMonthDutyAndDayParentsWithCascade(
-            SqliteConnection con, SqliteTransaction tx, DateTime monthFirst,
-            int stidDuty, int stidDay)
+        private void DeleteMonthDutyAndDayParentsWithCascade(SqliteConnection con, SqliteTransaction tx, DateTime monthFirst,int stidDuty, int stidDay)
         {
             var first = new DateTime(monthFirst.Year, monthFirst.Month, 1);
             var next = first.AddMonths(1);
@@ -298,8 +297,7 @@ namespace Shiftapp_demo.DataAccess
             cmd.Transaction = tx;
             cmd.CommandText = @"
             DELETE FROM daily_employee_shifts
-            WHERE origin_shifts_id IS NULL                -- 親だけ
-              AND shift_date >= @first AND shift_date < @next
+            WHERE shift_date >= @first AND shift_date < @next
               AND shift_type_id IN (@sidDuty, @sidDay);";
             cmd.Parameters.AddWithValue("@first", first.ToString("yyyy-MM-dd"));
             cmd.Parameters.AddWithValue("@next", next.ToString("yyyy-MM-dd"));
@@ -308,20 +306,51 @@ namespace Shiftapp_demo.DataAccess
             cmd.ExecuteNonQuery();
         }
 
+        private void DeleteMonthDutyAndDayChiledWithCascade(
+            SqliteConnection con, SqliteTransaction tx, DateTime monthFirst)
+        {
+            var first = new DateTime(monthFirst.Year, monthFirst.Month, 1);
+            var next = first.AddMonths(1);
+
+            using var cmd = con.CreateCommand();
+            cmd.Transaction = tx;
+            cmd.CommandText = @"
+            DELETE FROM daily_employee_shifts AS c
+            WHERE c.shift_date >= @first AND c.shift_date < @next
+              AND c.origin_shifts_id IS NOT NULL
+              AND NOT EXISTS (
+                    SELECT 1 FROM daily_employee_shifts AS p
+                    WHERE p.shifts_id = c.origin_shifts_id);";
+            cmd.Parameters.AddWithValue("@first", first.ToString("yyyy-MM-dd"));
+            cmd.Parameters.AddWithValue("@next", next.ToString("yyyy-MM-dd"));
+            cmd.ExecuteNonQuery();
+        }
+
 
         // 土日のデフォルト登録
-        public void BulkUpsertShifts(IEnumerable<(int EmployeeId, DateTime Date, int ShiftTypeId)> items)
+        public void BulkUpsertShifts(IEnumerable<(int EmployeeId, DateTime Date, int ShiftTypeId)> items,DateTime month)
         {
+            var monthFirst = new DateTime(month.Year, month.Month, 1);
+            var raw = new Raw(
+              GetShiftTypeIdBySymbol("当"),
+              GetShiftTypeIdBySymbol("明"),
+              GetShiftTypeIdBySymbol("●"),
+              GetShiftTypeIdBySymbol("日")
+          );
+
+           
             using var con = new SqliteConnection(_connectionString);
             con.Open();
-            using (var pragma = con.CreateCommand())
-            {   // 連打でのロック緩和（任意）
-                pragma.CommandText = "PRAGMA journal_mode=WAL; PRAGMA busy_timeout=5000;";
-                pragma.ExecuteNonQuery();
-            }
+            //using (var pragma = con.CreateCommand())
+            //{   // 連打でのロック緩和（任意）
+            //    pragma.CommandText = "PRAGMA journal_mode=WAL; PRAGMA busy_timeout=5000;";
+            //    pragma.ExecuteNonQuery();
+            //}
 
             using var tx = con.BeginTransaction();
 
+            DeleteMonthDutyAndDayParentsWithCascade(con, tx, monthFirst, raw.StidDuty, raw.StidDayDuty);
+            DeleteMonthDutyAndDayChiledWithCascade(con, tx, monthFirst);
             using var cmd = con.CreateCommand();
 
             cmd.Transaction = tx;
@@ -363,7 +392,7 @@ namespace Shiftapp_demo.DataAccess
 
 
         // 当直日勤や代休の登録
-        public void BulkUpsert_Duty_Shifts(IEnumerable<ShiftWrite> items,DateTime month)
+        public void BulkUpsert_Duty_Shifts(IEnumerable<ShiftWrite> items, DateTime month)
         {
             using var con = new SqliteConnection($"{_connectionString};Foreign Keys=True;");
             con.Open();
@@ -380,7 +409,9 @@ namespace Shiftapp_demo.DataAccess
             var monthFirst = new DateTime(month.Year, month.Month, 1);
 
             // ★ 当月の「親：当直・日勤」だけ削除（子はCASCADEで自動削除）
-            DeleteMonthDutyAndDayParentsWithCascade(con, tx, monthFirst, raw.StidDuty, raw.StidDayDuty);
+            DeleteMonthDutyAndDayParentsWithCascade(con,tx,monthFirst, raw.StidDuty, raw.StidDayDuty);
+
+            DeleteMonthDutyAndDayChiledWithCascade(con, tx, monthFirst);
 
             var parentsDuty = items.Where(r => r.ShiftTypeId == raw.StidDuty).ToList();   // 親：当
             var parentsDay = items.Where(r => r.ShiftTypeId == raw.StidDayDuty).ToList(); // 親：日
@@ -410,7 +441,7 @@ namespace Shiftapp_demo.DataAccess
                 foreach (var r in parentsDuty)
                 {
                     pEid.Value = r.EmployeeId;
-                    pDate.Value = r.Date.ToString("yyyy-MM-dd");                 
+                    pDate.Value = r.Date.ToString("yyyy-MM-dd");
                     pSid.Value = raw.StidDuty;
                     var obj = cmd.ExecuteScalar();
                     var id = (obj is long l) ? l : throw new InvalidOperationException("RETURNING failed for duty parent.");

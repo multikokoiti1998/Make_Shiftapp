@@ -1,4 +1,5 @@
-﻿using Shiftapp_demo.DataAccess;
+﻿using CsvHelper;
+using Shiftapp_demo.DataAccess;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -9,14 +10,13 @@ using static Shiftapp_demo.Helper.CsvHelperClass;
 
 namespace Shiftapp_demo.Business
 {
-
-    internal class ShiftExporterService
+    internal class CsvBusiness
     {
         private readonly DatabaseHelper _db;
         private readonly IHolidayService _holiday;
         private readonly IShiftCsvExporter _csv;
 
-        public ShiftExporterService(DatabaseHelper db, IHolidayService holiday, IShiftCsvExporter csv)
+        public CsvBusiness(DatabaseHelper db, IHolidayService holiday, IShiftCsvExporter csv)
         {
             _db = db;
             _holiday = holiday;
@@ -78,7 +78,7 @@ namespace Shiftapp_demo.Business
                         シフト区分 = MapSymbolToShiftName(symbol),
                         出勤例外 = "なし",
                         退勤例外 = "なし",
-                        修正処理日 = d.ToString("yyyy/M/d", CultureInfo.InvariantCulture) 
+                        修正処理日 = d.ToString("yyyy/M/d", CultureInfo.InvariantCulture)
                     });
                 }
             }
@@ -88,3 +88,4 @@ namespace Shiftapp_demo.Business
         }
     }
 }
+

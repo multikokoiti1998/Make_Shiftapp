@@ -85,6 +85,7 @@ namespace Shiftapp_demo.ViewModels
 
         public void LoadShiftDataForMonth(DateTime month)
         {
+            _shiftGridColumns.Clear();
             //日付取得
             var firstDay = new DateTime(month.Year, month.Month, 1);
             var lastDay = firstDay.AddMonths(1).AddDays(-1);
