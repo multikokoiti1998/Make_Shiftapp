@@ -1,26 +1,24 @@
 ﻿using CsvHelper;
 using Shiftapp_demo.DataAccess;
+using Shiftapp_demo.Models;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using static Shiftapp_demo.Helper.CsvHelperClass;
+using static Shiftapp_demo.Models.ShiftCsvRow;
 
 namespace Shiftapp_demo.Business
 {
     internal class CsvBusiness
     {
         private readonly DatabaseHelper _db;
-        private readonly IHolidayService _holiday;
-        private readonly IShiftCsvExporter _csv;
 
-        public CsvBusiness(DatabaseHelper db, IHolidayService holiday, IShiftCsvExporter csv)
+        public CsvBusiness(DatabaseHelper db)
         {
             _db = db;
-            _holiday = holiday;
-            _csv = csv;
+
         }
 
         // シンボル → CSV「シフト区分」変換（必要に応じて調整）
@@ -83,8 +81,7 @@ namespace Shiftapp_demo.Business
                 }
             }
 
-            // ④ 書き出し（CsvHelper 実装）
-            await _csv.ExportAsync(rows, savePath, ct);
+
         }
     }
 }

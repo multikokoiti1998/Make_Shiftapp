@@ -4,14 +4,13 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using static Shiftapp_demo.Helper.CsvHelperClass;
 
 namespace Shiftapp_demo.Business
 {
     internal class HolidayService
     {
         //週末の休日
-        public sealed class WeekendHolidayService : IHolidayService
+        public sealed class WeekendHolidayService
         {
             private readonly bool _treatSaturdayAsHoliday;
 
@@ -29,7 +28,7 @@ namespace Shiftapp_demo.Business
         }
 
         // 祝日テーブルがある場合の例
-        public sealed class TableHolidayService : IHolidayService
+        public sealed class TableHolidayService
         {
             private readonly HashSet<DateTime> _holidays; // yyyy-MM-dd 日付のみ
             private readonly bool _includeWeekends;

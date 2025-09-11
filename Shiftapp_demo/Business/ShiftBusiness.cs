@@ -22,8 +22,6 @@ namespace Shiftapp_demo.Business
         private readonly int stidDayWork;
         const int MinDutyGapDays = 3;
 
-        static int GetOrZero(Dictionary<int, int> dict, int key)
-            => dict.TryGetValue(key, out var v) ? v : 0;
 
         public ShiftBusiness(DatabaseHelper db)
         {
