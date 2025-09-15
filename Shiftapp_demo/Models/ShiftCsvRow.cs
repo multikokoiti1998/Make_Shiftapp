@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace Shiftapp_demo.Models
 {
-    internal class ShiftCsvRow
+    public class ShiftCsvRow
     {
         public int 個人コード { get; init; }
         public string 氏名 { get; init; } = "";

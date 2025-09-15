@@ -157,7 +157,49 @@ namespace Shiftapp_demo.DataAccess
             }
             return employees;
         }
+        public List<ShiftRow> GetShiftRow(DateTime startDate, DateTime endDate)
+        {
+            var result = new List<ShiftRow>();
+            using var connection = new SqliteConnection(_connectionString);
+            connection.Open();
+            var cmd = connection.CreateCommand();
+            cmd.CommandText = @"            
+           SELECT
+            b.employee_id,
+            e.employee_name,
+            b.shift_date,
+            t.symbol
+            FROM daily_employee_shifts b
+            JOIN employee e
+              ON e.employee_id = b.employee_id
+             AND e.is_active = 1
+            LEFT JOIN shift_types t
+              ON t.shift_type_id = b.shift_type_id
+            WHERE DATE(b.shift_date) >= DATE('@start')
+              AND DATE(b.shift_date) <  DATE('@next')
+            ORDER BY b.employee_id, b.shift_date;";
 
+            var next = endDate.AddDays(1);
+            cmd.Parameters.AddWithValue("@start", startDate.Date.ToString("yyyy-MM-dd"));
+            cmd.Parameters.AddWithValue("@next", next.ToString("yyyy-MM-dd"));
+
+            cmd.Parameters.AddWithValue("@stidDaikyu", GetShiftTypeIdBySymbol("●"));
+            using var reader = cmd.ExecuteReader();
+            while (reader.Read())
+            {
+                result.Add(new ShiftRow
+                {
+                    EmployeeId = reader.GetInt32(0),
+
+                    EmployeeName = reader.GetString(1),
+
+                    Date = DateTime.Parse(reader.GetString(2)).Date,
+
+                    ShiftSymbol = reader.GetString(3)
+                });
+            }
+            return result;
+        }
         public List<Shift> GetShiftsOnly(DateTime startDate, DateTime endDate)
         {
             var result = new List<Shift>();
@@ -169,7 +211,7 @@ namespace Shiftapp_demo.DataAccess
             SELECT
               b.employee_id,
               b.shift_date,
-              COALESCE(t.symbol, '') AS symbol,       -- UI用
+              COALESCE(t.symbol, '') AS symbol,       
               b.shift_type_id         AS final_shift_type_id
             FROM daily_employee_shifts b
             JOIN employee e
@@ -240,6 +282,18 @@ namespace Shiftapp_demo.DataAccess
             var obj = cmd.ExecuteScalar();
             if (obj == null || obj == DBNull.Value) throw new InvalidOperationException($"symbol '{symbol}' not found");
             return Convert.ToInt32(obj);
+        }
+
+        public string GetShiftSymbolById(int stid)
+        {
+            using var con = new SqliteConnection(_connectionString);
+            con.Open();
+            using var cmd = con.CreateCommand();
+            cmd.CommandText = @"SELECT symbol FROM shift_types WHERE shift_type_id = @sym;";
+            cmd.Parameters.AddWithValue("@sym", stid);
+            var obj = cmd.ExecuteScalar();
+            if (obj == null || obj == DBNull.Value) throw new InvalidOperationException($"symbol '{stid}' not found");
+            return Convert.ToString(obj);
         }
 
         public Dictionary<(int EmployeeId, DateTime Date), int> GetShiftMap(DateTime start, DateTime end)
@@ -338,31 +392,31 @@ namespace Shiftapp_demo.DataAccess
                     -- b) 子に参照されている行（型が後で休等に上書きされていても“親”として扱う）
                  OR EXISTS (SELECT 1 FROM daily_employee_shifts c WHERE c.origin_shifts_id = p.shifts_id)
               )";
-                        cmd.ExecuteNonQuery();
+            cmd.ExecuteNonQuery();
 
-                        // 2) 月またぎの子は残す：当月外の子はデタッチ
-                        cmd.CommandText = @"
+            // 2) 月またぎの子は残す：当月外の子はデタッチ
+            cmd.CommandText = @"
             UPDATE daily_employee_shifts
             SET origin_shifts_id = NULL
             WHERE origin_shifts_id IN (SELECT shifts_id FROM _parents_to_delete)
               AND (shift_date < @first OR shift_date >= @next)";
-                        cmd.ExecuteNonQuery();
+            cmd.ExecuteNonQuery();
 
-                        // 3) 当月内の子は削除
-                        cmd.CommandText = @"
+            // 3) 当月内の子は削除
+            cmd.CommandText = @"
             DELETE FROM daily_employee_shifts
             WHERE origin_shifts_id IN (SELECT shifts_id FROM _parents_to_delete)
               AND shift_date >= @first AND shift_date < @next";
-                        cmd.ExecuteNonQuery();
+            cmd.ExecuteNonQuery();
 
-                        // 4) 親を削除（型に関わらず、親扱いのIDを落とす）
-                        cmd.CommandText = @"
+            // 4) 親を削除（型に関わらず、親扱いのIDを落とす）
+            cmd.CommandText = @"
             DELETE FROM daily_employee_shifts
             WHERE shifts_id IN (SELECT shifts_id FROM _parents_to_delete)";
-                        cmd.ExecuteNonQuery();
+            cmd.ExecuteNonQuery();
 
-                        // 5) 予防線：当月内の「親が当/日でない子」も掃除（親が残っていても整合を取る）
-                        cmd.CommandText = @"
+            // 5) 予防線：当月内の「親が当/日でない子」も掃除（親が残っていても整合を取る）
+            cmd.CommandText = @"
             DELETE FROM daily_employee_shifts AS c
             WHERE c.shift_date >= @first AND c.shift_date < @next
               AND c.origin_shifts_id IS NOT NULL
@@ -397,7 +451,7 @@ namespace Shiftapp_demo.DataAccess
 
 
         // 土日のデフォルト登録
-        public void BulkUpsertShifts(IEnumerable<(int EmployeeId, DateTime Date, int ShiftTypeId)> items,DateTime month)
+        public void BulkUpsertShifts(IEnumerable<(int EmployeeId, DateTime Date, int ShiftTypeId)> items, DateTime month)
         {
             var monthFirst = new DateTime(month.Year, month.Month, 1);
             var raw = new Raw(
@@ -407,7 +461,7 @@ namespace Shiftapp_demo.DataAccess
               GetShiftTypeIdBySymbol("日")
           );
 
-           
+
             using var con = new SqliteConnection(_connectionString);
             con.Open();
             //using (var pragma = con.CreateCommand())
@@ -478,7 +532,7 @@ namespace Shiftapp_demo.DataAccess
             var monthFirst = new DateTime(month.Year, month.Month, 1);
 
             // ★ 当月の「親：当直・日勤」だけ削除（子はCASCADEで自動削除）
-            DeleteMonthDutyAndDayParentsWithCascade(con,tx,monthFirst, raw.StidDuty, raw.StidDayDuty);
+            DeleteMonthDutyAndDayParentsWithCascade(con, tx, monthFirst, raw.StidDuty, raw.StidDayDuty);
 
             DeleteMonthDutyAndDayChiledWithCascade(con, tx, monthFirst);
 
