@@ -175,8 +175,8 @@ namespace Shiftapp_demo.DataAccess
              AND e.is_active = 1
             LEFT JOIN shift_types t
               ON t.shift_type_id = b.shift_type_id
-            WHERE DATE(b.shift_date) >= DATE('@start')
-              AND DATE(b.shift_date) <  DATE('@next')
+            WHERE DATE(b.shift_date) >= DATE(@start)
+              AND DATE(b.shift_date) <  DATE(@next)
             ORDER BY b.employee_id, b.shift_date;";
 
             var next = endDate.AddDays(1);
