@@ -357,12 +357,26 @@ namespace Shiftapp_demo.Business
         /// </summary>
         private DateTime? GetCompDutyDayOff(DateTime dutyDay, List<DateTime> holidays)
         {
+            // 正規化（時刻部分を落とす）
+            dutyDay = dutyDay.Date;
+
+            // 祝日リストを高速検索用に
+            var hset = new HashSet<DateTime>(holidays.Select(x => x.Date));
+
+            bool isFriSatSun = dutyDay.DayOfWeek is DayOfWeek.Friday or DayOfWeek.Saturday or DayOfWeek.Sunday;
+            bool isHoliday = hset.Contains(dutyDay);
+
+            // 「金土日」 または 「祝日」のいずれかなら代休付与対象
+            if (!isFriSatSun && !isHoliday)
+                return null;
+
             DateTime? raw = dutyDay.DayOfWeek switch
             {
+
                 DayOfWeek.Friday => NextWeekday(dutyDay, DayOfWeek.Wednesday),
                 DayOfWeek.Saturday => dutyDay.AddDays(2), // 月
                 DayOfWeek.Sunday => dutyDay.AddDays(2), // 火
-                _ => null
+                _ => dutyDay.AddDays(3)//祝日
             };
 
             return raw.HasValue ? BumpToNextBusinessDay(raw.Value, holidays) : null;
@@ -396,31 +410,6 @@ namespace Shiftapp_demo.Business
                 : null;
         }
 
-        //private DateTime? GetCompDayWorkOff(DateTime dutyDay, List<DateTime> holidays)
-        //{
-        //    var raw = dutyDay.Date;
-
-        //    // 代休付与対象：当直日が祝日 or 当直日が日曜
-        //    var applies =
-        //        holidays.Contains(raw) ||
-        //        raw.DayOfWeek == DayOfWeek.Sunday;
-
-        //    if (!applies)
-        //        return null;
-
-        //    // 通常は +3日（例：日曜→水曜）
-        //    var candidate = dutyDay.AddDays(3);
-
-        //    // +3日が翌月にズレるなら、「一週間前の前営業日」に付け替え
-        //    if (candidate.Month != dutyDay.Month)
-        //    {
-        //        var oneWeekBefore = dutyDay.AddDays(-7);
-        //        return BumpToPrevBusinessDay(oneWeekBefore, holidays);
-        //    }
-
-        //    // 月内に収まるなら、通常どおり“次の営業日”に寄せる
-        //    return BumpToNextBusinessDay(candidate, holidays);
-        //}
 
         private static void SetChildWithOrigin(
             Dictionary<(int EmployeeId, DateTime Date), int> map,
@@ -458,17 +447,6 @@ namespace Shiftapp_demo.Business
             return x;
         }
 
-        // 週末 or 祝日なら前営業日にずらす
-        //private static DateTime BumpToPrevBusinessDay(DateTime date, List<DateTime> holidays)
-        //{
-        //    while (date.DayOfWeek == DayOfWeek.Saturday
-        //        || date.DayOfWeek == DayOfWeek.Sunday
-        //        || holidays.Contains(date.Date))
-        //    {
-        //        date = date.AddDays(-1);
-        //    }
-        //    return date;
-        //}
 
     }
 

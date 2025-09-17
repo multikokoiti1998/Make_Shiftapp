@@ -33,12 +33,12 @@ namespace Shiftapp_demo.Models
         /// <summary>
         /// シンボルと日付(曜日)から カレンダー/シフト区分 を決定
         /// </summary>
-        public  static (string calendar, string shiftKind) MapCalendarAndShiftKind(string? symbol, DateTime date)
+        public static (string calendar, string shiftKind) MapCalendarAndShiftKind(string? symbol, DateTime date)
         {
             var s = (symbol ?? string.Empty).Trim();
 
-            // なし or "/" → 勤務/日勤
-            if (string.IsNullOrEmpty(s) || s == "/")
+            // なし → 勤務/日勤
+            if (string.IsNullOrEmpty(s))
                 return ("勤務", "日勤");
 
             // 代表的な記号
@@ -48,6 +48,7 @@ namespace Shiftapp_demo.Models
                 case "明": return ("勤務", "明け");
                 case "●": return ("休日", "日勤");
                 case "日": return ("勤務", "日勤");
+                case "/" : return ("勤務", "半日");
                 case "〇":
                 case "○": // 丸の別字
                     return (date.DayOfWeek == DayOfWeek.Saturday)

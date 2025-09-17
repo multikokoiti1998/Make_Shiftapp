@@ -24,7 +24,9 @@ namespace Shiftapp_demo.DataAccess
 
         public DatabaseHelper()
         {
-            _connectionString = "Data Source=C:\\sqlite_db\\shiftapp.db";
+            var baseDir = AppDomain.CurrentDomain.BaseDirectory;
+            var dbPath = Path.Combine(baseDir, "Data", "shiftapp.db");
+            _connectionString = $"Data Source={dbPath}";
         }
 
         // 技師を追加するメソッド (新しいプロパティに合わせて修正)
