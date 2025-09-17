@@ -1,5 +1,6 @@
 ﻿// MainViewModel.cs
 using Shiftapp_demo.Business; // DataGridColumn, TextBlock を参照するため
+using Shiftapp_demo.Csv;
 using Shiftapp_demo.DataAccess; // DatabaseHelperを参照するため
 using Shiftapp_demo.Helper;
 using System.Collections.ObjectModel;
@@ -14,8 +15,17 @@ namespace Shiftapp_demo.ViewModels
     {
         private ShiftDataLoader _dataLoader; // Model層 (データアクセス)
 
+
+        private readonly ShiftBusiness _business;
+
         // DataGridのItemsSourceにバインド グリッドの行データを保持
         private ObservableCollection<ShiftDataLoader> _shiftDataCollection;
+
+        // ★ CSV出力用（行形式）
+        private readonly CsvBusiness _csvBiz;
+
+        private readonly IShiftCsvExporter _exporter;
+
         public ObservableCollection<ShiftDataLoader> ShiftDataCollection
         {
             get { return _shiftDataCollection; }
@@ -52,7 +62,6 @@ namespace Shiftapp_demo.ViewModels
             }
         }
 
-        private readonly ShiftBusiness _business;
 
         public MainViewModel()
         {
@@ -66,6 +75,10 @@ namespace Shiftapp_demo.ViewModels
             var db = new DatabaseHelper();
 
             _business = new ShiftBusiness(db);
+
+            // ★ CSV出力に必要
+            _exporter = new CsvHelperExporter();                 // UTF-8 BOM / 区切り「,」
+            _csvBiz = new CsvBusiness(db, _exporter);
         }
 
         public void GenerateOffShift(DateTime month)

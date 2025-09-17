@@ -1,4 +1,7 @@
 ﻿// MainWindow.xaml.cs
+using Microsoft.Win32;
+using Shiftapp_demo.Csv;
+using Shiftapp_demo.DataAccess;
 using Shiftapp_demo.Helper;
 using Shiftapp_demo.ViewModels;
 using System.Linq; // For Min/Max on SelectedDates
@@ -57,10 +60,26 @@ namespace Shiftapp_demo.Views
             }
         }
 
-
-        private void Button_Click(object sender, RoutedEventArgs e)
+        //csv出力
+        private async void Button_Click(object sender, RoutedEventArgs e)
         {
-            // 勤務表修正ボタンのクリックイベント (ViewModelにコマンドとして公開することも検討)
+            var displayDate = ShiftCalendar.DisplayDate;
+            var y = displayDate.Year;
+            var m = displayDate.Month;
+
+            var sfd = new SaveFileDialog
+            {
+                Filter = "CSVファイル (*.csv)|*.csv",
+                FileName = $"shifts_{y:0000}{m:00}_rows.csv"
+            };
+            if (sfd.ShowDialog() == true)
+            {
+                var db = new DatabaseHelper();
+                var exporter = new CsvHelperExporter();
+                var biz = new CsvBusiness(db, exporter);
+
+                await biz.ExportMonthAsRowsAsync(y, m, sfd.FileName);
+            }
         }
 
         private void Button_Click1(object sender, RoutedEventArgs e)
