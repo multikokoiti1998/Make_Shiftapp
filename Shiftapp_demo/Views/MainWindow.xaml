@@ -34,7 +34,11 @@
 
             <Button Content="シフト作成" Height="70" FontSize="20" Margin="0,15,0,0" Click="Button_Click_1"/>
             <Button Content="管理者画面" Height="70" FontSize="20" Margin="0,15,0,0" Click="Button_Click1"/>
-            <Button Content="シフト出力" Height="70" FontSize="20" Margin="0,15,0,0" Click="Button_Click"/>
+            <Button Content="CSV出力（行形式）"
+            Command="{Binding ExportCsvRowsCommand}"
+            CommandParameter="{Binding ElementName=ShiftCalendar, Path=DisplayDate}"
+             Height="70" FontSize="20" Margin="0,15,0,0"/>
+
         </StackPanel>
 
         <Grid Grid.Column="1" Grid.Row="0" Grid.RowSpan="2">
@@ -46,7 +50,7 @@
             <Border Grid.Row="0"
                Background="{DynamicResource MaterialDesignPaper}"  
                Padding="12,10,12,8">
-             <TextBlock x:Name="MonthHeaderTextBlock"
+                <TextBlock x:Name="MonthHeaderTextBlock"
                HorizontalAlignment="Left"
                VerticalAlignment="Center"
                FontSize="20"
@@ -78,7 +82,7 @@
                         <Setter Property="VerticalContentAlignment"   Value="Center"/>
                     </Style>
                 </DataGrid.ColumnHeaderStyle>
-                
+
                 <DataGrid.Resources>
                     <!-- セルの余白を最小化 -->
                     <Style TargetType="DataGridCell" BasedOn="{x:Null}">

@@ -1,4 +1,5 @@
 ﻿// MainViewModel.cs
+using Microsoft.Win32;
 using Shiftapp_demo.Business; // DataGridColumn, TextBlock を参照するため
 using Shiftapp_demo.Csv;
 using Shiftapp_demo.DataAccess; // DatabaseHelperを参照するため
@@ -6,6 +7,7 @@ using Shiftapp_demo.Helper;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Windows.Controls;
+using System.Windows.Input;
 
 // モデルとデータアクセス層のNamespaceを追加
 
@@ -79,6 +81,30 @@ namespace Shiftapp_demo.ViewModels
             // ★ CSV出力に必要
             _exporter = new CsvHelperExporter();                 // UTF-8 BOM / 区切り「,」
             _csvBiz = new CsvBusiness(db, _exporter);
+
+            ExportCsvRowsCommand = new RelayCommand(async p => await ExportCsvRowsAsync(p));
+        }
+        public ICommand ExportCsvRowsCommand { get; }
+
+        private async Task ExportCsvRowsAsync(object? param)
+        {
+            if (param is not DateTime displayDate)
+                return;
+
+            int year = displayDate.Year;
+            int month = displayDate.Month;
+
+            var sfd = new SaveFileDialog
+            {
+                Filter = "CSVファイル (*.csv)|*.csv",
+                FileName = $"shifts_{year:0000}{month:00}_rows.csv"
+            };
+
+            if (sfd.ShowDialog() == true)
+            {
+                // 「その月に1件でも記録がある人」について、全日を補完して行形式で保存
+                await _csvBiz.ExportMonthAsRowsAsync(year, month, sfd.FileName);
+            }
         }
 
         public void GenerateOffShift(DateTime month)
@@ -157,6 +183,30 @@ namespace Shiftapp_demo.ViewModels
         protected virtual void OnPropertyChanged(string propertyName)
         {
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+        }
+        // コマンドひな形
+        public sealed class RelayCommand : ICommand
+        {
+            private readonly Func<object?, Task>? _execAsync;
+            private readonly Action<object?>? _exec;
+            private readonly Func<object?, bool>? _can;
+
+            public RelayCommand(Action<object?> exec, Func<object?, bool>? can = null)
+            { _exec = exec; _can = can; }
+
+            public RelayCommand(Func<object?, Task> execAsync, Func<object?, bool>? can = null)
+            { _execAsync = execAsync; _can = can; }
+
+            public bool CanExecute(object? parameter) => _can?.Invoke(parameter) ?? true;
+
+            public async void Execute(object? parameter)
+            {
+                if (_execAsync != null) await _execAsync(parameter);
+                else _exec?.Invoke(parameter);
+            }
+
+            public event EventHandler? CanExecuteChanged
+            { add { CommandManager.RequerySuggested += value; } remove { CommandManager.RequerySuggested -= value; } }
         }
     }
 }
