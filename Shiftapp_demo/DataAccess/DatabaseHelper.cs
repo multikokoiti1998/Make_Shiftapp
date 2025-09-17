@@ -157,6 +157,7 @@ namespace Shiftapp_demo.DataAccess
             }
             return employees;
         }
+        //csv用
         public List<ShiftRow> GetShiftRow(DateTime startDate, DateTime endDate)
         {
             var result = new List<ShiftRow>();
@@ -168,7 +169,8 @@ namespace Shiftapp_demo.DataAccess
             b.employee_id,
             e.employee_name,
             b.shift_date,
-            t.symbol
+            t.symbol,
+            e.Role
             FROM daily_employee_shifts b
             JOIN employee e
               ON e.employee_id = b.employee_id
@@ -177,7 +179,7 @@ namespace Shiftapp_demo.DataAccess
               ON t.shift_type_id = b.shift_type_id
             WHERE DATE(b.shift_date) >= DATE(@start)
               AND DATE(b.shift_date) <  DATE(@next)
-            ORDER BY b.employee_id, b.shift_date;";
+            ORDER BY e.Role,b.employee_id, b.shift_date;";
 
             var next = endDate.AddDays(1);
             cmd.Parameters.AddWithValue("@start", startDate.Date.ToString("yyyy-MM-dd"));
@@ -195,7 +197,9 @@ namespace Shiftapp_demo.DataAccess
 
                     Date = DateTime.Parse(reader.GetString(2)).Date,
 
-                    ShiftSymbol = reader.GetString(3)
+                    ShiftSymbol = reader.GetString(3),
+
+                    Role=reader.GetInt32(4)
                 });
             }
             return result;
