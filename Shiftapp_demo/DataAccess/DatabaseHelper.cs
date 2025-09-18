@@ -470,11 +470,6 @@ namespace Shiftapp_demo.DataAccess
 
             using var con = new SqliteConnection(_connectionString);
             con.Open();
-            //using (var pragma = con.CreateCommand())
-            //{   // 連打でのロック緩和（任意）
-            //    pragma.CommandText = "PRAGMA journal_mode=WAL; PRAGMA busy_timeout=5000;";
-            //    pragma.ExecuteNonQuery();
-            //}
 
             using var tx = con.BeginTransaction();
 

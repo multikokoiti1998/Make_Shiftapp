@@ -383,6 +383,10 @@ namespace Shiftapp_demo.Business
             return raw.HasValue ? BumpToNextBusinessDay(raw.Value, holidays) : null;
         }
 
+        private bool IsNightChild(int stid)
+            => stid == stidAfterDuty   // 明
+            || stid == stidSubstituteOff; // 代休
+
         private DateTime? GetCompDayWorkOff(DateTime dutyDay, List<DateTime> holidays)
         {
             DateTime? raw = dutyDay.Date;
@@ -415,7 +419,8 @@ namespace Shiftapp_demo.Business
         private  bool TrySetWithPriority(
             Dictionary<(int EmployeeId, DateTime Date), int> map,
             List<ShiftWrite> upserts,
-            int eid, DateTime d, int newStid)
+            int eid, DateTime d, int newStid,
+            Func<int, bool>? cannotOverwrite = null)
         {
             var key = (eid, d.Date);
             if (!map.TryGetValue(key, out var cur))
@@ -424,6 +429,11 @@ namespace Shiftapp_demo.Business
                 upserts.Add(new ShiftWrite(eid, d.Date, newStid));
                 return true;
             }
+
+            // 既存が「明 or 代休」等、保護対象なら上書きしない
+            if (cannotOverwrite?.Invoke(cur) == true)
+                return false;
+
             if (PriorityOf(newStid) > PriorityOf(cur))
             {
                 map[key] = newStid;
