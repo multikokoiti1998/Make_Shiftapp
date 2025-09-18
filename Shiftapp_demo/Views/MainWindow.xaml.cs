@@ -60,27 +60,6 @@ namespace Shiftapp_demo.Views
             }
         }
 
-        //csv出力
-        private async void Button_Click(object sender, RoutedEventArgs e)
-        {
-            var displayDate = ShiftCalendar.DisplayDate;
-            var y = displayDate.Year;
-            var m = displayDate.Month;
-
-            var sfd = new SaveFileDialog
-            {
-                Filter = "CSVファイル (*.csv)|*.csv",
-                FileName = $"shifts_{y:0000}{m:00}_rows.csv"
-            };
-            if (sfd.ShowDialog() == true)
-            {
-                var db = new DatabaseHelper();
-                var exporter = new CsvHelperExporter();
-                var biz = new CsvBusiness(db, exporter);
-
-                await biz.ExportMonthAsRowsAsync(y, m, sfd.FileName);
-            }
-        }
 
         private void Button_Click1(object sender, RoutedEventArgs e)
         {
@@ -88,15 +67,20 @@ namespace Shiftapp_demo.Views
 
         }
 
+
+
         private void Button_Click_1(object sender, RoutedEventArgs e)
         {
             DateTime today = ShiftCalendar.DisplayDate;
 
             ShiftCalendar.DisplayDate = today;
 
+            ViewModel.MakeNightDuty(today);
+
             ViewModel.GenerateOffShift(today);
 
-            ViewModel.MakeNightDuty(today);
+            ViewModel.LoadShiftDataForMonth(today);
+
         }
     }
 }

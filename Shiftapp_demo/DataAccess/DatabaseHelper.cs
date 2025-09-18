@@ -436,9 +436,9 @@ namespace Shiftapp_demo.DataAccess
 
 
         private void DeleteMonthDutyAndDayChiledWithCascade(
-            SqliteConnection con, SqliteTransaction tx, DateTime monthFirst)
+            SqliteConnection con, SqliteTransaction tx, DateTime month)
         {
-            var first = new DateTime(monthFirst.Year, monthFirst.Month, 1);
+            var first = new DateTime(month.Year, month.Month, 1);
             var next = first.AddMonths(1);
 
             using var cmd = con.CreateCommand();
@@ -473,8 +473,8 @@ namespace Shiftapp_demo.DataAccess
 
             using var tx = con.BeginTransaction();
 
-            DeleteMonthDutyAndDayParentsWithCascade(con, tx, monthFirst, raw.StidDuty, raw.StidDayDuty);
-            DeleteMonthDutyAndDayChiledWithCascade(con, tx, monthFirst);
+            //DeleteMonthDutyAndDayParentsWithCascade(con, tx, monthFirst, raw.StidDuty, raw.StidDayDuty);
+            //DeleteMonthDutyAndDayChiledWithCascade(con, tx, monthFirst);
             using var cmd = con.CreateCommand();
 
             cmd.Transaction = tx;

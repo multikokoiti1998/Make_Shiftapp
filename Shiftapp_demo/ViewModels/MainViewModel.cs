@@ -1,4 +1,5 @@
 ﻿// MainViewModel.cs
+using Microsoft.Data.Sqlite;
 using Microsoft.Win32;
 using Shiftapp_demo.Business; // DataGridColumn, TextBlock を参照するため
 using Shiftapp_demo.Csv;
@@ -124,6 +125,8 @@ namespace Shiftapp_demo.ViewModels
 
         public void LoadShiftDataForMonth(DateTime month)
         {
+            var db = new DatabaseHelper();
+
             _shiftGridColumns.Clear();
             //日付取得
             var firstDay = new DateTime(month.Year, month.Month, 1);
@@ -132,7 +135,8 @@ namespace Shiftapp_demo.ViewModels
             // ヘッダー
             MonthHeaderText = $"{month.Year}年 {month.Month}月";
 
-            var db = new DatabaseHelper();
+
+            
 
             // 1) 全社員（ID／名前）を取得
             var employees = db.GetAllEmployees(); // List<Employee> { EmployeeId, EmployeeName }

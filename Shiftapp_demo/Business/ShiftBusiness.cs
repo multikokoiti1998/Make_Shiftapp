@@ -130,8 +130,26 @@ namespace Shiftapp_demo.Business
             }
 
             // 4) 一括Upsert
-            if (assigns.Count > 0)
-                _db.BulkUpsertShifts(assigns,month);
+            var map = new Dictionary<(int, DateTime), int>(existing);
+            var upserts = new List<ShiftWrite>();
+
+            // ★夜勤の子（明/代休）は上書き禁止で適用
+            foreach (var (eid, date, stid) in assigns)
+            {
+                TrySetWithPriorityWeekend(map, upserts, eid, date, stid, cur => IsNightChild(cur));
+            }
+
+            // 5) 変更分のみをDBへ反映
+            if (upserts.Count > 0)
+            {
+                // DatabaseHelper 側のシグネチャが (IEnumerable<(int eid, DateTime date, int stid)>, DateTime month)
+                // の場合は、3タプルに落として渡す
+                var triples = upserts
+                    .Select(x => (x.EmployeeId, x.Date, x.ShiftTypeId))
+                    .ToList();
+
+                _db.BulkUpsertShifts(triples, month);
+            }
         }
         //日曜日勤務登録
         public void UpdateSundayShifts(DateTime month)
@@ -159,8 +177,26 @@ namespace Shiftapp_demo.Business
             }
 
             // 4) 一括Upsert
-            if (assigns.Count > 0)
-                _db.BulkUpsertShifts(assigns,month);
+            var map = new Dictionary<(int, DateTime), int>(existing);
+            var upserts = new List<ShiftWrite>();
+
+            // ★夜勤の子（明/代休）は上書き禁止で適用
+            foreach (var (eid, date, stid) in assigns)
+            {
+                TrySetWithPriorityWeekend(map, upserts, eid, date, stid, cur => IsNightChild(cur));
+            }
+
+            // 5) 変更分のみをDBへ反映
+            if (upserts.Count > 0)
+            {
+                // DatabaseHelper 側のシグネチャが (IEnumerable<(int eid, DateTime date, int stid)>, DateTime month)
+                // の場合は、3タプルに落として渡す
+                var triples = upserts
+                    .Select(x => (x.EmployeeId, x.Date, x.ShiftTypeId))
+                    .ToList();
+
+                _db.BulkUpsertShifts(triples, month);
+            }
 
         }
 
@@ -441,6 +477,30 @@ namespace Shiftapp_demo.Business
                 return true;
             }
             return false;
+        }
+
+        private bool TrySetWithPriorityWeekend(
+            Dictionary<(int EmployeeId, DateTime Date), int> map,
+            List<ShiftWrite> upserts,
+            int eid, DateTime d, int newStid,
+            Func<int, bool>? cannotOverwrite = null)
+        {
+            var key = (eid, d.Date);
+            if (!map.TryGetValue(key, out var cur))
+            {
+                map[key] = newStid;
+                upserts.Add(new ShiftWrite(eid, d.Date, newStid));
+                return true;
+            }
+
+            // 既存が「明 or 代休」等、保護対象なら上書きしない
+            if (cannotOverwrite?.Invoke(cur) == true)
+                return false;
+
+                map[key] = newStid;
+                upserts.Add(new ShiftWrite(eid, d.Date, newStid));
+                return true;
+            
         }
 
         private  void SetChildWithOrigin(
