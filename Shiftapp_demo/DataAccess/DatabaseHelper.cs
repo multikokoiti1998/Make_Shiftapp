@@ -24,9 +24,11 @@ namespace Shiftapp_demo.DataAccess
 
         public DatabaseHelper()
         {
-            var baseDir = AppDomain.CurrentDomain.BaseDirectory;
-            var dbPath = Path.Combine(baseDir, "Data", "shiftapp.db");
-            _connectionString = $"Data Source={dbPath}";
+            //var baseDir = AppDomain.CurrentDomain.BaseDirectory;
+            //var dbPath = Path.Combine(baseDir, "Data", "shiftapp.db");
+            //_connectionString = $"Data Source={dbPath}";
+
+            _connectionString = $"Data Source=C:\\Users\\multi\\Source\\Repos\\Shiftapp_demo\\Shiftapp_demo\\Data\\shiftapp.db";
         }
 
         // 技師を追加するメソッド (新しいプロパティに合わせて修正)
@@ -455,6 +457,42 @@ namespace Shiftapp_demo.DataAccess
             cmd.ExecuteNonQuery();
         }
 
+        public void DeleteOrphanNightChildren(DateTime start, DateTime end, int stidDuty, int stidAke, int stidSubOff)
+        {
+            using var con = new SqliteConnection(_connectionString);
+            con.Open();
+
+            using (var pragma = con.CreateCommand())
+            {
+                pragma.CommandText = "PRAGMA foreign_keys=ON; PRAGMA busy_timeout=5000;";
+                pragma.ExecuteNonQuery();
+            }
+
+            using var tx = con.BeginTransaction();
+            using (var cmd = con.CreateCommand())
+            {
+                cmd.Transaction = tx;
+                cmd.CommandText = @"
+                DELETE FROM daily_employee_shifts AS c
+                WHERE c.shift_date >= @start AND c.shift_date <= @end
+                  AND c.shift_type_id IN (@stidAke, @stidSubOff)
+                  AND NOT EXISTS (
+                        SELECT 1
+                        FROM daily_employee_shifts AS p
+                        WHERE p.shifts_id     = c.origin_shifts_id
+                          AND p.shift_type_id = @stidDuty
+                );";
+                cmd.Parameters.AddWithValue("@start", start.ToString("yyyy-MM-dd"));
+                cmd.Parameters.AddWithValue("@end", end.ToString("yyyy-MM-dd"));
+                cmd.Parameters.AddWithValue("@stidAke", stidAke);
+                cmd.Parameters.AddWithValue("@stidSubOff", stidSubOff);
+                cmd.Parameters.AddWithValue("@stidDuty", stidDuty);
+                cmd.ExecuteNonQuery();
+            }
+            tx.Commit();
+        }
+
+
 
         // 土日のデフォルト登録
         public void BulkUpsertShifts(IEnumerable<(int EmployeeId, DateTime Date, int ShiftTypeId)> items, DateTime month)
@@ -473,8 +511,8 @@ namespace Shiftapp_demo.DataAccess
 
             using var tx = con.BeginTransaction();
 
-            //DeleteMonthDutyAndDayParentsWithCascade(con, tx, monthFirst, raw.StidDuty, raw.StidDayDuty);
-            //DeleteMonthDutyAndDayChiledWithCascade(con, tx, monthFirst);
+            DeleteMonthDutyAndDayParentsWithCascade(con, tx, monthFirst, raw.StidDuty, raw.StidDayDuty);
+            DeleteMonthDutyAndDayChiledWithCascade(con, tx, monthFirst);
             using var cmd = con.CreateCommand();
 
             cmd.Transaction = tx;
@@ -533,9 +571,9 @@ namespace Shiftapp_demo.DataAccess
             var monthFirst = new DateTime(month.Year, month.Month, 1);
 
             // ★ 当月の「親：当直・日勤」だけ削除（子はCASCADEで自動削除）
-            DeleteMonthDutyAndDayParentsWithCascade(con, tx, monthFirst, raw.StidDuty, raw.StidDayDuty);
+            //DeleteMonthDutyAndDayParentsWithCascade(con, tx, monthFirst, raw.StidDuty, raw.StidDayDuty);
 
-            DeleteMonthDutyAndDayChiledWithCascade(con, tx, monthFirst);
+            //DeleteMonthDutyAndDayChiledWithCascade(con, tx, monthFirst);
 
             var parentsDuty = items.Where(r => r.ShiftTypeId == raw.StidDuty).ToList();   // 親：当
             var parentsDay = items.Where(r => r.ShiftTypeId == raw.StidDayDuty).ToList(); // 親：日

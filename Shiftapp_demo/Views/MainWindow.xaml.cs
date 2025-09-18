@@ -75,9 +75,9 @@ namespace Shiftapp_demo.Views
 
             ShiftCalendar.DisplayDate = today;
 
-            ViewModel.MakeNightDuty(today);
-
             ViewModel.GenerateOffShift(today);
+
+            ViewModel.MakeNightDuty(today);
 
             ViewModel.LoadShiftDataForMonth(today);
 

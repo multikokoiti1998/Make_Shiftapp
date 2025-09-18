@@ -421,7 +421,10 @@ namespace Shiftapp_demo.Business
 
         private bool IsNightChild(int stid)
             => stid == stidAfterDuty   // 明
-            || stid == stidSubstituteOff; // 代休
+            || stid == stidSubstituteOff// 代休
+            || stid == stidDuty// 当直
+            || stid == stidDayWork; // 日勤
+
 
         private DateTime? GetCompDayWorkOff(DateTime dutyDay, List<DateTime> holidays)
         {
@@ -537,6 +540,20 @@ namespace Shiftapp_demo.Business
             while (!IsBusinessDay(x, holidays))
                 x = x.AddDays(1);
             return x;
+        }
+
+        public void CleanOrphanNightChildrenForMonth(DateTime month)
+        {
+            var first = new DateTime(month.Year, month.Month, 1);
+            var end = first.AddMonths(1).AddDays(2); // 翌月2日まで掃除（業務判断）
+
+            _db.DeleteOrphanNightChildren(
+                start: first,
+                end: end,
+                stidDuty: stidDuty,
+                stidAke: stidAfterDuty,
+                stidSubOff: stidSubstituteOff
+            );
         }
 
 

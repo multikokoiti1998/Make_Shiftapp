@@ -127,6 +127,8 @@ namespace Shiftapp_demo.ViewModels
         {
             var db = new DatabaseHelper();
 
+            _business.CleanOrphanNightChildrenForMonth(month);
+
             _shiftGridColumns.Clear();
             //日付取得
             var firstDay = new DateTime(month.Year, month.Month, 1);
