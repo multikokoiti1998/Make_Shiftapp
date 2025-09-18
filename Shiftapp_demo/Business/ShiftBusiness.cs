@@ -37,6 +37,19 @@ namespace Shiftapp_demo.Business
 
 
         }
+
+        private int PriorityOf(int stid) => stid switch
+        {
+            var x when x == stidDuty => 80,
+            var x when x == stidAfterDuty => 100,
+            var x when x == stidSubstituteOff => 90,
+            var x when x == stidDayWork => 70,
+            var x when x == stidWork => 60,
+            var x when x == stidOff => 10,
+            _ => 0
+        };
+
+
         //その月の土曜日を取得するメソッド
         public static List<DateTime> GetSaturdaysInMonth(DateTime month)
         {
@@ -62,7 +75,7 @@ namespace Shiftapp_demo.Business
         public List<DateTime> GetHolidaysInMonth(DateTime month)
         {
             var first = new DateTime(month.Year, month.Month, 1);
-            var last = first.AddMonths(1).AddDays(-1);
+            var last = first.AddMonths(2).AddDays(-1);
             return _db.GetHolidays(first, last);
         }
 
@@ -174,8 +187,8 @@ namespace Shiftapp_demo.Business
                 throw new InvalidOperationException("当直編成に必要な人員（カテ可/不可）が不足しています。");
 
             // 2) 既存のシフトをマップ化（当月＋周辺の休み付与に備えて＋3日まで読むのが安全）
-            var preloadStart = first.AddDays(-2);
-            var preloadEnd = last.AddDays(7); // 週末代休を安全に見る
+            var preloadStart = first.AddDays(-7);
+            var preloadEnd = last.AddDays(21); // 週末代休を安全に見る
             var existingMap = _db.GetShiftMap(preloadStart, preloadEnd);
             //祭日取得
             var holidays = GetHolidaysInMonth(month);
@@ -274,30 +287,30 @@ namespace Shiftapp_demo.Business
 
                 if (cand1 != null)
                 {
-                    placed1 = SetOverwrite(existingMap, upserts, cand1.EmployeeId, day, stidDuty);
+                    placed1 = TrySetWithPriority(existingMap, upserts, cand1.EmployeeId, day, stidDuty);
                     dutyCount[cand1.EmployeeId] = dutyCount.TryGetValue(cand1.EmployeeId, out var c1) ? c1 + 1 : 1;
                 }
                 if (cand2 != null)
                 {
-                    placed2 = SetOverwrite(existingMap, upserts, cand2.EmployeeId, day, stidDuty);
+                    placed2 = TrySetWithPriority(existingMap, upserts, cand2.EmployeeId, day, stidDuty);
                     dutyCount[cand2.EmployeeId] = dutyCount.TryGetValue(cand2.EmployeeId, out var c2) ? c2 + 1 : 1;
                 }
 
                 // 日勤（同一人物の重複は避ける。上書きOK）
                 if (cand3 != null && cand3.EmployeeId != cand1?.EmployeeId && cand3.EmployeeId != cand2?.EmployeeId)
                 {
-                    placed3=SetOverwrite(existingMap, upserts, cand3.EmployeeId, day, stidDayWork);
+                    placed3=TrySetWithPriority(existingMap, upserts, cand3.EmployeeId, day, stidDayWork);
                     dayWorkCount[cand3.EmployeeId] = dayWorkCount.TryGetValue(cand3.EmployeeId, out var w3) ? w3 + 1 : 1;
                 }
                 if (cand4 != null && cand4.EmployeeId != cand1?.EmployeeId && cand4.EmployeeId != cand2?.EmployeeId)
                 {
-                    placed4=SetOverwrite(existingMap, upserts, cand4.EmployeeId, day, stidDayWork);
+                    placed4=TrySetWithPriority(existingMap, upserts, cand4.EmployeeId, day, stidDayWork);
                     dayWorkCount[cand4.EmployeeId] = dayWorkCount.TryGetValue(cand4.EmployeeId, out var w4) ? w4 + 1 : 1;
                 }
                  
                 DateTime nextDay = day.Date.AddDays(1);
-                if (placed1) SetOverwrite(existingMap, upserts, cand1!.EmployeeId, nextDay, stidAfterDuty);
-                if (placed2) SetOverwrite(existingMap, upserts, cand2!.EmployeeId, nextDay, stidAfterDuty);
+                if (placed1) TrySetWithPriority(existingMap, upserts, cand1!.EmployeeId, nextDay, stidAfterDuty);
+                if (placed2) TrySetWithPriority(existingMap, upserts, cand2!.EmployeeId, nextDay, stidAfterDuty);
 
                 // （必要なら）週末代休も復活：当直者にのみ付与（上書きOK）
                 DateTime? comp1 = null, comp2 = null;
@@ -331,19 +344,7 @@ namespace Shiftapp_demo.Business
             }
         }
 
-        /// <summary>
-        /// すでに当が入っていればそのまま。休みや日勤があっても当で上書きする。
-        /// </summary>
-        private static bool SetOverwrite(
-            Dictionary<(int EmployeeId, DateTime Date), int> map,
-            List<ShiftWrite> upserts,
-            int eid, DateTime d, int stid)
-        {
-            var key = (eid, d.Date);
-            map[key] = stid;
-            upserts.Add(new ShiftWrite(eid, d.Date, stid));
-            return true;
-        }
+
 
         /// <summary>
         /// 週末当直日の代休日を返す。
@@ -393,7 +394,6 @@ namespace Shiftapp_demo.Business
             if (holidays.Contains(raw.Value))
             {
                 raw = dutyDay.AddDays(3);
-                return raw;
             }
 
             if (raw.Value.DayOfWeek == DayOfWeek.Sunday)
@@ -409,9 +409,31 @@ namespace Shiftapp_demo.Business
                 ? BumpToNextBusinessDay(raw.Value, holidays)
                 : null;
         }
+        /// <summary>
+        /// すでに当が入っていればそのまま。休みや日勤があっても当で上書きする。
+        /// </summary>
+        private  bool TrySetWithPriority(
+            Dictionary<(int EmployeeId, DateTime Date), int> map,
+            List<ShiftWrite> upserts,
+            int eid, DateTime d, int newStid)
+        {
+            var key = (eid, d.Date);
+            if (!map.TryGetValue(key, out var cur))
+            {
+                map[key] = newStid;
+                upserts.Add(new ShiftWrite(eid, d.Date, newStid));
+                return true;
+            }
+            if (PriorityOf(newStid) > PriorityOf(cur))
+            {
+                map[key] = newStid;
+                upserts.Add(new ShiftWrite(eid, d.Date, newStid));
+                return true;
+            }
+            return false;
+        }
 
-
-        private static void SetChildWithOrigin(
+        private  void SetChildWithOrigin(
             Dictionary<(int EmployeeId, DateTime Date), int> map,
             List<ShiftWrite> upserts,
             int eid, DateTime targetDate, int stidChild, DateTime parentDutyDate)
