@@ -426,31 +426,93 @@ namespace Shiftapp_demo.Business
             || stid == stidDayWork; // 日勤
 
 
+        //private DateTime? GetCompDayWorkOff(DateTime dutyDay, List<DateTime> holidays)
+        //{
+        //    DateTime? raw = dutyDay.Date;
+
+        //    // 翌月に行かないようにするため、月末日を計算
+        //    var lastDayOfMonth = new DateTime(dutyDay.Year, dutyDay.Month,
+        //                                      DateTime.DaysInMonth(dutyDay.Year, dutyDay.Month));
+
+        //    if (holidays.Contains(raw.Value))
+        //    {
+        //        raw = dutyDay.AddDays(3);
+        //    }
+
+        //    if (raw.Value.DayOfWeek == DayOfWeek.Sunday)
+        //    {
+        //        raw = dutyDay.AddDays(3); // 水曜日
+        //    }
+        //    else
+        //    {
+        //        raw = null;
+        //    }
+
+        //    return raw.HasValue
+        //        ? BumpToNextBusinessDay(raw.Value, holidays)
+        //        : null;
+        //}
+
+        /// <summary>
+        /// 週末当直日の代休日を返す（必ず平日に補正）。
+        /// 優先順位：金/土/日 ルールを祝日より優先。
+        ///   金曜→次水 / 土曜→次月 / 日曜→次火
+        /// 平日の祝日は +3 日を起点に営業日に補正。
+        /// さらに「金曜当直／月〜木の祝日」で翌月にハミ出す場合は、
+        /// その日から1週間以内の直前営業日に付け替える（無ければ null）。
+        /// </summary>
         private DateTime? GetCompDayWorkOff(DateTime dutyDay, List<DateTime> holidays)
         {
-            DateTime? raw = dutyDay.Date;
+            var day = dutyDay.Date;
+            var hset = new HashSet<DateTime>(holidays.Select(x => x.Date));
 
-            // 翌月に行かないようにするため、月末日を計算
-            var lastDayOfMonth = new DateTime(dutyDay.Year, dutyDay.Month,
-                                              DateTime.DaysInMonth(dutyDay.Year, dutyDay.Month));
+            DateTime? raw = null;
+            bool isWeekdayHoliday = (day.DayOfWeek is >= DayOfWeek.Monday and <= DayOfWeek.Thursday) && hset.Contains(day);
 
-            if (holidays.Contains(raw.Value))
+            switch (day.DayOfWeek)
             {
-                raw = dutyDay.AddDays(3);
+                case DayOfWeek.Friday:
+                    // 金曜が祝日でも金曜ルール優先：次の水
+                    raw = NextWeekday(day, DayOfWeek.Wednesday);
+                    break;
+                case DayOfWeek.Saturday:
+                    // 次の月（翌月跨ぎOK）
+                    raw = day.AddDays(2);
+                    break;
+                case DayOfWeek.Sunday:
+                    // 次の火（翌月跨ぎOK）
+                    raw = day.AddDays(2);
+                    break;
+                default:
+                    // 平日（月〜木）の祝日のみ対象
+                    if (isWeekdayHoliday)
+                        raw = day.AddDays(3);
+                    break;
             }
 
-            if (raw.Value.DayOfWeek == DayOfWeek.Sunday)
+            if (!raw.HasValue) return null;
+
+            var candidate = BumpToNextBusinessDay(raw.Value, holidays);
+
+            // 翌月に出るなら「その1週間前以内の直前営業日」に付け替え（対象：金曜当直 or 月〜木祝日）
+            if ((day.DayOfWeek == DayOfWeek.Friday || isWeekdayHoliday) && candidate.Month != day.Month)
             {
-                raw = dutyDay.AddDays(3); // 水曜日
-            }
-            else
-            {
-                raw = null;
+                var fallback = PickPrevBusinessDayWithin(candidate, 7, holidays, day.Month);
+                return fallback; // 見つからなければ null
             }
 
-            return raw.HasValue
-                ? BumpToNextBusinessDay(raw.Value, holidays)
-                : null;
+            return candidate;
+        }
+        // 直前の営業日を最大 daysBack 日さかのぼって探す（同一 monthOnly に限定）
+        private static DateTime? PickPrevBusinessDayWithin(DateTime anchor, int daysBack, List<DateTime> holidays, int monthOnly)
+        {
+            for (int i = 1; i <= daysBack; i++)
+            {
+                var d = anchor.Date.AddDays(-i);
+                if (d.Month != monthOnly) break;       // 当月から外れたら打ち切り
+                if (IsBusinessDay(d, holidays)) return d;
+            }
+            return null;
         }
         /// <summary>
         /// すでに当が入っていればそのまま。休みや日勤があっても当で上書きする。
