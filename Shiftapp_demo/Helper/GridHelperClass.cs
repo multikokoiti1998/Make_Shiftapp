@@ -49,27 +49,70 @@ namespace Shiftapp_demo.Helper
                 CellStyle = centerCell
             });
 
-            // 日付列（1日〜末日）
-            DateTime firstDay = new DateTime(month.Year, month.Month, 1);
-            DateTime lastDay = firstDay.AddMonths(1).AddDays(-1);
+
+            // --- 日付列（TextBlock表示 / 編集時ComboBox）---
+            var firstDay = new DateTime(month.Year, month.Month, 1);
+            var lastDay = firstDay.AddMonths(1).AddDays(-1);
 
             for (var d = firstDay; d <= lastDay; d = d.AddDays(1))
             {
-                var b = new Binding($"Shifts[{d:yyyy-MM-dd}]") { TargetNullValue = "" };
+                var key = d.ToString("yyyy-MM-dd");
 
-                columns.Add(new DataGridTextColumn
+                var col = new DataGridTemplateColumn
                 {
                     Header = d.Day.ToString(),
-                    Binding = b,
                     Width = new DataGridLength(1, DataGridLengthUnitType.Star),
                     MinWidth = 28,
-                    ElementStyle = center,
-                    EditingElementStyle = center
-                });
+                    CellStyle = centerCell
+                };
+
+                // 表示用: シンボルをそのまま表示（中央寄せ）
+                {
+                    var tbFactory = new FrameworkElementFactory(typeof(TextBlock));
+                    var b = new Binding($"Shifts[{key}]") { TargetNullValue = "", Mode = BindingMode.OneWay };
+                    tbFactory.SetBinding(TextBlock.TextProperty, b);
+                    tbFactory.SetValue(TextBlock.HorizontalAlignmentProperty, HorizontalAlignment.Center);
+                    tbFactory.SetValue(TextBlock.VerticalAlignmentProperty, VerticalAlignment.Center);
+                    col.CellTemplate = new DataTemplate { VisualTree = tbFactory };
+                }
+
+                // 編集用: DBマスタ(ShiftTypes)からプルダウン
+                {
+                    var cbFactory = new FrameworkElementFactory(typeof(ComboBox));
+
+                    // DataContext.ShiftTypes を ItemsSource に（DataGridのDataContext = MainViewModel）
+                    cbFactory.SetBinding(
+                        ComboBox.ItemsSourceProperty,
+                        new Binding("DataContext.ShiftTypes")
+                        {
+                            RelativeSource = new RelativeSource(RelativeSourceMode.FindAncestor, typeof(DataGrid), 1)
+                        });
+
+                    // 表示は Symbol、選択値も Symbol（現状 Shifts[...] が string シンボルのため）
+                    cbFactory.SetValue(ComboBox.DisplayMemberPathProperty, "Symbol");
+                    cbFactory.SetValue(ComboBox.SelectedValuePathProperty, "Symbol");
+
+                    // セルの値と双方向バインド
+                    cbFactory.SetBinding(
+                        ComboBox.SelectedValueProperty,
+                        new Binding($"Shifts[{key}]")
+                        {
+                            Mode = BindingMode.TwoWay,
+                            UpdateSourceTrigger = UpdateSourceTrigger.PropertyChanged
+                        });
+
+                    // 体裁
+                    cbFactory.SetValue(ComboBox.IsEditableProperty, false);
+                    cbFactory.SetValue(ComboBox.HorizontalContentAlignmentProperty, HorizontalAlignment.Center);
+
+                    col.CellEditingTemplate = new DataTemplate { VisualTree = cbFactory };
+                }
+
+                columns.Add(col);
             }
 
-
             return columns;
+
         }
     }
 }

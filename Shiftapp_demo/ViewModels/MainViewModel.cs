@@ -9,6 +9,7 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Windows.Controls;
 using System.Windows.Input;
+using Shiftapp_demo.Models;
 
 // モデルとデータアクセス層のNamespaceを追加
 
@@ -18,6 +19,7 @@ namespace Shiftapp_demo.ViewModels
     {
         private ShiftDataLoader _dataLoader; // Model層 (データアクセス)
 
+        private readonly DatabaseHelper db;
 
         private readonly ShiftBusiness _business;
 
@@ -28,6 +30,16 @@ namespace Shiftapp_demo.ViewModels
         private readonly CsvBusiness _csvBiz;
 
         private readonly IShiftCsvExporter _exporter;
+
+        //private readonly DatabaseHelper db;
+        public ObservableCollection<ShiftTypeM> ShiftTypes { get; } = new(); // プルダウン用マスタ
+
+        private readonly Dictionary<string, int> _symbolToId = new();  // "当"→1 など
+        private readonly HashSet<int> _parentTypeIds = new();         // 親（当/●/日）
+        private readonly HashSet<string> _parentSymbols = new(new[] { "当", "●", "日" });
+
+        // 差分検出用のスナップショット: (eid, date) → symbol
+        private Dictionary<(int Eid, DateTime Date), string> _originalSymbolMap = new();
 
         //行
         public ObservableCollection<ShiftDataLoader> ShiftDataCollection
@@ -77,7 +89,7 @@ namespace Shiftapp_demo.ViewModels
 
             ShiftGridColumns = new ObservableCollection<DataGridColumn>();
 
-            var db = new DatabaseHelper();
+            db = new DatabaseHelper();
 
             _business = new ShiftBusiness(db);
 
@@ -111,6 +123,26 @@ namespace Shiftapp_demo.ViewModels
             }
         }
 
+        private void LoadShiftTypes()
+        {
+            ShiftTypes.Clear();
+            _symbolToId.Clear();
+            _parentTypeIds.Clear();
+
+            foreach (var m in db.GetShiftTypeMaster()) // (ShiftTypeId, Symbol, Name, IsParent) を返す想定
+            {
+                ShiftTypes.Add(new ShiftTypeM
+                {
+                    ShiftTypeId = m.ShiftTypeId,
+                    Symbol = m.Symbol,
+                    Name = m.Name,
+                });
+
+                _symbolToId[m.Symbol] = m.ShiftTypeId;
+
+            }
+        }
+
         public void GenerateOffShift(DateTime month)
         {
             // 例えば8/16を基準に、B班からスタート
@@ -129,6 +161,8 @@ namespace Shiftapp_demo.ViewModels
         public void LoadShiftDataForMonth(DateTime month)
         {
             var db = new DatabaseHelper();
+
+            LoadShiftTypes();
 
             _business.CleanOrphanNightChildrenForMonth(month);
 

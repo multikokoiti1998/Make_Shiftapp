@@ -471,24 +471,53 @@ namespace Shiftapp_demo.DataAccess
             cmd.ExecuteNonQuery();
         }
 
-        private void DeleteMonthDutyAndDayChiledWithCascade(
-            SqliteConnection con, SqliteTransaction tx, DateTime month)
+        //private void DeleteMonthDutyAndDayChiledWithCascade(
+        //    SqliteConnection con, SqliteTransaction tx, DateTime month)
+        //{
+        //    var first = new DateTime(month.Year, month.Month, 1);
+        //    var next = first.AddMonths(1);
+
+        //    using var cmd = con.CreateCommand();
+        //    cmd.Transaction = tx;
+        //    cmd.CommandText = @"
+        //    DELETE FROM daily_employee_shifts AS c
+        //    WHERE c.shift_date >= @first AND c.shift_date < @next
+        //      AND c.origin_shifts_id IS NOT NULL
+        //      AND NOT EXISTS (
+        //            SELECT 1 FROM daily_employee_shifts AS p
+        //            WHERE p.shifts_id = c.origin_shifts_id);";
+        //    cmd.Parameters.AddWithValue("@first", first.ToString("yyyy-MM-dd"));
+        //    cmd.Parameters.AddWithValue("@next", next.ToString("yyyy-MM-dd"));
+        //    cmd.ExecuteNonQuery();
+        //}
+
+        /// <summary>
+        /// シフト種別マスタを全件取得（priority は無視）
+        /// </summary>
+        public IReadOnlyList<ShiftTypeM> GetShiftTypeMaster()
         {
-            var first = new DateTime(month.Year, month.Month, 1);
-            var next = first.AddMonths(1);
+            var list = new List<ShiftTypeM>();
+
+            using var con = new SqliteConnection(_connectionString);
+            con.Open();
 
             using var cmd = con.CreateCommand();
-            cmd.Transaction = tx;
             cmd.CommandText = @"
-            DELETE FROM daily_employee_shifts AS c
-            WHERE c.shift_date >= @first AND c.shift_date < @next
-              AND c.origin_shifts_id IS NOT NULL
-              AND NOT EXISTS (
-                    SELECT 1 FROM daily_employee_shifts AS p
-                    WHERE p.shifts_id = c.origin_shifts_id);";
-            cmd.Parameters.AddWithValue("@first", first.ToString("yyyy-MM-dd"));
-            cmd.Parameters.AddWithValue("@next", next.ToString("yyyy-MM-dd"));
-            cmd.ExecuteNonQuery();
+            SELECT shift_type_id, symbol, type_name
+            FROM shift_types
+            ORDER BY shift_type_id;";
+
+            using var rd = cmd.ExecuteReader();
+            while (rd.Read())
+            {
+                list.Add(new ShiftTypeM
+                {
+                    ShiftTypeId = rd.GetInt32(0),
+                    Symbol = rd.IsDBNull(1) ? "" : rd.GetString(1),
+                    Name = rd.IsDBNull(2) ? "" : rd.GetString(2),
+                });
+            }
+            return list;
         }
 
         public void DeleteOrphanNightChildren(DateTime start, DateTime end, int stidDuty, int stidAke, int stidSubOff)
