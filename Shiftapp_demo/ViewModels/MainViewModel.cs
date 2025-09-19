@@ -29,6 +29,7 @@ namespace Shiftapp_demo.ViewModels
 
         private readonly IShiftCsvExporter _exporter;
 
+        //行
         public ObservableCollection<ShiftDataLoader> ShiftDataCollection
         {
             get { return _shiftDataCollection; }
@@ -39,6 +40,7 @@ namespace Shiftapp_demo.ViewModels
             }
         }
 
+        //列
         private ObservableCollection<DataGridColumn> _shiftGridColumns;
         public ObservableCollection<DataGridColumn> ShiftGridColumns
         {
@@ -85,6 +87,7 @@ namespace Shiftapp_demo.ViewModels
 
             ExportCsvRowsCommand = new RelayCommand(async p => await ExportCsvRowsAsync(p));
         }
+
         public ICommand ExportCsvRowsCommand { get; }
 
         private async Task ExportCsvRowsAsync(object? param)
@@ -190,6 +193,8 @@ namespace Shiftapp_demo.ViewModels
         {
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
         }
+
+
         // コマンドひな形
         public sealed class RelayCommand : ICommand
         {
