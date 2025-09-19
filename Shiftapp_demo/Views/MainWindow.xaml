@@ -33,11 +33,34 @@
             </Calendar>
 
             <Button Content="シフト作成" Height="70" FontSize="20" Margin="0,15,0,0" Click="Button_Click_1"/>
+            
             <Button Content="管理者画面" Height="70" FontSize="20" Margin="0,15,0,0" Click="Button_Click1"/>
-            <Button Content="CSV出力（行形式）"
+
+            <StackPanel Grid.Column="0" Grid.Row="0" Grid.RowSpan="2" 
+            Orientation="Horizontal"
+            Margin="10,0,0,0"
+            HorizontalAlignment="Left"
+            VerticalAlignment="Top"
+            >
+
+                <!-- CSV出力ボタン -->
+                <Button Content="CSV出力"
             Command="{Binding ExportCsvRowsCommand}"
             CommandParameter="{Binding ElementName=ShiftCalendar, Path=DisplayDate}"
-             Height="70" FontSize="20" Margin="0,15,0,0"/>
+            Width="150" Height="70"
+            FontSize="18"
+            Margin="0,15,15,0"
+            Padding="10"
+            />
+
+                <!-- シフト修正ボタン -->
+                <Button Content="シフト修正"
+            Width="150" Height="70"
+            FontSize="18"
+            Margin="0,15,0,0"
+            Padding="10"
+            />
+            </StackPanel>
 
         </StackPanel>
 
