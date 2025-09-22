@@ -235,6 +235,7 @@ namespace Shiftapp_demo.Business
             var nextAvailable = new Dictionary<int, DateTime>();     // EmployeeId -> Date
             var dayWorkCount = new Dictionary<int, int>();           // EmployeeId -> 当月の日勤回数
             var dutyCount = new Dictionary<int, int>();   
+            var restcount = new Dictionary<int, int>();
             // EmployeeId -> 当月の当直回数
             foreach (var e in employees_active_all)
             {
