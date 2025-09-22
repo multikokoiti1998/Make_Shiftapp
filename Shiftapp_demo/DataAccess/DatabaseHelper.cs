@@ -585,7 +585,6 @@ namespace Shiftapp_demo.DataAccess
             cmd.CommandText = @"
             INSERT INTO daily_employee_shifts (employee_id, shift_date, shift_type_id, registered_at)
             VALUES (@eid, @date, @stid, CURRENT_TIMESTAMP)
-            VALUES (@eid, @date, @stid, CURRENT_TIMESTAMP)
             ON CONFLICT(employee_id, shift_date) DO UPDATE SET
               shift_type_id = excluded.shift_type_id,
               registered_at = CURRENT_TIMESTAMP
