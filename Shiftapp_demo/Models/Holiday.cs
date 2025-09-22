@@ -10,8 +10,8 @@ namespace Shiftapp_demo.Models
 {
     public class Holiday
     {
-        public int holiday_id { get; set; }
-        public int date { get; set; }
+        public DateTime holiday_id { get; set; }
+        public DateTime date { get; set; }
 
     }
 }

@@ -7,73 +7,138 @@
         mc:Ignorable="d"
         Title="管理者ウィンドウ"
         WindowState="Maximized"
-        MinHeight="600" MinWidth="800">
-    <Grid Margin="10">
+        MinHeight="600" MinWidth="1000">
+
+    <Window.Resources>
+        <!-- 中央寄せスタイル（必要に応じて列に適用） -->
+        <Style x:Key="CenterText" TargetType="TextBlock">
+            <Setter Property="HorizontalAlignment" Value="Center"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="TextAlignment" Value="Center"/>
+            <Setter Property="Margin" Value="0"/>
+        </Style>
+
+        <!-- DataGrid のセル中央寄せ -->
+        <Style x:Key="CenterCell" TargetType="DataGridCell">
+            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="Padding" Value="4,2"/>
+        </Style>
+    </Window.Resources>
+
+    <Grid Margin="16">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
+            <!-- 見出し：技師 -->
             <RowDefinition Height="*"/>
+            <!-- 技師 DataGrid -->
             <RowDefinition Height="Auto"/>
+            <!-- 技師ボタン列 -->
+            <RowDefinition Height="20"/>
+            <!-- スペーサ -->
             <RowDefinition Height="Auto"/>
+            <!-- 見出し：検索 -->
             <RowDefinition Height="Auto"/>
+            <!-- 検索バー -->
             <RowDefinition Height="*"/>
+            <!-- 検索結果 -->
+            <RowDefinition Height="20"/>
+            <!-- スペーサ -->
             <RowDefinition Height="Auto"/>
+            <!-- 見出し：祝日 -->
+            <RowDefinition Height="Auto"/>
+            <!-- 祝日操作バー -->
             <RowDefinition Height="*"/>
-            <RowDefinition Height="Auto"/>
+            <!-- 祝日 DataGrid -->
         </Grid.RowDefinitions>
 
-        <TextBlock Grid.Row="0" Text="技師情報管理" FontSize="20" FontWeight="Bold" Margin="0,0,0,10"/>
+        <!-- 見出し：技師 -->
+        <TextBlock Grid.Row="0" Text="技師情報管理" FontSize="20" FontWeight="Bold" />
 
-        <DataGrid Grid.Row="1" x:Name="TechniciansDataGrid"
-                  AutoGenerateColumns="False" CanUserAddRows="False"
-                  CanUserDeleteRows="False"
-                  SelectionMode="Single" Margin="0,0,0,10">
+        <!-- 技師一覧 -->
+        <DataGrid Grid.Row="1"
+          x:Name="TechniciansDataGrid"
+          AutoGenerateColumns="False"
+          CanUserAddRows="False"
+          CanUserDeleteRows="False"
+          IsReadOnly="False"
+          SelectionMode="Single"
+          Margin="0,8,0,8">
             <DataGrid.Columns>
-                <DataGridTextColumn Header="ID" Binding="{Binding Id}" IsReadOnly="True" Width="Auto"/>
-                <DataGridTextColumn Header="氏名" Binding="{Binding Name}" Width="*"/>
-                <DataGridTextColumn Header="土曜日勤務班" Binding="{Binding saturday_class}" Width="*"/>
-                <DataGridTextColumn Header="カテーテル対応可否" Binding="{Binding catheterization}" Width="*"/>
+                <DataGridTextColumn Header="ID" Binding="{Binding EmployeeId}" IsReadOnly="True" Width="60"/>
+                <DataGridTextColumn Header="氏名" Binding="{Binding EmployeeName}" Width="120"/>
+                <DataGridCheckBoxColumn Header="カテ対応" Binding="{Binding CanDoCatheterization}" Width="80"/>
+                <DataGridTextColumn Header="土曜班" Binding="{Binding SaturdayClass}" Width="80"/>
+                <DataGridTextColumn Header="月最大当直数" Binding="{Binding MonthlyDutyLimit}" Width="120"/>
+                <DataGridTextColumn Header="当直可能" Binding="{Binding CanDoNightDuty}" Width="100"/>
+                <DataGridTextColumn Header="役割" Binding="{Binding Role}" Width="80"/>
+                <DataGridTextColumn Header="日直可否" Binding="{Binding CanDayNightDuty}" Width="100"/>
+                <DataGridTextColumn Header="有効フラグ" Binding="{Binding is_active}" Width="100"/>
             </DataGrid.Columns>
         </DataGrid>
 
-        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,0,0,20">
-            <Button Content="新規技師追加フォーム表示" Padding="10,5" Margin="5" />
-        
+        <!-- 技師操作ボタン -->
+        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" >
+            <Button Content="新規技師追加" Padding="12,6" Margin="4" Click="AddTechnician_Click"/>
+            <Button Content="選択技師削除" Padding="12,6" Margin="4" Click="DeleteSelectedTechnician_Click"/>
+            <Button Content="保存（一覧の変更をDBへ）" Padding="12,6" Margin="4" Click="SaveTechnicians_Click"/>
         </StackPanel>
 
-        <TextBlock Grid.Row="3" Text="技師検索" FontSize="18" FontWeight="Bold" Margin="0,20,0,10"/>
+        <!-- 見出し：検索 -->
+        <TextBlock Grid.Row="4" Text="技師検索" FontSize="18" FontWeight="Bold" />
 
-        <StackPanel Grid.Row="4" Orientation="Horizontal" Margin="0,0,0,10">
-            <TextBlock Text="検索ID:" Margin="5" VerticalAlignment="Center"/>
-            <TextBox x:Name="SearchKeywordTextBox" Width="200" Margin="5"/>
-            <Button Content="検索" Width="80" Margin="5" Click="SearchTechnicians_Click"/>
-            <Button Content="選択技師編集" Padding="10,5" Margin="5" Click="EditSelectedTechnician_Click"/>
-            <Button Content="選択技師削除" Padding="10,5" Margin="5" Click="DeleteSelectedTechnician_Click"/>
-        </StackPanel>
+        <!-- 検索バー -->
+        <DockPanel Grid.Row="5" Margin="0,8,0,8">
+            <StackPanel Orientation="Horizontal" DockPanel.Dock="Left">
+                <TextBlock Text="キーワード：" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                <TextBox x:Name="SearchKeywordTextBox" Width="260" Height="32" Margin="0,0,8,0"
+                         ToolTip="氏名・班・メモなどを部分一致で検索"/>
+                <Button Content="検索" Width="90" Margin="0,0,8,0" Click="SearchTechnicians_Click"/>
+                <Button Content="クリア" Width="90" Click="ClearSearch_Click"/>
+            </StackPanel>
 
-        <DataGrid Grid.Row="5" x:Name="SearchResultsDataGrid"
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                <Button Content="選択技師を編集フォームで開く" Padding="12,6" Margin="8,0,0,0" Click="EditSelectedTechnician_Click"/>
+            </StackPanel>
+        </DockPanel>
+
+        <!-- 検索結果 -->
+        <DataGrid Grid.Row="6" x:Name="SearchResultsDataGrid"
                   AutoGenerateColumns="True"
                   CanUserAddRows="False"
                   CanUserDeleteRows="False"
                   IsReadOnly="True"
-                  Margin="0,0,0,10"/>
+                  SelectionMode="Single"
+                  Margin="0,0,0,8" />
 
-        <TextBlock Grid.Row="6" Text="祝日設定" FontSize="20" FontWeight="Bold" Margin="0,20,0,10"/>
+        <!-- 見出し：祝日 -->
+        <TextBlock Grid.Row="8" Text="祝日設定" FontSize="20" FontWeight="Bold" />
 
+        <!-- 祝日操作バー -->
+        <StackPanel Grid.Row="9" Orientation="Horizontal" Margin="0,8,0,8">
+            <TextBlock Text="日付：" VerticalAlignment="Center" Margin="0,0,8,0"/>
+            <DatePicker x:Name="HolidayDatePicker" Width="160" Margin="0,0,16,0"/>
 
-        <DataGrid Grid.Row="7" x:Name="HolidaysDataGrid"
+            <TextBlock Text="名称：" VerticalAlignment="Center" Margin="0,0,8,0"/>
+            <TextBox x:Name="HolidayNameTextBox" Width="240" Height="30" Margin="0,0,16,0" ToolTip="例：敬老の日"/>
+
+            <Button Content="追加" Padding="12,6" Margin="0,0,8,0" Click="AddHoliday_Click"/>
+            <Button Content="選択削除" Padding="12,6" Margin="0,0,8,0" Click="DeleteSelectedHoliday_Click"/>
+            <Button Content="保存（当月を置換）" Padding="12,6" Margin="0,0,8,0" Click="SaveHolidays_Click"/>
+            <Button Content="今月を再読込" Padding="12,6" Click="ReloadHolidaysThisMonth_Click"/>
+        </StackPanel>
+
+        <!-- 祝日一覧 -->
+        <DataGrid Grid.Row="10" x:Name="HolidaysDataGrid"
                   AutoGenerateColumns="False"
                   CanUserAddRows="False"
                   CanUserDeleteRows="False"
-                  Margin="0,0,0,10">
+                  IsReadOnly="False">
             <DataGrid.Columns>
-                <DataGridTextColumn Header="日付" Binding="{Binding Date, StringFormat=yyyy-MM-dd}" Width="*"/>
+                <DataGridTextColumn Header="日付" Binding="{Binding Date, StringFormat=\{0:yyyy-MM-dd\}}" Width="160" IsReadOnly="True"/>
+                <DataGridTextColumn Header="名称" Binding="{Binding Name, UpdateSourceTrigger=PropertyChanged}" Width="*"/>
             </DataGrid.Columns>
         </DataGrid>
-
-        <StackPanel Grid.Row="8" Orientation="Horizontal" HorizontalAlignment="Right">
-            <Button Content="休日追加" Padding="10,5" Margin="5"/>
-            <Button Content="選択休日削除" Padding="10,5" Margin="5"/>
-        </StackPanel>
 
     </Grid>
 </Window>

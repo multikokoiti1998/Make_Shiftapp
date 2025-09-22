@@ -64,7 +64,7 @@ namespace Shiftapp_demo.DataAccess
 
             var command = connection.CreateCommand();
             command.CommandText = @"
-                SELECT employee_id, employee_name, saturday_class, MonthlyDutyLimit, CanDoCatheterization 
+                SELECT *
                 FROM employee";
 
             using var reader = command.ExecuteReader();
@@ -341,101 +341,51 @@ namespace Shiftapp_demo.DataAccess
             }
             return map;
         }
+        public void DeleteMonthDutyAndDayParentsWithCascade(DateTime monthFirst, int stidDuty, int stidDay)
+        {
+            var first = new DateTime(monthFirst.Year, monthFirst.Month, 1);
+            var next = first.AddMonths(1);
 
-        //シフト削除
-        //private void DeleteMonthDutyAndDayParentsWithCascade(SqliteConnection con, SqliteTransaction tx, DateTime monthFirst, int stidDuty, int stidDay)
-        //{
-        //    var first = new DateTime(monthFirst.Year, monthFirst.Month, 1);
-        //    var next = first.AddMonths(1);
+            using var con = new SqliteConnection(_connectionString);
+            con.Open();
 
-        //    using (var fk = con.CreateCommand())
-        //    {
-        //        fk.Transaction = tx;
-        //        fk.CommandText = "PRAGMA foreign_keys=ON;";
-        //        fk.ExecuteNonQuery();
-        //    }
+            using var tx = con.BeginTransaction();
+            using (var pragma = con.CreateCommand())
+            {
+                pragma.Transaction = tx;
+                pragma.CommandText = "PRAGMA foreign_keys=ON; PRAGMA busy_timeout=5000;";
+                pragma.ExecuteNonQuery();
+            }
 
-        //    using var cmd = con.CreateCommand();
-        //    cmd.Transaction = tx;
-        //    cmd.CommandText = @"
-        //    DELETE FROM daily_employee_shifts
-        //    WHERE shift_date >= @first AND shift_date < @next
-        //      AND shift_type_id IN (@sidDuty, @sidDay);";
-        //    cmd.Parameters.AddWithValue("@first", first.ToString("yyyy-MM-dd"));
-        //    cmd.Parameters.AddWithValue("@next", next.ToString("yyyy-MM-dd"));
-        //    cmd.Parameters.AddWithValue("@sidDuty", stidDuty);
-        //    cmd.Parameters.AddWithValue("@sidDay", stidDay);
-        //    cmd.ExecuteNonQuery();
-        //}
+            using var cmd = con.CreateCommand();
+            cmd.Transaction = tx;
+            // 共通パラメータ
+            cmd.Parameters.AddWithValue("@first", first.ToString("yyyy-MM-dd"));
+            cmd.Parameters.AddWithValue("@next", next.ToString("yyyy-MM-dd"));
+            cmd.Parameters.AddWithValue("@sidDuty", stidDuty);
+            cmd.Parameters.AddWithValue("@sidDay", stidDay);
+            cmd.Parameters.AddWithValue("@stidSatWork", 5);
+            cmd.Parameters.AddWithValue("@stidoff", 4);
 
-        //    private static void DeleteMonthDutyAndDayParentsWithCascade(
-        //SqliteConnection con, SqliteTransaction tx, DateTime monthFirst,
-        //int stidDuty, int stidDay)
-        //    {
-        //        var first = new DateTime(monthFirst.Year, monthFirst.Month, 1);
-        //        var next = first.AddMonths(1);
+            // 1) 親のシンプル削除：origin_shifts_id IS NULL AND type IN (当/日)
+            cmd.CommandText = @"
+            DELETE FROM daily_employee_shifts
+            WHERE origin_shifts_id IS NULL
+              AND shift_type_id IN (@sidDuty, @sidDay,@stidSatWork, @stidoff)
+              AND shift_date >= @first
+              AND shift_date <  @next;";
+            cmd.ExecuteNonQuery();
 
-        //        using var cmd = con.CreateCommand();
-        //        cmd.Transaction = tx;
-        //        cmd.Parameters.AddWithValue("@first", first.ToString("yyyy-MM-dd"));
-        //        cmd.Parameters.AddWithValue("@next", next.ToString("yyyy-MM-dd"));
-        //        cmd.Parameters.AddWithValue("@sidDuty", stidDuty);
-        //        cmd.Parameters.AddWithValue("@sidDay", stidDay);
+            //2) 当月内の孤児（親が存在しない子）を削除
+            cmd.CommandText = @"
+             DELETE FROM daily_employee_shifts AS c
+              WHERE c.shift_date >= @first AND c.shift_date < @next
+              AND c.origin_shifts_id IS NULL
+              AND c.shift_type_id IN (@sidDuty, @sidDay);";
+            cmd.ExecuteNonQuery();
 
-        //        // 1) 当月の「親として扱うID」を集約
-        //        cmd.CommandText = "CREATE TEMP TABLE IF NOT EXISTS _parents_to_delete (shifts_id INTEGER PRIMARY KEY)";
-        //        cmd.ExecuteNonQuery();
-
-        //        cmd.CommandText = "DELETE FROM _parents_to_delete";
-        //        cmd.ExecuteNonQuery();
-
-        //        cmd.CommandText = @"
-        //        INSERT INTO _parents_to_delete (shifts_id)
-        //        SELECT p.shifts_id
-        //        FROM daily_employee_shifts p
-        //        WHERE p.shift_date >= @first AND p.shift_date < @next
-        //          AND (
-        //                -- a) 元々の親（当/日 かつ origin NULL）
-        //                (p.origin_shifts_id IS NULL AND p.shift_type_id IN (@sidDuty, @sidDay))
-        //                -- b) 子に参照されている行（型が後で休等に上書きされていても“親”として扱う）
-        //             OR EXISTS (SELECT 1 FROM daily_employee_shifts c WHERE c.origin_shifts_id = p.shifts_id)
-        //          )";
-        //        cmd.ExecuteNonQuery();
-
-        //        // 2) 月またぎの子は残す：当月外の子はデタッチ
-        //        cmd.CommandText = @"
-        //        UPDATE daily_employee_shifts
-        //        SET origin_shifts_id = NULL
-        //        WHERE origin_shifts_id IN (SELECT shifts_id FROM _parents_to_delete)
-        //          AND (shift_date < @first OR shift_date >= @next)";
-        //        cmd.ExecuteNonQuery();
-
-        //        // 3) 当月内の子は削除
-        //        cmd.CommandText = @"
-        //        DELETE FROM daily_employee_shifts
-        //        WHERE origin_shifts_id IN (SELECT shifts_id FROM _parents_to_delete)
-        //          AND shift_date >= @first AND shift_date < @next";
-        //        cmd.ExecuteNonQuery();
-
-        //        // 4) 親を削除（型に関わらず、親扱いのIDを落とす）
-        //        cmd.CommandText = @"
-        //        DELETE FROM daily_employee_shifts
-        //        WHERE shifts_id IN (SELECT shifts_id FROM _parents_to_delete)";
-        //        cmd.ExecuteNonQuery();
-
-        //        // 5) 予防線：当月内の「親が当/日でない子」も掃除（親が残っていても整合を取る）
-        //        cmd.CommandText = @"
-        //        DELETE FROM daily_employee_shifts AS c
-        //        WHERE c.shift_date >= @first AND c.shift_date < @next
-        //          AND c.origin_shifts_id IS NOT NULL
-        //          AND EXISTS (
-        //                SELECT 1 FROM daily_employee_shifts p
-        //                WHERE p.shifts_id = c.origin_shifts_id
-        //                  AND p.shift_type_id NOT IN (@sidDuty, @sidDay)
-        //          )";
-        //        cmd.ExecuteNonQuery();
-        //    }
-
+            tx.Commit();
+        }
 
         private static void DeleteMonthDutyAndDayParentsWithCascade(
         SqliteConnection con, SqliteTransaction tx, DateTime monthFirst,
@@ -642,7 +592,7 @@ namespace Shiftapp_demo.DataAccess
             var monthFirst = new DateTime(month.Year, month.Month, 1);
 
             // ★ 当月の「親：当直・日勤」だけ削除（子はCASCADEで自動削除）
-            DeleteMonthDutyAndDayParentsWithCascade(con, tx, monthFirst, raw.StidDuty, raw.StidDayDuty);
+            //DeleteMonthDutyAndDayParentsWithCascade(con, tx, monthFirst, raw.StidDuty, raw.StidDayDuty);
 
             var parentsDuty = items.Where(r => r.ShiftTypeId == raw.StidDuty).ToList();   // 親：当
             var parentsDay = items.Where(r => r.ShiftTypeId == raw.StidDayDuty).ToList(); // 親：日

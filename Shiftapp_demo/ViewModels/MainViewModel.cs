@@ -31,6 +31,8 @@ namespace Shiftapp_demo.ViewModels
 
         private readonly IShiftCsvExporter _exporter;
 
+        public ICommand OpenAdminCommand { get; }
+
         //private readonly DatabaseHelper db;
         public ObservableCollection<ShiftTypeM> ShiftTypes { get; } = new(); // プルダウン用マスタ
 
@@ -98,7 +100,16 @@ namespace Shiftapp_demo.ViewModels
             _csvBiz = new CsvBusiness(db, _exporter);
 
             ExportCsvRowsCommand = new RelayCommand(async p => await ExportCsvRowsAsync(p));
+
+            OpenAdminCommand = new RelayCommand(OpenAdmin);
         }
+
+        private void OpenAdmin(object? _)
+        {
+            var admin = new AdminWindow();
+            admin.ShowDialog();
+        }
+
 
         public ICommand ExportCsvRowsCommand { get; }
 
@@ -153,6 +164,8 @@ namespace Shiftapp_demo.ViewModels
         }
         public void MakeNightDuty(DateTime month)
         {
+            db.DeleteMonthDutyAndDayParentsWithCascade(month,1,0);
+
             _business.GenerateNightDutiesForMonth(month);
 
             LoadShiftDataForMonth(month);
