@@ -361,3 +361,5 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+/Shiftapp_demo/Data/shiftapp.db-shm
+/Shiftapp_demo/Data/shiftapp.db-wal
