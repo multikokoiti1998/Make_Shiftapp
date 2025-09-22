@@ -281,7 +281,7 @@ namespace Shiftapp_demo.Business
                 var cand1 = canCath
                 .Where(e => nextAvailable[e.EmployeeId] <= day)
                 .OrderBy(e => dutyCount.TryGetValue(e.EmployeeId, out var v) ? v : 0)
-                .OrderBy(e => restcount.TryGetValue(e.EmployeeId, out var v) ? v : 0)
+                .ThenBy(e => restcount.TryGetValue(e.EmployeeId, out var v) ? v : 0)
                 .ThenBy(e => nextAvailable[e.EmployeeId])
                 .ThenBy(_ => rand.Next())
                 .FirstOrDefault();
@@ -289,7 +289,7 @@ namespace Shiftapp_demo.Business
                 var cand2 = cannotCath
                 .Where(e => nextAvailable[e.EmployeeId] <= day)
                 .OrderBy(e => dutyCount.TryGetValue(e.EmployeeId, out var v) ? v : 0)
-                .OrderBy(e => restcount.TryGetValue(e.EmployeeId, out var v) ? v : 0)
+                .ThenBy(e => restcount.TryGetValue(e.EmployeeId, out var v) ? v : 0)
                 .ThenBy(e => nextAvailable[e.EmployeeId])
                 .ThenBy(_ => rand.Next())
                 .FirstOrDefault();
@@ -525,13 +525,13 @@ namespace Shiftapp_demo.Business
             if (cannotOverwrite?.Invoke(cur) == true)
                 return false;
 
-            if (PriorityOf(newStid) > PriorityOf(cur))
-            {
+            //if (PriorityOf(newStid) > PriorityOf(cur))
+            //{
                 map[key] = newStid;
                 upserts.Add(new ShiftWrite(eid, d.Date, newStid));
                 return true;
-            }
-            return false;
+            //}
+            //return false;
         }
 
         private bool TrySetWithPriorityWeekend(
