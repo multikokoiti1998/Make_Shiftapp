@@ -452,15 +452,17 @@ namespace Shiftapp_demo.DataAccess
             cmd.Parameters.AddWithValue("@next", next.ToString("yyyy-MM-dd"));
             cmd.Parameters.AddWithValue("@sidDuty", stidDuty);
             cmd.Parameters.AddWithValue("@sidDay", stidDay);
+            cmd.Parameters.AddWithValue("@stidSatWork", 5);
+            cmd.Parameters.AddWithValue("@stidoff", 4);
 
             // 1) 親のシンプル削除：origin_shifts_id IS NULL AND type IN (当/日)
             cmd.CommandText = @"
             DELETE FROM daily_employee_shifts
             WHERE origin_shifts_id IS NULL
-              AND shift_type_id IN (@sidDuty, @sidDay)
+              AND shift_type_id IN (@sidDuty, @sidDay,@stidSatWork, @stidoff)
               AND shift_date >= @first
               AND shift_date <  @next;";
-
+            cmd.ExecuteNonQuery();
 
             //2) 当月内の孤児（親が存在しない子）を削除
             cmd.CommandText = @"
@@ -583,12 +585,18 @@ namespace Shiftapp_demo.DataAccess
             cmd.CommandText = @"
             INSERT INTO daily_employee_shifts (employee_id, shift_date, shift_type_id, registered_at)
             VALUES (@eid, @date, @stid, CURRENT_TIMESTAMP)
+            VALUES (@eid, @date, @stid, CURRENT_TIMESTAMP)
             ON CONFLICT(employee_id, shift_date) DO UPDATE SET
               shift_type_id = excluded.shift_type_id,
-              registered_at = CURRENT_TIMESTAMP;";
+              registered_at = CURRENT_TIMESTAMP
+            WHERE 
+                daily_employee_shifts.shift_type_id NOT IN (@stidAke, @stidDaikyu)
+                AND daily_employee_shifts.shift_type_id IS NOT excluded.shift_type_id;";
             var pEid = cmd.CreateParameter(); pEid.ParameterName = "@eid"; cmd.Parameters.Add(pEid);
             var pDate = cmd.CreateParameter(); pDate.ParameterName = "@date"; cmd.Parameters.Add(pDate);
             var pSid = cmd.CreateParameter(); pSid.ParameterName = "@stid"; cmd.Parameters.Add(pSid);
+            cmd.Parameters.AddWithValue("@stidAke", raw.StidAke);                                           
+            cmd.Parameters.AddWithValue("@stidDaikyu", raw.StidDai);
 
             foreach (var (eid, d, stid) in items)
             {
@@ -636,8 +644,6 @@ namespace Shiftapp_demo.DataAccess
 
             // ★ 当月の「親：当直・日勤」だけ削除（子はCASCADEで自動削除）
             DeleteMonthDutyAndDayParentsWithCascade(con, tx, monthFirst, raw.StidDuty, raw.StidDayDuty);
-
-            //DeleteMonthDutyAndDayChiledWithCascade(con, tx, monthFirst);
 
             var parentsDuty = items.Where(r => r.ShiftTypeId == raw.StidDuty).ToList();   // 親：当
             var parentsDay = items.Where(r => r.ShiftTypeId == raw.StidDayDuty).ToList(); // 親：日
@@ -854,7 +860,7 @@ namespace Shiftapp_demo.DataAccess
             cmd.CommandText = @"
             SELECT employee_id, CanDoNightDuty,CanDoCatheterization
             FROM employee 
-            WHERE is_active = 1";
+            WHERE is_active = 1 and CanDoNightDuty=1";
 
             using var reader = cmd.ExecuteReader();
             while (reader.Read())

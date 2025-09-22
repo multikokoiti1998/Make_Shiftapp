@@ -211,13 +211,14 @@ namespace Shiftapp_demo.Business
             var last = first.AddMonths(1).AddDays(-1);
 
             // 1) 対象社員の取得（is_active=1、夜勤できる前提）
-            var employees_Night_duty = _db.GetActiveEmployeesWithNightDutyClass();
+            var employees_active_all = _db.GetActiveEmployeesWithNightDutyClass();
+
 
             var canDayduty = _db.GetActiveEmployeesWithDayDutyClass();
 
             // カテ可/不可でリスト分割
-            var canCath = employees_Night_duty.Where(e => e.CanDoCatheterization && e.CanDoNightDuty == 1).ToList();
-            var cannotCath = employees_Night_duty.Where(e => !e.CanDoCatheterization && e.CanDoNightDuty == 1).ToList();
+            var canCath = employees_active_all.Where(e => e.CanDoCatheterization && e.CanDoNightDuty == 1).ToList();
+            var cannotCath = employees_active_all.Where(e => !e.CanDoCatheterization && e.CanDoNightDuty == 1).ToList();
 
             if (canCath.Count == 0 || cannotCath.Count == 0)
                 throw new InvalidOperationException("当直編成に必要な人員（カテ可/不可）が不足しています。");
@@ -235,7 +236,7 @@ namespace Shiftapp_demo.Business
             var dayWorkCount = new Dictionary<int, int>();           // EmployeeId -> 当月の日勤回数
             var dutyCount = new Dictionary<int, int>();   
             // EmployeeId -> 当月の当直回数
-            foreach (var e in employees_Night_duty)
+            foreach (var e in employees_active_all)
             {
                 var lastDutyDate = existingMap
                     .Where(kv => kv.Key.Item1 == e.EmployeeId && kv.Value == stidDuty && kv.Key.Item2 < first)
@@ -260,8 +261,9 @@ namespace Shiftapp_demo.Business
 
             foreach (var e in canDayduty)
             {
-                nextAvailable[e.EmployeeId] = preloadStart; // とりあえず最小に
                 dayWorkCount[e.EmployeeId] = 0;
+                if(!nextAvailable.ContainsKey(e.EmployeeId))
+                    nextAvailable[e.EmployeeId] = preloadStart; // とりあえず最小に
             }
 
 
@@ -378,6 +380,8 @@ namespace Shiftapp_demo.Business
             {
                 _db.BulkUpsert_Duty_Shifts(upserts,month);
             }
+
+
         }
 
 
@@ -426,32 +430,7 @@ namespace Shiftapp_demo.Business
             || stid == stidDayWork; // 日勤
 
 
-        //private DateTime? GetCompDayWorkOff(DateTime dutyDay, List<DateTime> holidays)
-        //{
-        //    DateTime? raw = dutyDay.Date;
-
-        //    // 翌月に行かないようにするため、月末日を計算
-        //    var lastDayOfMonth = new DateTime(dutyDay.Year, dutyDay.Month,
-        //                                      DateTime.DaysInMonth(dutyDay.Year, dutyDay.Month));
-
-        //    if (holidays.Contains(raw.Value))
-        //    {
-        //        raw = dutyDay.AddDays(3);
-        //    }
-
-        //    if (raw.Value.DayOfWeek == DayOfWeek.Sunday)
-        //    {
-        //        raw = dutyDay.AddDays(3); // 水曜日
-        //    }
-        //    else
-        //    {
-        //        raw = null;
-        //    }
-
-        //    return raw.HasValue
-        //        ? BumpToNextBusinessDay(raw.Value, holidays)
-        //        : null;
-        //}
+   
 
         /// <summary>
         /// 週末当直日の代休日を返す（必ず平日に補正）。
