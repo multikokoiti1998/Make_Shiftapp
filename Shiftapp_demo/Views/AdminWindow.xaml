@@ -34,14 +34,7 @@
             <!-- 技師 DataGrid -->
             <RowDefinition Height="Auto"/>
             <!-- 技師ボタン列 -->
-            <RowDefinition Height="20"/>
-            <!-- スペーサ -->
-            <RowDefinition Height="Auto"/>
-            <!-- 見出し：検索 -->
-            <RowDefinition Height="Auto"/>
-            <!-- 検索バー -->
-            <RowDefinition Height="*"/>
-            <!-- 検索結果 -->
+
             <RowDefinition Height="20"/>
             <!-- スペーサ -->
             <RowDefinition Height="Auto"/>
@@ -79,43 +72,20 @@
 
         <!-- 技師操作ボタン -->
         <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" >
+            <TextBox x:Name="SearchKeywordTextBox" Width="260" Height="32" Margin="0,0,8,0"
+                         ToolTip="氏名・班・メモなどを部分一致で検索"/>
+            <Button Content="検索" Width="90" Margin="0,0,8,0" Click="SearchTechnicians_Click"/>
             <Button Content="新規技師追加" Padding="12,6" Margin="4" Click="AddTechnician_Click"/>
             <Button Content="選択技師削除" Padding="12,6" Margin="4" Click="DeleteSelectedTechnician_Click"/>
             <Button Content="保存（一覧の変更をDBへ）" Padding="12,6" Margin="4" Click="SaveTechnicians_Click"/>
         </StackPanel>
 
-        <!-- 見出し：検索 -->
-        <TextBlock Grid.Row="4" Text="技師検索" FontSize="18" FontWeight="Bold" />
-
-        <!-- 検索バー -->
-        <DockPanel Grid.Row="5" Margin="0,8,0,8">
-            <StackPanel Orientation="Horizontal" DockPanel.Dock="Left">
-                <TextBlock Text="キーワード：" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                <TextBox x:Name="SearchKeywordTextBox" Width="260" Height="32" Margin="0,0,8,0"
-                         ToolTip="氏名・班・メモなどを部分一致で検索"/>
-                <Button Content="検索" Width="90" Margin="0,0,8,0" Click="SearchTechnicians_Click"/>
-                <Button Content="クリア" Width="90" Click="ClearSearch_Click"/>
-            </StackPanel>
-
-            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                <Button Content="選択技師を編集フォームで開く" Padding="12,6" Margin="8,0,0,0" Click="EditSelectedTechnician_Click"/>
-            </StackPanel>
-        </DockPanel>
-
-        <!-- 検索結果 -->
-        <DataGrid Grid.Row="6" x:Name="SearchResultsDataGrid"
-                  AutoGenerateColumns="True"
-                  CanUserAddRows="False"
-                  CanUserDeleteRows="False"
-                  IsReadOnly="True"
-                  SelectionMode="Single"
-                  Margin="0,0,0,8" />
 
         <!-- 見出し：祝日 -->
-        <TextBlock Grid.Row="8" Text="祝日設定" FontSize="20" FontWeight="Bold" />
+        <TextBlock Grid.Row="4" Text="祝日設定" FontSize="20" FontWeight="Bold" />
 
         <!-- 祝日操作バー -->
-        <StackPanel Grid.Row="9" Orientation="Horizontal" Margin="0,8,0,8">
+        <StackPanel Grid.Row="5" Orientation="Horizontal" Margin="0,8,0,8">
             <TextBlock Text="日付：" VerticalAlignment="Center" Margin="0,0,8,0"/>
             <DatePicker x:Name="HolidayDatePicker" Width="160" Margin="0,0,16,0"/>
 
@@ -129,7 +99,7 @@
         </StackPanel>
 
         <!-- 祝日一覧 -->
-        <DataGrid Grid.Row="10" x:Name="HolidaysDataGrid"
+        <DataGrid Grid.Row="6" x:Name="HolidaysDataGrid"
                   AutoGenerateColumns="False"
                   CanUserAddRows="False"
                   CanUserDeleteRows="False"

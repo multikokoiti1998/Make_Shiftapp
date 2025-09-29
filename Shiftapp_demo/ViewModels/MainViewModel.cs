@@ -66,8 +66,6 @@ namespace Shiftapp_demo.ViewModels
             }
         }
 
-
-
         // 月ヘッダーのテキストにバインド
         private string _monthHeaderText;
         public string MonthHeaderText
@@ -186,9 +184,6 @@ namespace Shiftapp_demo.ViewModels
 
             // ヘッダー
             MonthHeaderText = $"{month.Year}年 {month.Month}月";
-
-
-            
 
             // 1) 全社員（ID／名前）を取得
             var employees = db.GetAllEmployees(); // List<Employee> { EmployeeId, EmployeeName }

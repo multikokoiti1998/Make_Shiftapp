@@ -41,9 +41,6 @@ namespace Shiftapp_demo
                 Employees = new ObservableCollection<Employee>(_dbHelper.GetAllEmployees());
                 TechniciansDataGrid.ItemsSource = Employees;
 
-                // --- 検索結果初期化 ---
-                SearchResults = new ObservableCollection<Employee>();
-                SearchResultsDataGrid.ItemsSource = SearchResults;
 
                 // --- 当月祝日 ---
                 await LoadHolidaysThisMonthAsync();
