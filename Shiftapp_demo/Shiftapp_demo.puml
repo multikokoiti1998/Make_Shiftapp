@@ -1,0 +1,40 @@
+@startuml
+@enduml
+@startuml
+title UpdateSaturdayShifts(month, worksClassAtBaseline)
+
+actor Caller
+participant "ShiftBusiness" as SB
+participant "DatabaseHelper" as DB
+
+Caller -> SB: UpdateSaturdayShifts(month, worksClassAtBaseline)
+activate SB
+SB -> DB: GetActiveEmployeesWithSaturdayClass()
+DB --> SB: employees(A/B class)
+SB -> SB: saturdays = GetSaturdaysInMonth(month)
+SB -> DB: GetShiftMap(firstOfMonth, lastOfMonth)
+DB --> SB: existingMap
+
+loop for each saturday in saturdays
+  SB -> SB: k = SaturdayIndexFromBaseline(saturday, baseSaturday)\nworkingClass = A/B (ŒğŒİ)
+  loop for each emp in employees
+    alt emp.SaturdayClass == workingClass
+      SB -> SB: assigns += (emp, saturday, stidWork "/")
+    else
+      SB -> SB: assigns += (emp, saturday, stidOff "›")
+    end
+  end
+end
+
+SB -> SB: upserts = []\nmap = copy(existingMap)
+loop for each (eid,date,stid) in assigns
+  SB -> SB: TrySetWithPriorityWeekend(map, upserts, eid, date, stid,\n  cannotOverwrite: IsNightChild)
+end
+
+alt upserts.Count > 0
+  SB -> DB: BulkUpsertShifts(triples, month)
+  DB --> SB: ok
+end
+deactivate SB
+SB --> Caller: return
+@enduml

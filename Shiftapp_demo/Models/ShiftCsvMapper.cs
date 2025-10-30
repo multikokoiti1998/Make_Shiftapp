@@ -1,9 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Globalization;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using System.Globalization;
 
 namespace Shiftapp_demo.Models
 {
@@ -48,7 +43,7 @@ namespace Shiftapp_demo.Models
                 case "明": return ("勤務", "明け");
                 case "●": return ("休日", "日勤");
                 case "日": return ("勤務", "日勤");
-                case "/" : return ("勤務", "半日");
+                case "/": return ("勤務", "半日");
                 case "〇":
                 case "○": // 丸の別字
                     return (date.DayOfWeek == DayOfWeek.Saturday)

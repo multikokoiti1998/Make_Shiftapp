@@ -61,7 +61,6 @@
             Padding="10"
             />
             </StackPanel>
-
         </StackPanel>
 
         <Grid Grid.Column="1" Grid.Row="0" Grid.RowSpan="2">
@@ -80,6 +79,7 @@
                FontWeight="Bold"
                Text="{Binding MonthHeaderText}"/>
             </Border>
+            
             <DataGrid x:Name="ShiftDataGrid"
               Grid.Row="1"
               Margin="0,6,0,0" 

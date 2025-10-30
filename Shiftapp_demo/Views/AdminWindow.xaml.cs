@@ -2,9 +2,6 @@
 using Shiftapp_demo.Models;
 using System.Collections.ObjectModel;
 using System.Windows;
-using System.Linq;
-using System;
-using System.Threading.Tasks;   // ★ これが必要
 using System.Windows.Controls;
 
 namespace Shiftapp_demo
@@ -200,7 +197,7 @@ namespace Shiftapp_demo
 
                 // 同期版
                 var list = _dbHelper.GetHolidays(first, next);
-               // foreach (var h in list) Holidays.Add(h);
+                // foreach (var h in list) Holidays.Add(h);
 
                 // 非同期版があるなら：
                 // var list = await _dbHelper.GetHolidaysAsync(first, next);

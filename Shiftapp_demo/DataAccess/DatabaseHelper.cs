@@ -1,20 +1,7 @@
-﻿using MaterialDesignThemes.Wpf;
-using Microsoft.Data.Sqlite;
-using Shiftapp_demo.Business;
+﻿using Microsoft.Data.Sqlite;
 using Shiftapp_demo.Models;
-using SQLitePCL;
-using System;
-using System.Collections.Generic;
 using System.Collections.ObjectModel;
-using System.Globalization;
 using System.IO;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using System.Windows.Controls.Primitives;
-using System.Windows.Media;
-using static System.Net.Mime.MediaTypeNames;
-using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace Shiftapp_demo.DataAccess
 {
@@ -24,11 +11,11 @@ namespace Shiftapp_demo.DataAccess
 
         public DatabaseHelper()
         {
-            //var baseDir = AppDomain.CurrentDomain.BaseDirectory;
-            //var dbPath = Path.Combine(baseDir, "Data", "shiftapp.db");
-            //_connectionString = $"Data Source={dbPath}";
+            var baseDir = AppDomain.CurrentDomain.BaseDirectory;
+            var dbPath = Path.Combine(baseDir, "Data", "shiftapp.db");
+            _connectionString = $"Data Source={dbPath}";
 
-            _connectionString = $"Data Source=C:\\Users\\user\\Source\\Repos\\Shiftapp_demo\\Shiftapp_demo\\Data\\shiftapp.db";
+            //_connectionString = $"Data Source=C:\\Users\\user\\Source\\Repos\\Shiftapp_demo\\Shiftapp_demo\\Data\\shiftapp.db";
         }
 
         // 技師を追加するメソッド (新しいプロパティに合わせて修正)
@@ -87,7 +74,7 @@ namespace Shiftapp_demo.DataAccess
 
 
 
-        // 技師を検索するメソッド (このメソッドはAdminWindow側で実装しているため、ここでは不要かもしれません)
+        // 技師を検索するメソッド
         public ObservableCollection<Employee> SearchEmployees(string keyword)
         {
             var employees = new ObservableCollection<Employee>();
@@ -133,9 +120,6 @@ namespace Shiftapp_demo.DataAccess
             command.ExecuteNonQuery();
         }
 
-        // --- 職員の更新 ---
-
-
         public List<Employee> GetAllEmployees()
         {
             var employees = new List<Employee>();
@@ -161,7 +145,7 @@ namespace Shiftapp_demo.DataAccess
             }
             return employees;
         }
-        //csv用
+
         public List<ShiftRow> GetShiftRow(DateTime startDate, DateTime endDate)
         {
             var result = new List<ShiftRow>();
@@ -169,7 +153,7 @@ namespace Shiftapp_demo.DataAccess
             connection.Open();
             var cmd = connection.CreateCommand();
             cmd.CommandText = @"            
-           SELECT
+            SELECT
             b.employee_id,
             e.employee_name,
             b.shift_date,
@@ -188,7 +172,6 @@ namespace Shiftapp_demo.DataAccess
             var next = endDate.AddDays(1);
             cmd.Parameters.AddWithValue("@start", startDate.Date.ToString("yyyy-MM-dd"));
             cmd.Parameters.AddWithValue("@next", next.ToString("yyyy-MM-dd"));
-
             cmd.Parameters.AddWithValue("@stidDaikyu", GetShiftTypeIdBySymbol("●"));
             using var reader = cmd.ExecuteReader();
             while (reader.Read())
@@ -203,7 +186,7 @@ namespace Shiftapp_demo.DataAccess
 
                     ShiftSymbol = reader.GetString(3),
 
-                    Role=reader.GetInt32(4)
+                    Role = reader.GetInt32(4)
                 });
             }
             return result;
@@ -295,12 +278,19 @@ namespace Shiftapp_demo.DataAccess
         public string GetShiftSymbolById(int stid)
         {
             using var con = new SqliteConnection(_connectionString);
+
             con.Open();
+
             using var cmd = con.CreateCommand();
+
             cmd.CommandText = @"SELECT symbol FROM shift_types WHERE shift_type_id = @sym;";
+
             cmd.Parameters.AddWithValue("@sym", stid);
+
             var obj = cmd.ExecuteScalar();
+
             if (obj == null || obj == DBNull.Value) throw new InvalidOperationException($"symbol '{stid}' not found");
+
             return Convert.ToString(obj);
         }
 
@@ -423,26 +413,6 @@ namespace Shiftapp_demo.DataAccess
             cmd.ExecuteNonQuery();
         }
 
-        //private void DeleteMonthDutyAndDayChiledWithCascade(
-        //    SqliteConnection con, SqliteTransaction tx, DateTime month)
-        //{
-        //    var first = new DateTime(month.Year, month.Month, 1);
-        //    var next = first.AddMonths(1);
-
-        //    using var cmd = con.CreateCommand();
-        //    cmd.Transaction = tx;
-        //    cmd.CommandText = @"
-        //    DELETE FROM daily_employee_shifts AS c
-        //    WHERE c.shift_date >= @first AND c.shift_date < @next
-        //      AND c.origin_shifts_id IS NOT NULL
-        //      AND NOT EXISTS (
-        //            SELECT 1 FROM daily_employee_shifts AS p
-        //            WHERE p.shifts_id = c.origin_shifts_id);";
-        //    cmd.Parameters.AddWithValue("@first", first.ToString("yyyy-MM-dd"));
-        //    cmd.Parameters.AddWithValue("@next", next.ToString("yyyy-MM-dd"));
-        //    cmd.ExecuteNonQuery();
-        //}
-
         /// <summary>
         /// シフト種別マスタを全件取得（priority は無視）
         /// </summary>
@@ -526,9 +496,6 @@ namespace Shiftapp_demo.DataAccess
 
             using var tx = con.BeginTransaction();
 
-            //DeleteMonthDutyAndDayParentsWithCascade(con, tx, monthFirst, raw.StidDuty, raw.StidDayDuty);
-            //DeleteMonthDutyAndDayChiledWithCascade(con, tx, monthFirst);
-
             using var cmd = con.CreateCommand();
 
             cmd.Transaction = tx;
@@ -544,7 +511,7 @@ namespace Shiftapp_demo.DataAccess
             var pEid = cmd.CreateParameter(); pEid.ParameterName = "@eid"; cmd.Parameters.Add(pEid);
             var pDate = cmd.CreateParameter(); pDate.ParameterName = "@date"; cmd.Parameters.Add(pDate);
             var pSid = cmd.CreateParameter(); pSid.ParameterName = "@stid"; cmd.Parameters.Add(pSid);
-            cmd.Parameters.AddWithValue("@stidAke", raw.StidAke);                                           
+            cmd.Parameters.AddWithValue("@stidAke", raw.StidAke);
             cmd.Parameters.AddWithValue("@stidDaikyu", raw.StidDai);
 
             foreach (var (eid, d, stid) in items)

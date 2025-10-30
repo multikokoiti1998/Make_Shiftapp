@@ -53,7 +53,6 @@ namespace Shiftapp_demo.ViewModels
                 return created;
             }
         }
-
         /// <summary>未保存セルの列挙</summary>
         public IEnumerable<ShiftCellViewModel> DirtyCells
             => Cells.Values.Where(c => c.IsDirty);

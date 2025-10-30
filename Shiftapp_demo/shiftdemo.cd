@@ -1,0 +1,180 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<ClassDiagram MajorVersion="1" MinorVersion="1">
+  <Class Name="Shiftapp_demo.Business.HolidayService" Collapsed="true">
+    <Position X="5.75" Y="1.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=</HashCode>
+      <FileName>Business\HolidayService.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="Shiftapp_demo.Business.ShiftBusiness" Collapsed="true">
+    <Position X="7.5" Y="2.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>ggIAgoAAFAAJDACAAgAAAACQCKAGIAAAAgAAAAACAgw=</HashCode>
+      <FileName>Business\ShiftBusiness.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="Shiftapp_demo.Business.ShiftDataLoader" Collapsed="true" BaseTypeListCollapsed="true">
+    <Position X="5.75" Y="3.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAIAAAAAAAAAAgAMAAAAAAAgQAAAAAAAAAAAAACAAA=</HashCode>
+      <FileName>Business\ShiftDataLoader.cs</FileName>
+    </TypeIdentifier>
+    <Lollipop Position="0.2" />
+  </Class>
+  <Class Name="Shiftapp_demo.Csv.CsvBusiness" Collapsed="true">
+    <Position X="4" Y="0.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAgAAAAAAAAAEAAAAAAAAAAAAAQABAAAAAAAAAAAA=</HashCode>
+      <FileName>Csv\CsvBusiness.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="Shiftapp_demo.Csv.CsvHelperExporter" Collapsed="true" BaseTypeListCollapsed="true">
+    <Position X="5.75" Y="0.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAAAIAAAAAAgAAAAAAAAAgAAAAAAAAgAAAAAAA=</HashCode>
+      <FileName>Csv\CsvHelperExporter.cs</FileName>
+    </TypeIdentifier>
+    <Lollipop Position="0.2" />
+  </Class>
+  <Class Name="Shiftapp_demo.Csv.RowLayout_ForShiftCsvRow" Collapsed="true" BaseTypeListCollapsed="true">
+    <Position X="4" Y="2.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAAAAAAAAAACAAAAAAAAAACAAAAAAAAAAAAAAA=</HashCode>
+      <FileName>Csv\Layout.cs</FileName>
+    </TypeIdentifier>
+    <Lollipop Position="0.2" />
+  </Class>
+  <Class Name="Shiftapp_demo.DataAccess.DatabaseHelper" Collapsed="true">
+    <Position X="7.5" Y="0.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>QABEAEAAAAJAEAIAAAAAAEBAAgiAAAAYEAAAABIAAAE=</HashCode>
+      <FileName>DataAccess\DatabaseHelper.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="Shiftapp_demo.Helper.GridHelperClass" Collapsed="true">
+    <Position X="2.25" Y="1.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAAAA=</HashCode>
+      <FileName>Helper\GridHelperClass.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="Shiftapp_demo.Models.Employee" Collapsed="true">
+    <Position X="0.5" Y="1.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAIAAAACAABAAAAWAAAAAQAACAAAAQAACAAAAQCAAA=</HashCode>
+      <FileName>Models\Employee.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="Shiftapp_demo.Models.Holiday" Collapsed="true">
+    <Position X="4" Y="1.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAAAAAAAAAAAAAEAAAAAAAEAAAAAAAAAQAAAAA=</HashCode>
+      <FileName>Models\Holiday.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="Shiftapp_demo.Models.MatrixRecord" Collapsed="true">
+    <Position X="2.25" Y="2.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAIAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAACAAA=</HashCode>
+      <FileName>Models\MatrixRecord.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="Shiftapp_demo.Models.Shift" Collapsed="true">
+    <Position X="5.75" Y="2.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAMAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACCAA=</HashCode>
+      <FileName>Models\Shift.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="Shiftapp_demo.Models.ShiftCsvMapper" Collapsed="true">
+    <Position X="2.25" Y="3.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAAAAAAAAAAAAAAAAAAAAAQAAAAAAAAAEAAAAA=</HashCode>
+      <FileName>Models\ShiftCsvMapper.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="Shiftapp_demo.Models.ShiftCsvRow" Collapsed="true">
+    <Position X="4" Y="3.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAUAAAACBAAQAAAAAAAAAAAABAAAAAAAAAAAAAEABAA=</HashCode>
+      <FileName>Models\ShiftCsvRow.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="Shiftapp_demo.Models.ShiftRow" Collapsed="true">
+    <Position X="7.5" Y="3.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAIAAAAAAAAAAAAEAAAAAAAAAAAAAABBAAAAAACAAA=</HashCode>
+      <FileName>Models\ShiftRow.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="Shiftapp_demo.Models.ShiftTypeM" Collapsed="true">
+    <Position X="2.25" Y="4.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAAAAAAAAAAAAAAAAQAAAACAAAAAAAAAAAACAA=</HashCode>
+      <FileName>Models\ShiftTypeM.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="Shiftapp_demo.ViewModels.MainViewModel" Collapsed="true" BaseTypeListCollapsed="true">
+    <Position X="7.5" Y="1.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAQAAAAAgAQZASEAIABAgIQAgEBAAADAAAAAJAAIIEA=</HashCode>
+      <FileName>ViewModels\MainViewModel.cs</FileName>
+    </TypeIdentifier>
+    <Lollipop Position="0.2" />
+  </Class>
+  <Class Name="Shiftapp_demo.ViewModels.ShiftCellViewModel" Collapsed="true" BaseTypeListCollapsed="true">
+    <Position X="0.5" Y="3.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AIAAAAAAAAAAAAAAIAAAAAAAgIAAAAABgAABAAACCIA=</HashCode>
+      <FileName>ViewModels\ShiftCellViewModel.cs</FileName>
+    </TypeIdentifier>
+    <Lollipop Position="0.2" />
+  </Class>
+  <Class Name="Shiftapp_demo.ViewModels.ShiftRowViewModel" Collapsed="true" BaseTypeListCollapsed="true">
+    <Position X="0.5" Y="4.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AQAMAAAAAAAAAAAALAIAQAAAgAAAAAAAAAAAAAACAAA=</HashCode>
+      <FileName>ViewModels\ShiftRowViewModel.cs</FileName>
+    </TypeIdentifier>
+    <Lollipop Position="0.2" />
+  </Class>
+  <Class Name="Shiftapp_demo.AdminWindow" Collapsed="true" BaseTypeListCollapsed="true">
+    <Position X="0.5" Y="0.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>ABAAAACQhAoABABAAAAAAACAiAEAAAAABAAACAAAAII=</HashCode>
+      <FileName>Views\AdminWindow.xaml.cs</FileName>
+    </TypeIdentifier>
+    <Lollipop Position="0.2" />
+  </Class>
+  <Class Name="Shiftapp_demo.App" Collapsed="true">
+    <Position X="2.25" Y="0.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=</HashCode>
+      <FileName>App.xaml.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="Shiftapp_demo.Views.MainWindow" Collapsed="true" BaseTypeListCollapsed="true">
+    <Position X="0.5" Y="2.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAAAgABAAAAAAAAAAAAEAAAAAAAAABAAAAAAAA=</HashCode>
+      <FileName>Views\MainWindow.xaml.cs</FileName>
+    </TypeIdentifier>
+    <Lollipop Position="0.2" />
+  </Class>
+  <Interface Name="Shiftapp_demo.Csv.IShiftCsvExporter">
+    <Position X="2.25" Y="5.75" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAAAAAAAAAAAAAAAAAAAAgAAAAAAAAAAAAAAAA=</HashCode>
+      <FileName>Csv\CsvHelperExporter.cs</FileName>
+    </TypeIdentifier>
+  </Interface>
+  <Interface Name="Shiftapp_demo.Csv.ICsvLayout&lt;T&gt;">
+    <Position X="0.5" Y="5.75" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAAAAAAAAAACAAAAAAAAAACAAAAAAAAAAAAAAA=</HashCode>
+      <FileName>Csv\Layout.cs</FileName>
+    </TypeIdentifier>
+  </Interface>
+  <Font Name="Yu Gothic UI" Size="9" />
+</ClassDiagram>

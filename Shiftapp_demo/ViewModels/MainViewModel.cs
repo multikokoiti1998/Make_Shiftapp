@@ -17,7 +17,7 @@ namespace Shiftapp_demo.ViewModels
 {
     public class MainViewModel : INotifyPropertyChanged
     {
-        private ShiftDataLoader _dataLoader; // Model層 (データアクセス)
+        private ShiftDataLoader _dataLoader;
 
         private readonly DatabaseHelper db;
 
@@ -26,21 +26,18 @@ namespace Shiftapp_demo.ViewModels
         // DataGridのItemsSourceにバインド グリッドの行データを保持
         private ObservableCollection<ShiftDataLoader> _shiftDataCollection;
 
-        // ★ CSV出力用（行形式）
         private readonly CsvBusiness _csvBiz;
 
         private readonly IShiftCsvExporter _exporter;
 
         public ICommand OpenAdminCommand { get; }
 
-        //private readonly DatabaseHelper db;
         public ObservableCollection<ShiftTypeM> ShiftTypes { get; } = new(); // プルダウン用マスタ
 
-        private readonly Dictionary<string, int> _symbolToId = new();  // "当"→1 など
-        private readonly HashSet<int> _parentTypeIds = new();         // 親（当/●/日）
+        private readonly Dictionary<string, int> _symbolToId = new();
+        private readonly HashSet<int> _parentTypeIds = new();        
         private readonly HashSet<string> _parentSymbols = new(new[] { "当", "●", "日" });
 
-        // 差分検出用のスナップショット: (eid, date) → symbol
         private Dictionary<(int Eid, DateTime Date), string> _originalSymbolMap = new();
 
         //行
@@ -66,7 +63,6 @@ namespace Shiftapp_demo.ViewModels
             }
         }
 
-        // 月ヘッダーのテキストにバインド
         private string _monthHeaderText;
         public string MonthHeaderText
         {
@@ -82,7 +78,6 @@ namespace Shiftapp_demo.ViewModels
 
         public MainViewModel()
         {
-            // DBパスはここでViewModelに渡すか、設定ファイルから読み込む
             _dataLoader = new ShiftDataLoader();
 
             ShiftDataCollection = new ObservableCollection<ShiftDataLoader>();
@@ -93,8 +88,8 @@ namespace Shiftapp_demo.ViewModels
 
             _business = new ShiftBusiness(db);
 
-            // ★ CSV出力に必要
-            _exporter = new CsvHelperExporter();                 // UTF-8 BOM / 区切り「,」
+            _exporter = new CsvHelperExporter(); 
+            
             _csvBiz = new CsvBusiness(db, _exporter);
 
             ExportCsvRowsCommand = new RelayCommand(async p => await ExportCsvRowsAsync(p));
@@ -127,7 +122,6 @@ namespace Shiftapp_demo.ViewModels
 
             if (sfd.ShowDialog() == true)
             {
-                // 「その月に1件でも記録がある人」について、全日を補完して行形式で保存
                 await _csvBiz.ExportMonthAsRowsAsync(year, month, sfd.FileName);
             }
         }

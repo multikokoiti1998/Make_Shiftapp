@@ -25,12 +25,11 @@ namespace Shiftapp_demo.Helper
             centerCell.Setters.Add(new Setter(DataGridCell.HorizontalContentAlignmentProperty, HorizontalAlignment.Center));
             centerCell.Setters.Add(new Setter(DataGridCell.PaddingProperty, new Thickness(0)));
 
-            // ID列（広く）
             columns.Add(new DataGridTextColumn
             {
                 Header = "ID",
                 Binding = new Binding("EmployeeId"),
-                Width = 100, // ←広く
+                Width = 100,
                 MinWidth = 80,
                 ElementStyle = center,
                 EditingElementStyle = center,
@@ -42,7 +41,7 @@ namespace Shiftapp_demo.Helper
             {
                 Header = "名前",
                 Binding = new Binding("EmployeeName"),
-                Width = 180, // ←広く
+                Width = 180,
                 MinWidth = 120,
                 ElementStyle = center,
                 EditingElementStyle = center,
@@ -69,6 +68,7 @@ namespace Shiftapp_demo.Helper
                 // 表示用: シンボルをそのまま表示（中央寄せ）
                 {
                     var tbFactory = new FrameworkElementFactory(typeof(TextBlock));
+                    // セルの値とバインド
                     var b = new Binding($"Shifts[{key}]") { TargetNullValue = "", Mode = BindingMode.OneWay };
                     tbFactory.SetBinding(TextBlock.TextProperty, b);
                     tbFactory.SetValue(TextBlock.HorizontalAlignmentProperty, HorizontalAlignment.Center);
@@ -101,7 +101,6 @@ namespace Shiftapp_demo.Helper
                             UpdateSourceTrigger = UpdateSourceTrigger.PropertyChanged
                         });
 
-                    // 体裁
                     cbFactory.SetValue(ComboBox.IsEditableProperty, false);
                     cbFactory.SetValue(ComboBox.HorizontalContentAlignmentProperty, HorizontalAlignment.Center);
 

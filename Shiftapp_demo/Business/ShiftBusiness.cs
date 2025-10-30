@@ -1,10 +1,4 @@
 ﻿using Shiftapp_demo.DataAccess;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using System.Windows.Documents;
 using static Shiftapp_demo.DataAccess.DatabaseHelper;
 
 namespace Shiftapp_demo.Business
@@ -26,31 +20,16 @@ namespace Shiftapp_demo.Business
         public ShiftBusiness(DatabaseHelper db)
         {
             _db = db;
-
-            // シンボルID取得（※あなたのDBに合わせて）
             stidWork = _db.GetShiftTypeIdBySymbol("/");   // 土曜出勤
             stidOff = _db.GetShiftTypeIdBySymbol("○");   // 日・祭日休み
             stidDuty = _db.GetShiftTypeIdBySymbol("当");  // 当直
             stidSubstituteOff = _db.GetShiftTypeIdBySymbol("●");  // 代休
             stidAfterDuty = _db.GetShiftTypeIdBySymbol("明");  // 明け
             stidDayWork = _db.GetShiftTypeIdBySymbol("日");  // 日勤
-
-
         }
 
-        private int PriorityOf(int stid) => stid switch
-        {
-            var x when x == stidDuty => 80,
-            var x when x == stidAfterDuty => 100,
-            var x when x == stidSubstituteOff => 90,
-            var x when x == stidDayWork => 70,
-            var x when x == stidWork => 60,
-            var x when x == stidOff => 10,
-            _ => 0
-        };
-
-
         //その月の土曜日を取得するメソッド
+        //TODO 最後の日伸ばす？
         public static List<DateTime> GetSaturdaysInMonth(DateTime month)
         {
             var first = new DateTime(month.Year, month.Month, 1);
@@ -60,7 +39,9 @@ namespace Shiftapp_demo.Business
                 if (d.DayOfWeek == DayOfWeek.Saturday) list.Add(d);
             return list;
         }
+
         //その月の日曜日を取得するメソッド
+        //TODO 最後の日伸ばす？
         public static List<DateTime> GetSundaysInMonth(DateTime month)
         {
             var first = new DateTime(month.Year, month.Month, 1);
@@ -84,6 +65,7 @@ namespace Shiftapp_demo.Business
         {
             // 1) データ取得
             var employees = _db.GetActiveEmployeesWithSaturdayClass(); // EmployeeId, SaturdayClass("A"/"B")
+
             var saturdays = GetSaturdaysInMonth(month);
 
             // 返り値の想定: Dictionary<(int EmployeeId, DateTime Date), int ShiftTypeId>
@@ -227,16 +209,18 @@ namespace Shiftapp_demo.Business
             var preloadStart = first.AddDays(-7);
             var preloadEnd = last.AddDays(21); // 週末代休を安全に見る
             var existingMap = _db.GetShiftMap(preloadStart, preloadEnd);
+
+
             //祭日取得
             var holidays = GetHolidaysInMonth(month);
-            // existingMap: Dictionary<(int EmployeeId, DateTime Date), int shiftTypeId>
 
             // 3) 各人の「次に入れる日」・当月カウントを初期化    
             var nextAvailable = new Dictionary<int, DateTime>();     // EmployeeId -> Date
             var dayWorkCount = new Dictionary<int, int>();           // EmployeeId -> 当月の日勤回数
             var dutyCount = new Dictionary<int, int>();
             var restcount = new Dictionary<int, int>();
-            // EmployeeId -> 当月の当直回数
+
+            // 初期化
             foreach (var e in employees_active_all)
             {
                 var lastDutyDate = existingMap
@@ -264,12 +248,10 @@ namespace Shiftapp_demo.Business
             {
                 dayWorkCount[e.EmployeeId] = 0;
                 if (!nextAvailable.ContainsKey(e.EmployeeId))
-                    nextAvailable[e.EmployeeId] = preloadStart; // とりあえず最小に
+                    nextAvailable[e.EmployeeId] = preloadStart;
             }
 
-
             // 5) 選抜アルゴリズム（フェアネス：当月回数が少ない人→次に早く入れる人→ラウンド）
-
             var upserts = new List<ShiftWrite>();
 
             for (var day = first; day <= last; day = day.AddDays(1))
@@ -527,9 +509,9 @@ namespace Shiftapp_demo.Business
 
             //if (PriorityOf(newStid) > PriorityOf(cur))
             //{
-                map[key] = newStid;
-                upserts.Add(new ShiftWrite(eid, d.Date, newStid));
-                return true;
+            map[key] = newStid;
+            upserts.Add(new ShiftWrite(eid, d.Date, newStid));
+            return true;
             //}
             //return false;
         }

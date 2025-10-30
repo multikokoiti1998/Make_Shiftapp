@@ -1,7 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-
-namespace Shiftapp_demo.Models
+﻿namespace Shiftapp_demo.Models
 {
     public class Employee
     {
@@ -13,7 +10,7 @@ namespace Shiftapp_demo.Models
 
         public bool CanDoCatheterization { get; set; }    // DB: CanDoCatheterization（0 or 1 → bool）
 
-        public String  SaturdayClass { get; set; }            // DB: saturday_class（例: 0=A班, 1=B班）
+        public String SaturdayClass { get; set; }            // DB: saturday_class（例: 0=A班, 1=B班）
         public int MonthlyDutyLimit { get; set; }         // DB: MonthlyDutyLimit（最大勤務数）
 
         public int CanDoNightDuty { get; set; }
@@ -40,7 +37,7 @@ namespace Shiftapp_demo.Models
             return ShiftMap.Count(kv =>
                 kv.Key.Year == month.Year &&
                 kv.Key.Month == month.Month &&
-                (kv.Value == "当" )); // A or Bが当直とみなす
+                (kv.Value == "当")); // A or Bが当直とみなす
         }
     }
 }
