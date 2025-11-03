@@ -11,6 +11,7 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using Shiftapp_demo.Models;
 using Shiftapp_demo.Views;
+using Shiftapp_demo.FrameWork;
 
 // モデルとデータアクセス層のNamespaceを追加
 
@@ -232,29 +233,5 @@ namespace Shiftapp_demo.ViewModels
         }
 
 
-        // コマンドひな形
-        public sealed class RelayCommand : ICommand
-        {
-            private readonly Func<object?, Task>? _execAsync;
-            private readonly Action<object?>? _exec;
-            private readonly Func<object?, bool>? _can;
-
-            public RelayCommand(Action<object?> exec, Func<object?, bool>? can = null)
-            { _exec = exec; _can = can; }
-
-            public RelayCommand(Func<object?, Task> execAsync, Func<object?, bool>? can = null)
-            { _execAsync = execAsync; _can = can; }
-
-            public bool CanExecute(object? parameter) => _can?.Invoke(parameter) ?? true;
-
-            public async void Execute(object? parameter)
-            {
-                if (_execAsync != null) await _execAsync(parameter);
-                else _exec?.Invoke(parameter);
-            }
-
-            public event EventHandler? CanExecuteChanged
-            { add { CommandManager.RequerySuggested += value; } remove { CommandManager.RequerySuggested -= value; } }
-        }
     }
 }

@@ -34,9 +34,7 @@
     </None>
   </ItemGroup>
 
-	<Target Name="GeneratePlantUml"
-			AfterTargets="Build"
-			Condition="'$(GeneratePlantUml)'=='true'">
+	<Target Name="GeneratePlantUml" AfterTargets="Build" Condition="'$(GeneratePlantUml)'=='true'">
 		<MakeDir Directories="$(PlantUmlOutDir)" />
 		<Exec Command="dotnet tool run puml-gen -- &quot;$(ProjectDir)Shiftapp_demo.csproj&quot; -o &quot;$(PlantUmlOutDir)&quot; --allInOne" />
 	</Target>
