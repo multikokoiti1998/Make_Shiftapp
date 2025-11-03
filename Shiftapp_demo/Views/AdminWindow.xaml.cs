@@ -3,8 +3,10 @@ using Shiftapp_demo.Models;
 using System.Collections.ObjectModel;
 using System.Windows;
 using System.Windows.Controls;
+using Shiftapp_demo.ViewModels;
 
-namespace Shiftapp_demo
+
+namespace Shiftapp_demo.Views
 {
     public partial class AdminWindow : Window
     {

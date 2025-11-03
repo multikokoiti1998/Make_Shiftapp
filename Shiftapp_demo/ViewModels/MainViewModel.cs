@@ -10,6 +10,7 @@ using System.ComponentModel;
 using System.Windows.Controls;
 using System.Windows.Input;
 using Shiftapp_demo.Models;
+using Shiftapp_demo.Views;
 
 // モデルとデータアクセス層のNamespaceを追加
 
