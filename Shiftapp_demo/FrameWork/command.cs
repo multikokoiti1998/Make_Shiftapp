@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -29,5 +30,6 @@ namespace Shiftapp_demo.FrameWork
 
         public event EventHandler? CanExecuteChanged
         { add { CommandManager.RequerySuggested += value; } remove { CommandManager.RequerySuggested -= value; } }
+
     }
 }

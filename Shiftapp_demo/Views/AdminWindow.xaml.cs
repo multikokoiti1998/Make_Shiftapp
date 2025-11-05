@@ -34,12 +34,8 @@ namespace Shiftapp_demo.Views
                 _dbHelper = new DatabaseHelper();
 
                 // --- 技師一覧 ---
-                // 非同期版がある想定：
-                // Employees = await _dbHelper.GetAllEmployeesAsync();
-                // 同期版しかなければ：
                 Employees = new ObservableCollection<Employee>(_dbHelper.GetAllEmployees());
                 TechniciansDataGrid.ItemsSource = Employees;
-
 
                 // --- 当月祝日 ---
                 await LoadHolidaysThisMonthAsync();
@@ -50,30 +46,6 @@ namespace Shiftapp_demo.Views
                 MessageBox.Show("初期化中にエラーが発生しました: " + ex.Message, "エラー",
                                 MessageBoxButton.OK, MessageBoxImage.Error);
             }
-        }
-
-        // ====== 技師：検索 ======
-        private void SearchTechnicians_Click(object sender, RoutedEventArgs e)
-        {
-            string keyword = (SearchKeywordTextBox.Text ?? "").Trim();
-            SearchResults.Clear();
-
-            var sourceList = Employees ?? new ObservableCollection<Employee>();
-            if (string.IsNullOrEmpty(keyword))
-            {
-                foreach (var emp in sourceList) SearchResults.Add(emp);
-                return;
-            }
-
-            var results = sourceList.Where(emp =>
-                (!string.IsNullOrEmpty(emp.EmployeeName) &&
-                    emp.EmployeeName.IndexOf(keyword, StringComparison.CurrentCultureIgnoreCase) >= 0) ||
-                (!string.IsNullOrEmpty(emp.SaturdayClass) &&
-                    emp.SaturdayClass.IndexOf(keyword, StringComparison.CurrentCultureIgnoreCase) >= 0) ||
-                (emp.CanDoCatheterization.ToString().IndexOf(keyword, StringComparison.CurrentCultureIgnoreCase) >= 0)
-            );
-
-            foreach (var emp in results) SearchResults.Add(emp);
         }
 
         private void ClearSearch_Click(object sender, RoutedEventArgs e)

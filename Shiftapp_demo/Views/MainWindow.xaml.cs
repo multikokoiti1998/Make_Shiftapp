@@ -51,19 +51,5 @@ namespace Shiftapp_demo.Views
             }
         }
 
-
-        private void Button_Click_1(object sender, RoutedEventArgs e)
-        {
-            DateTime today = ShiftCalendar.DisplayDate;
-
-            ShiftCalendar.DisplayDate = today;
-
-            ViewModel.MakeNightDuty(today);
-
-            ViewModel.GenerateOffShift(today);
-
-            ViewModel.LoadShiftDataForMonth(today);
-
-        }
     }
 }

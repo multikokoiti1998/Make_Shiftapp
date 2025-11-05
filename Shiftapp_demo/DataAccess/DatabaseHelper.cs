@@ -18,102 +18,12 @@ namespace Shiftapp_demo.DataAccess
             //_connectionString = $"Data Source=C:\\Users\\user\\Source\\Repos\\Shiftapp_demo\\Shiftapp_demo\\Data\\shiftapp.db";
         }
 
-        // 技師を追加するメソッド (新しいプロパティに合わせて修正)
-        //Todo　不完全
-        public void AddEmployee(Employee employee)
-        {
-            using var connection = new SqliteConnection(_connectionString);
-            connection.Open();
-
-            var command = connection.CreateCommand();
-            command.CommandText = @"
-                INSERT INTO employee 
-                (employee_name, saturday_class, MonthlyDutyLimit, CanDoCatheterization) 
-                VALUES (@Name, @SaturdayClass, @Limit, @CanDo)";
-
-            command.Parameters.AddWithValue("@Name", employee.EmployeeName);
-            command.Parameters.AddWithValue("@SaturdayClass", employee.SaturdayClass);
-            command.Parameters.AddWithValue("@Limit", employee.MonthlyDutyLimit);
-            command.Parameters.AddWithValue("@CanDo", employee.CanDoCatheterization ? 1 : 0);
-
-            command.ExecuteNonQuery();
-        }
-
-
-        // 全ての技師を取得するメソッド (新しいプロパティに合わせて修正)
-        //Todo　不完全
-        public async Task<ObservableCollection<Employee>> GetAllEmployeesAsync()
-        {
-            var employees = new ObservableCollection<Employee>();
-
-            using var connection = new SqliteConnection(_connectionString);
-            connection.Open();
-
-            var command = connection.CreateCommand();
-            command.CommandText = @"
-                SELECT *
-                FROM employee";
-
-            using var reader = command.ExecuteReader();
-            while (await reader.ReadAsync())
-            {
-                var emp = new Employee
-                {
-                    EmployeeId = reader.GetInt32(0),
-                    EmployeeName = reader.GetString(1),
-                    SaturdayClass = reader.IsDBNull(2) ? "" : reader.GetString(2),
-                    MonthlyDutyLimit = reader.IsDBNull(3) ? 0 : reader.GetInt32(3),
-                    CanDoCatheterization = !reader.IsDBNull(4) && reader.GetInt32(4) == 1
-                };
-
-                employees.Add(emp);
-            }
-
-            return employees;
-        }
-
-
-
-        // 技師を検索するメソッド
-        public ObservableCollection<Employee> SearchEmployees(string keyword)
-        {
-            var employees = new ObservableCollection<Employee>();
-
-            using var connection = new SqliteConnection(_connectionString);
-            connection.Open();
-
-            var command = connection.CreateCommand();
-            command.CommandText = @"
-                SELECT employee_id, employee_name, saturday_class, MonthlyDutyLimit, CanDoCatheterization 
-                FROM employee 
-                WHERE employee_name LIKE @Keyword 
-                OR saturday_class LIKE @Keyword";
-
-            command.Parameters.AddWithValue("@Keyword", $"%{keyword}%");
-
-            using var reader = command.ExecuteReader();
-            while (reader.Read())
-            {
-                employees.Add(new Employee
-                {
-                    EmployeeId = reader.GetInt32(0),
-                    EmployeeName = reader.GetString(1),
-                    SaturdayClass = reader.IsDBNull(2) ? "" : reader.GetString(2),
-                    MonthlyDutyLimit = reader.IsDBNull(3) ? 0 : reader.GetInt32(3),
-                    CanDoCatheterization = !reader.IsDBNull(4) && reader.GetInt32(4) == 1
-                });
-            }
-
-            return employees;
-        }
-
 
         // 技師を削除するメソッド
         public void DeleteEmployee(int id)
         {
             using var connection = new SqliteConnection(_connectionString);
             connection.Open();
-
             var command = connection.CreateCommand();
             command.CommandText = "DELETE FROM employee WHERE employee_id = @Id";
             command.Parameters.AddWithValue("@Id", id);
@@ -191,6 +101,7 @@ namespace Shiftapp_demo.DataAccess
             }
             return result;
         }
+
         public List<Shift> GetShiftsOnly(DateTime startDate, DateTime endDate)
         {
             var result = new List<Shift>();
@@ -236,6 +147,7 @@ namespace Shiftapp_demo.DataAccess
             }
             return result;
         }
+
         //各技師の土曜日の班を取得
         public List<Employee> GetActiveEmployeesWithSaturdayClass()
         {
@@ -273,25 +185,6 @@ namespace Shiftapp_demo.DataAccess
             var obj = cmd.ExecuteScalar();
             if (obj == null || obj == DBNull.Value) throw new InvalidOperationException($"symbol '{symbol}' not found");
             return Convert.ToInt32(obj);
-        }
-
-        public string GetShiftSymbolById(int stid)
-        {
-            using var con = new SqliteConnection(_connectionString);
-
-            con.Open();
-
-            using var cmd = con.CreateCommand();
-
-            cmd.CommandText = @"SELECT symbol FROM shift_types WHERE shift_type_id = @sym;";
-
-            cmd.Parameters.AddWithValue("@sym", stid);
-
-            var obj = cmd.ExecuteScalar();
-
-            if (obj == null || obj == DBNull.Value) throw new InvalidOperationException($"symbol '{stid}' not found");
-
-            return Convert.ToString(obj);
         }
 
         public Dictionary<(int EmployeeId, DateTime Date), int> GetShiftMap(DateTime start, DateTime end)
@@ -377,42 +270,6 @@ namespace Shiftapp_demo.DataAccess
             tx.Commit();
         }
 
-        private static void DeleteMonthDutyAndDayParentsWithCascade(
-        SqliteConnection con, SqliteTransaction tx, DateTime monthFirst,
-        int stidDuty, int stidDay)
-        {
-            var first = new DateTime(monthFirst.Year, monthFirst.Month, 1);
-            var next = first.AddMonths(1);
-
-            using var cmd = con.CreateCommand();
-            cmd.Transaction = tx;
-
-            // 共通パラメータ
-            cmd.Parameters.AddWithValue("@first", first.ToString("yyyy-MM-dd"));
-            cmd.Parameters.AddWithValue("@next", next.ToString("yyyy-MM-dd"));
-            cmd.Parameters.AddWithValue("@sidDuty", stidDuty);
-            cmd.Parameters.AddWithValue("@sidDay", stidDay);
-            cmd.Parameters.AddWithValue("@stidSatWork", 5);
-            cmd.Parameters.AddWithValue("@stidoff", 4);
-
-            // 1) 親のシンプル削除：origin_shifts_id IS NULL AND type IN (当/日)
-            cmd.CommandText = @"
-            DELETE FROM daily_employee_shifts
-            WHERE origin_shifts_id IS NULL
-              AND shift_type_id IN (@sidDuty, @sidDay,@stidSatWork, @stidoff)
-              AND shift_date >= @first
-              AND shift_date <  @next;";
-            cmd.ExecuteNonQuery();
-
-            //2) 当月内の孤児（親が存在しない子）を削除
-            cmd.CommandText = @"
-             DELETE FROM daily_employee_shifts AS c
-              WHERE c.shift_date >= @first AND c.shift_date < @next
-              AND c.origin_shifts_id IS NULL
-              AND c.shift_type_id IN (@sidDuty, @sidDay);";
-            cmd.ExecuteNonQuery();
-        }
-
         /// <summary>
         /// シフト種別マスタを全件取得（priority は無視）
         /// </summary>
@@ -476,8 +333,6 @@ namespace Shiftapp_demo.DataAccess
             }
             tx.Commit();
         }
-
-
 
         // 土日のデフォルト登録
         public void BulkUpsertShifts(IEnumerable<(int EmployeeId, DateTime Date, int ShiftTypeId)> items, DateTime month)

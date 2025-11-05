@@ -4,14 +4,15 @@ using Microsoft.Win32;
 using Shiftapp_demo.Business; // DataGridColumn, TextBlock を参照するため
 using Shiftapp_demo.Csv;
 using Shiftapp_demo.DataAccess; // DatabaseHelperを参照するため
+using Shiftapp_demo.FrameWork;
 using Shiftapp_demo.Helper;
-using System.Collections.ObjectModel;
-using System.ComponentModel;
-using System.Windows.Controls;
-using System.Windows.Input;
 using Shiftapp_demo.Models;
 using Shiftapp_demo.Views;
-using Shiftapp_demo.FrameWork;
+using System.Collections.ObjectModel;
+using System.ComponentModel;
+using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Input;
 
 // モデルとデータアクセス層のNamespaceを追加
 
@@ -34,10 +35,16 @@ namespace Shiftapp_demo.ViewModels
 
         public ICommand OpenAdminCommand { get; }
 
+        public ICommand ExportCsvRowsCommand { get; }
+
+        public ICommand GenerateShiftCommand { get; }
+
         public ObservableCollection<ShiftTypeM> ShiftTypes { get; } = new(); // プルダウン用マスタ
 
         private readonly Dictionary<string, int> _symbolToId = new();
-        private readonly HashSet<int> _parentTypeIds = new();        
+
+        private readonly HashSet<int> _parentTypeIds = new();    
+        
         private readonly HashSet<string> _parentSymbols = new(new[] { "当", "●", "日" });
 
         private Dictionary<(int Eid, DateTime Date), string> _originalSymbolMap = new();
@@ -72,8 +79,21 @@ namespace Shiftapp_demo.ViewModels
             set
             {
                 _monthHeaderText = value;
-
                 OnPropertyChanged(nameof(MonthHeaderText));
+            }
+        }
+
+        private DateTime _displayDate = DateTime.Today;
+        public DateTime DisplayDate
+        {
+            get => _displayDate;
+            set
+            {
+                if (_displayDate != value)
+                {
+                    _displayDate = value;
+                    OnPropertyChanged(nameof(_displayDate));
+                }
             }
         }
 
@@ -81,6 +101,8 @@ namespace Shiftapp_demo.ViewModels
         public MainViewModel()
         {
             _dataLoader = new ShiftDataLoader();
+
+            DisplayDate = DateTime.Today;
 
             ShiftDataCollection = new ObservableCollection<ShiftDataLoader>();
 
@@ -97,6 +119,8 @@ namespace Shiftapp_demo.ViewModels
             ExportCsvRowsCommand = new RelayCommand(async p => await ExportCsvRowsAsync(p));
 
             OpenAdminCommand = new RelayCommand(OpenAdmin);
+
+            GenerateShiftCommand = new RelayCommand(GenerateShift);
         }
 
         private void OpenAdmin(object? _)
@@ -105,8 +129,17 @@ namespace Shiftapp_demo.ViewModels
             admin.ShowDialog();
         }
 
+        private void GenerateShift(object? _)
+        {
 
-        public ICommand ExportCsvRowsCommand { get; }
+            MakeNightDuty(DisplayDate);
+
+            GenerateOffShift(DisplayDate);
+
+            LoadShiftDataForMonth(DisplayDate);
+
+        }
+
 
         private async Task ExportCsvRowsAsync(object? param)
         {
@@ -156,6 +189,7 @@ namespace Shiftapp_demo.ViewModels
             //日曜日や祭日のシフト作成
             _business.UpdateSundayShifts(month);
         }
+
         public void MakeNightDuty(DateTime month)
         {
             db.DeleteMonthDutyAndDayParentsWithCascade(month,1,0);
@@ -174,6 +208,7 @@ namespace Shiftapp_demo.ViewModels
             _business.CleanOrphanNightChildrenForMonth(month);
 
             _shiftGridColumns.Clear();
+
             //日付取得
             var firstDay = new DateTime(month.Year, month.Month, 1);
             var lastDay = firstDay.AddMonths(1).AddDays(-1);
@@ -182,13 +217,14 @@ namespace Shiftapp_demo.ViewModels
             MonthHeaderText = $"{month.Year}年 {month.Month}月";
 
             // 1) 全社員（ID／名前）を取得
-            var employees = db.GetAllEmployees(); // List<Employee> { EmployeeId, EmployeeName }
+            var employees = db.GetAllEmployees(); 
 
             // 2) 期間内の実シフトだけ取得（無い日は返らない）
-            var shifts = db.GetShiftsOnly(firstDay, lastDay); // List<Shift> { EmployeeId, ShiftDate, Symbol }
+            var shifts = db.GetShiftsOnly(firstDay, lastDay); 
 
             // 3) 社員ごとにまとめて、全日を空で初期化→存在するシフトだけ上書き
             var loaders = new List<ShiftDataLoader>(employees.Count);
+
             foreach (var e in employees.OrderBy(x => x.EmployeeId))
             {
                 var loader = new ShiftDataLoader
@@ -198,7 +234,7 @@ namespace Shiftapp_demo.ViewModels
                     Role = e.Role
                 };
 
-                // 3-1) その月の全日付キーを空で用意
+                // その月の全日付キーを空で用意
                 for (var d = firstDay; d <= lastDay; d = d.AddDays(1))
                 {
                     loader.Shifts[d.ToString("yyyy-MM-dd")] = string.Empty;
@@ -224,14 +260,12 @@ namespace Shiftapp_demo.ViewModels
             ShiftGridColumns = GridHelperClass.GenerateColumnsForMonth(month);
         }
 
-
-        // INotifyPropertyChanged の実装
         public event PropertyChangedEventHandler PropertyChanged;
-        protected virtual void OnPropertyChanged(string propertyName)
+
+        public virtual void OnPropertyChanged(string propertyName)
         {
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
         }
-
 
     }
 }
