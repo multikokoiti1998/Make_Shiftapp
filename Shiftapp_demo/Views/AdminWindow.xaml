@@ -95,7 +95,6 @@
 
             <Button Content="追加" Padding="12,6" Margin="0,0,8,0" Click="AddHoliday_Click"/>
             <Button Content="選択削除" Padding="12,6" Margin="0,0,8,0" Click="DeleteSelectedHoliday_Click"/>
-            <Button Content="保存（当月を置換）" Padding="12,6" Margin="0,0,8,0" Click="SaveHolidays_Click"/>
         </StackPanel>
 
         <!-- 祝日一覧 -->

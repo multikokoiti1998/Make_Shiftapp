@@ -258,6 +258,7 @@ namespace Shiftapp_demo.ViewModels
 
             // 5) 列（ID/名前＋1..末日）
             ShiftGridColumns = GridHelperClass.GenerateColumnsForMonth(month);
+
         }
 
         public event PropertyChangedEventHandler PropertyChanged;

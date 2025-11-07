@@ -88,7 +88,6 @@
               FontSize="13"
               AutoGenerateColumns="False"
               ItemsSource="{Binding ShiftDataCollection}"
-              IsReadOnly="False"
               ScrollViewer.HorizontalScrollBarVisibility="Auto"
               ScrollViewer.VerticalScrollBarVisibility="Auto"
               GridLinesVisibility="All"

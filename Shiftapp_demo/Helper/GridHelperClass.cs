@@ -33,7 +33,8 @@ namespace Shiftapp_demo.Helper
                 MinWidth = 80,
                 ElementStyle = center,
                 EditingElementStyle = center,
-                CellStyle = centerCell
+                CellStyle = centerCell,
+                IsReadOnly = true 
             });
 
             // 名前列（広く）
@@ -45,7 +46,8 @@ namespace Shiftapp_demo.Helper
                 MinWidth = 120,
                 ElementStyle = center,
                 EditingElementStyle = center,
-                CellStyle = centerCell
+                CellStyle = centerCell,
+                IsReadOnly = true
             });
 
 
@@ -62,7 +64,8 @@ namespace Shiftapp_demo.Helper
                     Header = d.Day.ToString(),
                     Width = new DataGridLength(1, DataGridLengthUnitType.Star),
                     MinWidth = 28,
-                    CellStyle = centerCell
+                    CellStyle = centerCell,
+                    IsReadOnly = false
                 };
 
                 // 表示用: シンボルをそのまま表示（中央寄せ）
