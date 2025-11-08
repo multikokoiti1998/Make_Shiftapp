@@ -4,27 +4,6 @@ namespace Shiftapp_demo.Models
 {
     public static class ShiftCsvMapper
     {
-        public static IEnumerable<ShiftCsvRow> ToCsvRows(IEnumerable<ShiftRow> rows)
-        {
-            foreach (var r in rows.OrderBy(x => x.EmployeeId).ThenBy(x => x.Date))
-            {
-                var (calendar, shiftKind) = MapCalendarAndShiftKind(r.ShiftSymbol, r.Date);
-
-                yield return new ShiftCsvRow
-                {
-                    個人コード = r.EmployeeId,
-                    氏名 = r.EmployeeName ?? string.Empty,
-                    処理日 = r.Date.ToString("yyyy/MM/dd", CultureInfo.InvariantCulture),
-                    カレンダー = calendar,                  // 勤務/休日/指定
-                    勤怠区分 = "なし",
-                    シフト区分 = shiftKind,                // 日勤/半日/当直/明け
-                    出勤例外 = "なし",
-                    退勤例外 = "なし",
-                    修正処理日 = r.Date.ToString("yyyy/M/d", CultureInfo.InvariantCulture)
-                };
-            }
-        }
-
         /// <summary>
         /// シンボルと日付(曜日)から カレンダー/シフト区分 を決定
         /// </summary>
