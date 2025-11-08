@@ -1,4 +1,5 @@
 ﻿using Shiftapp_demo.DataAccess;
+using Shiftapp_demo.Models;
 using static Shiftapp_demo.DataAccess.DatabaseHelper;
 
 namespace Shiftapp_demo.Business
@@ -53,7 +54,7 @@ namespace Shiftapp_demo.Business
         }
 
         //その月の祝日を取得するメソッド
-        public List<DateTime> GetHolidaysInMonth(DateTime month)
+        public List<Holiday> GetHolidaysInMonth(DateTime month)
         {
             var first = new DateTime(month.Year, month.Month, 1);
             var last = first.AddMonths(2).AddDays(-1);
@@ -150,7 +151,7 @@ namespace Shiftapp_demo.Business
             var assigns = new List<(int eid, DateTime date, int stid)>();
 
             var days = sundays.Select(d => d.Date)
-                              .Union(holidays.Select(d => d.Date)); // 重複自動除去
+                              .Union(holidays.Select(d => d.date)); // 重複自動除去
 
             foreach (var day in days)
             {
@@ -212,7 +213,7 @@ namespace Shiftapp_demo.Business
 
 
             //祭日取得
-            var holidays = GetHolidaysInMonth(month);
+            var holidays = GetHolidaysInMonth(month).Select(h => h.date).ToList();
 
             // 3) 各人の「次に入れる日」・当月カウントを初期化    
             var nextAvailable = new Dictionary<int, DateTime>();     // EmployeeId -> Date

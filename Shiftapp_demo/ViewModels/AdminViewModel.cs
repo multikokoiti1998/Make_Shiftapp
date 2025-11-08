@@ -2,6 +2,7 @@
 using Shiftapp_demo.Csv;
 using Shiftapp_demo.DataAccess;
 using Shiftapp_demo.FrameWork;
+using Shiftapp_demo.Helper;
 using Shiftapp_demo.Views;
 using System;
 using System.Collections.Generic;
@@ -19,10 +20,9 @@ namespace Shiftapp_demo.ViewModels
     {
         private ShiftDataLoader _dataLoader;
 
-        private readonly DatabaseHelper db;
+        private readonly DatabaseHelper _db;
 
         private readonly ShiftBusiness _business;
-
 
 
         // INotifyPropertyChanged の実装
@@ -36,18 +36,13 @@ namespace Shiftapp_demo.ViewModels
         {
             _dataLoader = new ShiftDataLoader();
 
-            db = new DatabaseHelper();
+            _db = new DatabaseHelper();
 
-            _business = new ShiftBusiness(db);
+            _business = new ShiftBusiness(_db);
 
-            //OpenAdminCommand = new RelayCommand(OpenAdmin);
+           
         }
 
 
-        private void OpenAdmin(object? _)
-        {
-            var admin = new AdminWindow();
-            admin.ShowDialog();
-        }
     }
 }

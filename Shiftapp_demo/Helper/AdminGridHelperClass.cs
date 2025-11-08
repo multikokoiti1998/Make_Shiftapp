@@ -10,8 +10,8 @@ namespace Shiftapp_demo.Helper
     class AdminGridHelperClass
     {
         public static ObservableCollection<DataGridColumn>GenerateColumnsForAdminEmployee
-            (DateTime month, 
-            IEnumerable<OptionItem> saturdayClassOptions)
+            (IEnumerable<OptionItem> saturdayClassOptions,
+             IEnumerable<OptionItem>  RoleClassOptions)
         {
             var columns = new ObservableCollection<DataGridColumn>();
 
@@ -31,7 +31,11 @@ namespace Shiftapp_demo.Helper
             columns.Add(new DataGridTextColumn
             {
                 Header = "ID",
-                Binding = new Binding("EmployeeId"),
+                Binding = new Binding("EmployeeId")
+                {
+                    Mode = BindingMode.TwoWay,
+                    UpdateSourceTrigger = UpdateSourceTrigger.Explicit
+                },
                 Width = 100,
                 MinWidth = 80,
                 ElementStyle = center,
@@ -40,11 +44,14 @@ namespace Shiftapp_demo.Helper
                 IsReadOnly = false
             });
 
-            // 名前列（広く）
             columns.Add(new DataGridTextColumn
             {
                 Header = "名前",
-                Binding = new Binding("EmployeeName"),
+                Binding = new Binding("EmployeeName")
+                { 
+                    Mode = BindingMode.TwoWay, 
+                    UpdateSourceTrigger = UpdateSourceTrigger.Explicit
+                },
                 Width = 180,
                 MinWidth = 120,
                 ElementStyle = center,
@@ -56,7 +63,11 @@ namespace Shiftapp_demo.Helper
             columns.Add(new DataGridCheckBoxColumn
             {
                 Header = "当直カテーテル対応可能",
-                Binding = new Binding("CanDoCatheterization"),
+                Binding = new Binding("CanDoCatheterization")
+                {
+                    Mode = BindingMode.TwoWay,
+                    UpdateSourceTrigger = UpdateSourceTrigger.Explicit
+                },
                 Width = 180,
                 MinWidth = 120,
                 ElementStyle = center,
@@ -79,6 +90,38 @@ namespace Shiftapp_demo.Helper
                 IsReadOnly = false
             });
 
+            columns.Add(new DataGridCheckBoxColumn
+            {
+                Header = "当直対応可能",
+                Binding = new Binding("CanDoNightDuty")
+                {
+                    Mode = BindingMode.TwoWay,
+                    UpdateSourceTrigger = UpdateSourceTrigger.Explicit
+                },
+                Width = 180,
+                MinWidth = 120,
+                ElementStyle = center,
+                EditingElementStyle = center,
+                CellStyle = centerCell,
+                IsReadOnly = false
+            });
+
+            columns.Add(new DataGridCheckBoxColumn
+            {
+                Header = "日勤対応可能",
+                Binding = new Binding("CanDayDuty")
+                {
+                    Mode = BindingMode.TwoWay,
+                    UpdateSourceTrigger = UpdateSourceTrigger.Explicit
+                },
+                Width = 180,
+                MinWidth = 120,
+                ElementStyle = center,
+                EditingElementStyle = center,
+                CellStyle = centerCell,
+                IsReadOnly = false
+            });
+
             columns.Add(new DataGridComboBoxColumn
             {
                 Header = "月最大当直回数",
@@ -91,69 +134,19 @@ namespace Shiftapp_demo.Helper
                 IsReadOnly = false
             });
 
-
-
-            // --- 日付列（TextBlock表示 / 編集時ComboBox）---
-            var firstDay = new DateTime(month.Year, month.Month, 1);
-            var lastDay = firstDay.AddMonths(1).AddDays(-1);
-
-            for (var d = firstDay; d <= lastDay; d = d.AddDays(1))
+            columns.Add(new DataGridComboBoxColumn
             {
-                var key = d.ToString("yyyy-MM-dd");
-
-                var col = new DataGridTemplateColumn
-                {
-                    Header = d.Day.ToString(),
-                    Width = new DataGridLength(1, DataGridLengthUnitType.Star),
-                    MinWidth = 28,
-                    CellStyle = centerCell,
-                    IsReadOnly = false
-                };
-
-                // 表示用: シンボルをそのまま表示（中央寄せ）
-                {
-                    var tbFactory = new FrameworkElementFactory(typeof(TextBlock));
-                    // セルの値とバインド
-                    var b = new Binding($"Shifts[{key}]") { TargetNullValue = "", Mode = BindingMode.OneWay };
-                    tbFactory.SetBinding(TextBlock.TextProperty, b);
-                    tbFactory.SetValue(TextBlock.HorizontalAlignmentProperty, HorizontalAlignment.Center);
-                    tbFactory.SetValue(TextBlock.VerticalAlignmentProperty, VerticalAlignment.Center);
-                    col.CellTemplate = new DataTemplate { VisualTree = tbFactory };
-                }
-
-                // 編集用: DBマスタ(ShiftTypes)からプルダウン
-                {
-                    var cbFactory = new FrameworkElementFactory(typeof(ComboBox));
-
-                    // DataContext.ShiftTypes を ItemsSource に（DataGridのDataContext = MainViewModel）
-                    cbFactory.SetBinding(
-                        ComboBox.ItemsSourceProperty,
-                        new Binding("DataContext.ShiftTypes")
-                        {
-                            RelativeSource = new RelativeSource(RelativeSourceMode.FindAncestor, typeof(DataGrid), 1)
-                        });
-
-                    // 表示は Symbol、選択値も Symbol（現状 Shifts[...] が string シンボルのため）
-                    cbFactory.SetValue(ComboBox.DisplayMemberPathProperty, "Symbol");
-                    cbFactory.SetValue(ComboBox.SelectedValuePathProperty, "Symbol");
-
-                    // セルの値と双方向バインド
-                    cbFactory.SetBinding(
-                        ComboBox.SelectedValueProperty,
-                        new Binding($"Shifts[{key}]")
-                        {
-                            Mode = BindingMode.TwoWay,
-                            UpdateSourceTrigger = UpdateSourceTrigger.PropertyChanged
-                        });
-
-                    cbFactory.SetValue(ComboBox.IsEditableProperty, false);
-                    cbFactory.SetValue(ComboBox.HorizontalContentAlignmentProperty, HorizontalAlignment.Center);
-
-                    col.CellEditingTemplate = new DataTemplate { VisualTree = cbFactory };
-                }
-
-                columns.Add(col);
-            }
+                Header = "役職",
+                ItemsSource = RoleClassOptions,
+                DisplayMemberPath = "Label",
+                SelectedValuePath = "Code",
+                Width = 180,
+                MinWidth = 120,
+                ElementStyle = center,
+                EditingElementStyle = center,
+                CellStyle = centerCell,
+                IsReadOnly = false
+            });
 
             return columns;
 

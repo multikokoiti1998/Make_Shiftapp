@@ -77,8 +77,8 @@
             <TextBox x:Name="SearchKeywordTextBox" Width="260" Height="32" Margin="0,0,8,0"
                          ToolTip="氏名・班・メモなどを部分一致で検索"/>
             <Button Content="新規技師追加" Padding="12,6" Margin="4" Click="AddTechnician_Click"/>
-            <Button Content="選択技師削除" Padding="12,6" Margin="4" Click="DeleteSelectedTechnician_Click"/>
-            <Button Content="保存（一覧の変更をDBへ）" Padding="12,6" Margin="4" Click="SaveTechnicians_Click"/>
+            <Button Content="選択技師削除" Padding="12,6" Margin="4" />
+            <Button Content="保存（一覧の変更をDBへ）" Padding="12,6" Margin="4"/>
         </StackPanel>
 
         <!-- 見出し：祝日 -->
@@ -89,11 +89,11 @@
             <TextBlock Text="日付：" VerticalAlignment="Center" Margin="0,0,8,0"/>
             <DatePicker x:Name="HolidayDatePicker" Width="160" Margin="0,0,16,0"/>
 
-            <TextBlock Text="名称：" VerticalAlignment="Center" Margin="0,0,8,0"/>
-            <TextBox x:Name="HolidayNameTextBox" Width="240" Height="30" Margin="0,0,16,0" ToolTip="例：敬老の日"/>
+            <TextBlock Text="名称例：敬老の日：" VerticalAlignment="Center" Margin="0,0,8,0"/>
+            <TextBox x:Name="HolidayNameTextBox" Width="240" Height="30" Margin="0,0,16,0" ToolTip=""/>
 
             <Button Content="追加" Padding="12,6" Margin="0,0,8,0" Click="AddHoliday_Click"/>
-            <Button Content="選択削除" Padding="12,6" Margin="0,0,8,0" Click="DeleteSelectedHoliday_Click"/>
+            <Button Content="選択削除" Padding="12,6" Margin="0,0,8,0" />
         </StackPanel>
 
         <!-- 祝日一覧 -->

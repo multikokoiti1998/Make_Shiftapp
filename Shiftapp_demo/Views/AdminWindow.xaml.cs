@@ -28,6 +28,7 @@ namespace Shiftapp_demo.Views
         private async void AdminWindow_Loaded(object sender, RoutedEventArgs e)
         {
             await LoadDataAsync();
+            await LoadDataAsync();
         }
 
         private async Task LoadDataAsync()
@@ -51,12 +52,6 @@ namespace Shiftapp_demo.Views
             }
         }
 
-        private void ClearSearch_Click(object sender, RoutedEventArgs e)
-        {
-            SearchKeywordTextBox.Text = "";
-            SearchResults.Clear();
-        }
-
         // ====== 技師：追加/削除/保存 ======
         private void AddTechnician_Click(object sender, RoutedEventArgs e)
         {
@@ -72,94 +67,6 @@ namespace Shiftapp_demo.Views
             TechniciansDataGrid.ScrollIntoView(newbie);
         }
 
-        private void DeleteSelectedTechnician_Click(object sender, RoutedEventArgs e)
-        {
-            if (TechniciansDataGrid.SelectedItem is Employee selectedEmployee)
-            {
-                var result = MessageBox.Show(
-                    $"{selectedEmployee.EmployeeName} を削除しますか？",
-                    "確認",
-                    MessageBoxButton.YesNo,
-                    MessageBoxImage.Question);
-
-                if (result == MessageBoxResult.Yes)
-                {
-                    try
-                    {
-                        // 同期版
-                        _dbHelper.DeleteEmployee(selectedEmployee.EmployeeId);
-
-                        // 非同期版があるなら：
-                        // await _dbHelper.DeleteEmployeeAsync(selectedEmployee.EmployeeId);
-
-                        Employees.Remove(selectedEmployee);
-                        MessageBox.Show("従業員が削除されました。", "成功",
-                                        MessageBoxButton.OK, MessageBoxImage.Information);
-                    }
-                    catch (Exception ex)
-                    {
-                        MessageBox.Show("削除中にエラーが発生しました: " + ex.Message, "エラー",
-                                        MessageBoxButton.OK, MessageBoxImage.Error);
-                    }
-                }
-            }
-            else
-            {
-                MessageBox.Show("削除する従業員を選択してください。", "選択なし",
-                                MessageBoxButton.OK, MessageBoxImage.Warning);
-            }
-        }
-
-        private async void SaveTechnicians_Click(object sender, RoutedEventArgs e)
-        {
-            try
-            {
-                // 編集コミット（未確定のセル値を反映）
-                TechniciansDataGrid.CommitEdit(DataGridEditingUnit.Cell, true);
-                TechniciansDataGrid.CommitEdit(DataGridEditingUnit.Row, true);
-
-                // 重複/必須チェックなど簡易バリデーション
-                var dup = Employees.Where(x => !string.IsNullOrWhiteSpace(x.EmployeeName))
-                                   .GroupBy(x => x.EmployeeName.Trim())
-                                   .FirstOrDefault(g => g.Count() > 1);
-                if (dup != null)
-                {
-                    MessageBox.Show($"同一氏名が重複しています: {dup.Key}", "入力エラー",
-                                    MessageBoxButton.OK, MessageBoxImage.Warning);
-                    return;
-                }
-
-                // Upsert
-                foreach (var emp in Employees)
-                {
-                    if (string.IsNullOrWhiteSpace(emp.EmployeeName)) continue;
-
-                    //// 非同期版がある場合
-                    //if (_dbHelper.UpsertEmployeeAsync != null)
-                    //{
-                    //    await _dbHelper.UpsertEmployeeAsync(emp);
-                    //}
-                    //else
-                    //{
-                    //    // 同期版のみの場合
-                    //    _dbHelper.UpsertEmployee(emp);
-                    //}
-                }
-
-                // 再読込（採番反映など）
-                // Employees = await _dbHelper.GetAllEmployeesAsync();
-                Employees = new ObservableCollection<Employee>(_dbHelper.GetAllEmployees());
-                TechniciansDataGrid.ItemsSource = Employees;
-
-                MessageBox.Show("技師情報を保存しました。", "成功",
-                                MessageBoxButton.OK, MessageBoxImage.Information);
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show("保存中にエラーが発生しました: " + ex.Message, "エラー",
-                                MessageBoxButton.OK, MessageBoxImage.Error);
-            }
-        }
 
         // ====== 祝日：当月ロード/追加/削除/保存 ======
         private DateTime MonthFirst(DateTime d) => new DateTime(d.Year, d.Month, 1);
@@ -174,7 +81,7 @@ namespace Shiftapp_demo.Views
 
                 // 同期版
                 var list = _dbHelper.GetHolidays(first, next);
-                // foreach (var h in list) Holidays.Add(h);
+                foreach (var h in list) Holidays.Add(h);
 
                 // 非同期版があるなら：
                 // var list = await _dbHelper.GetHolidaysAsync(first, next);
@@ -187,10 +94,7 @@ namespace Shiftapp_demo.Views
             }
         }
 
-        private async void ReloadHolidaysThisMonth_Click(object sender, RoutedEventArgs e)
-        {
-            await LoadHolidaysThisMonthAsync();
-        }
+  
 
         private void AddHoliday_Click(object sender, RoutedEventArgs e)
         {
@@ -237,50 +141,5 @@ namespace Shiftapp_demo.Views
             }
         }
 
-        private async void SaveHolidays_Click(object sender, RoutedEventArgs e)
-        {
-            try
-            {
-                // 編集コミット
-                HolidaysDataGrid.CommitEdit(DataGridEditingUnit.Cell, true);
-                HolidaysDataGrid.CommitEdit(DataGridEditingUnit.Row, true);
-
-                var first = MonthFirst(DateTime.Today);
-                var next = first.AddMonths(1);
-
-                // 「当月分を置換」パターン
-                // 同期版
-                //_dbHelper.ReplaceHolidaysForRange(first, next, Holidays.Select(h => (h.Date, h.Name)));
-
-                // 非同期版があるなら：
-                // await _dbHelper.ReplaceHolidaysForRangeAsync(first, next, Holidays.Select(h => (h.Date, h.Name)));
-
-                MessageBox.Show("祝日を保存しました。", "成功",
-                                MessageBoxButton.OK, MessageBoxImage.Information);
-
-                await LoadHolidaysThisMonthAsync();
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show("祝日保存でエラー: " + ex.Message, "エラー",
-                                MessageBoxButton.OK, MessageBoxImage.Error);
-            }
-        }
-
-        // ===== 既存の編集ボタン（フォーム起動のフック） =====
-        private void EditSelectedTechnician_Click(object sender, RoutedEventArgs e)
-        {
-            if (TechniciansDataGrid.SelectedItem is Employee selectedEmployee)
-            {
-                // TODO: ここで編集用ダイアログを開くなど
-                MessageBox.Show($"{selectedEmployee.EmployeeName} の編集ダイアログは未実装です。", "TODO",
-                                MessageBoxButton.OK, MessageBoxImage.Information);
-            }
-            else
-            {
-                MessageBox.Show("編集する従業員を選択してください。", "選択なし",
-                                MessageBoxButton.OK, MessageBoxImage.Warning);
-            }
-        }
     }
 }

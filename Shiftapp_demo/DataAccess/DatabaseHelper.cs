@@ -595,9 +595,9 @@ namespace Shiftapp_demo.DataAccess
         }
 
 
-        public List<DateTime> GetHolidays(DateTime start, DateTime end)
+        public List<Holiday> GetHolidays(DateTime start, DateTime end)
         {
-            var result = new List<DateTime>();
+            var result = new List<Holiday>();
             using var con = new SqliteConnection(_connectionString);
             con.Open();
 
@@ -612,7 +612,8 @@ namespace Shiftapp_demo.DataAccess
             using var reader = cmd.ExecuteReader();
             while (reader.Read())
             {
-                result.Add(DateTime.Parse(reader.GetString(0)));
+                var date = DateTime.Parse(reader.GetString(0));
+                result.Add(new Holiday { date = date }); 
             }
 
             return result;
