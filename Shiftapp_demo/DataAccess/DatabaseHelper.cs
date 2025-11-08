@@ -667,7 +667,7 @@ namespace Shiftapp_demo.DataAccess
                 {
                     EmployeeId = reader.GetInt32(0),
 
-                    CanDoNightDuty = reader.GetInt32(1),
+                    CanDayDuty = reader.GetInt32(1),
                 });
             }
             return result;

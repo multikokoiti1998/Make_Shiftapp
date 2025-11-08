@@ -17,7 +17,7 @@
 
         public int Role { get; set; }
 
-        public int CanDayNightDuty { get; set; }
+        public int CanDayDuty { get; set; }
 
         public int is_active { get; set; }
 
