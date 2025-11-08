@@ -287,9 +287,9 @@ namespace Shiftapp_demo.Business
                         .Where(e => e.EmployeeId != cand1?.EmployeeId
                                  && e.EmployeeId != cand2?.EmployeeId
                                  && existingMap.TryGetValue((e.EmployeeId, prevDay), out var st) && st == stidOff)
-                        .OrderBy(e => dayWorkCount.TryGetValue(e.EmployeeId, out var v) ? v : 0)
-                        .ThenBy(e => nextAvailable[e.EmployeeId])
-                        .ThenBy(_ => rand.Next())
+                        //.OrderBy(e => dayWorkCount.TryGetValue(e.EmployeeId, out var v) ? v : 0)
+                        //.ThenBy(e => nextAvailable[e.EmployeeId])
+                        //.ThenBy(_ => rand.Next())
                         .FirstOrDefault();
                 }
                 else if (holidays.Contains(day.Date))

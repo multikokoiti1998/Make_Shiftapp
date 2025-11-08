@@ -31,10 +31,14 @@
                       Style="{DynamicResource MaterialDesignCalendarPortrait}"
                       CalendarDayButtonStyle="{DynamicResource MaterialDesignFlatButton}"
                       DisplayDateChanged="ShiftCalendar_DisplayDateChanged"
-                      SelectionMode="MultipleRange">
+                      SelectionMode="MultipleRange"
+                      SelectedDate="{Binding SelectedDate, Mode=TwoWay}"
+                      DisplayDate="{Binding DisplayDate, Mode=TwoWay}">
             </Calendar>
 
-            <Button Content="シフト作成" Height="70" FontSize="20" Margin="0,15,0,0" Command="{Binding GenerateShiftCommand}"/>
+            <Button Content="シフト作成" Height="70" FontSize="20" 
+                    Margin="0,15,0,0" Command="{Binding GenerateShiftCommand}"
+                    CommandParameter="{Binding ElementName=ShiftCalendar, Path=DisplayDate}"/>
 
             <Button Content="管理者画面"  Command="{Binding OpenAdminCommand}" Height="70" FontSize="20" Margin="0,15,0,0"/>
 

@@ -33,12 +33,20 @@ namespace Shiftapp_demo.Views
                 ShiftDataGrid.Columns.Add(col);
             }
 
-            // カレンダーの表示月を今日に（初期表示用）
-            ShiftCalendar.DisplayDate = today;
         }
 
         private void ShiftCalendar_DisplayDateChanged(object sender, CalendarDateChangedEventArgs e)
         {
+            if (!IsLoaded) return; // ← ロード前に走る初期イベントを無視
+
+            if (ViewModel == null) return;
+
+            //未タッチ時、西暦１年になる対策
+            DateTime today = DateTime.Today;
+            ShiftCalendar.DisplayDate = today;
+            ShiftCalendar.SelectedDate = today;
+
+
             DateTime currentMonth = ShiftCalendar.DisplayDate;
 
             ViewModel.LoadShiftDataForMonth(currentMonth);

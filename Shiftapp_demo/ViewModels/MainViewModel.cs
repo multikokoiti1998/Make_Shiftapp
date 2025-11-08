@@ -25,6 +25,8 @@ namespace Shiftapp_demo.ViewModels
         private readonly DatabaseHelper db;
 
         private readonly ShiftBusiness _business;
+        //カレンダー初期化用バインディング
+        public DateTime? SelectedDate { get; set; } = DateTime.Today;
 
         // DataGridのItemsSourceにバインド グリッドの行データを保持
         private ObservableCollection<ShiftDataLoader> _shiftDataCollection;
@@ -92,7 +94,7 @@ namespace Shiftapp_demo.ViewModels
                 if (_displayDate != value)
                 {
                     _displayDate = value;
-                    OnPropertyChanged(nameof(_displayDate));
+                    OnPropertyChanged(nameof(DisplayDate));
                 }
             }
         }
@@ -101,8 +103,6 @@ namespace Shiftapp_demo.ViewModels
         public MainViewModel()
         {
             _dataLoader = new ShiftDataLoader();
-
-            DisplayDate = DateTime.Today;
 
             ShiftDataCollection = new ObservableCollection<ShiftDataLoader>();
 
@@ -120,7 +120,7 @@ namespace Shiftapp_demo.ViewModels
 
             OpenAdminCommand = new RelayCommand(OpenAdmin);
 
-            GenerateShiftCommand = new RelayCommand(GenerateShift);
+            GenerateShiftCommand = new RelayCommand(p => GenerateShift(p));
         }
 
         private void OpenAdmin(object? _)
@@ -129,15 +129,21 @@ namespace Shiftapp_demo.ViewModels
             admin.ShowDialog();
         }
 
-        private void GenerateShift(object? _)
+        private void GenerateShift(object? param)
         {
-
-            MakeNightDuty(DisplayDate);
-
-            GenerateOffShift(DisplayDate);
-
-            LoadShiftDataForMonth(DisplayDate);
-
+            if (param is DateTime displayDate)
+            {
+                MakeNightDuty(displayDate);
+                GenerateOffShift(displayDate);
+                LoadShiftDataForMonth(displayDate);
+            }
+            else
+            {
+                // パラメータが null の場合のフォールバック（例: 今日の月）
+                MakeNightDuty(DateTime.Today);
+                GenerateOffShift(DateTime.Today);
+                LoadShiftDataForMonth(DateTime.Today);
+            }
         }
 
 
