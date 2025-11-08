@@ -1,4 +1,6 @@
-﻿namespace Shiftapp_demo.Models
+﻿using System.ComponentModel;
+
+namespace Shiftapp_demo.Models
 {
     public class Employee
     {
@@ -13,11 +15,11 @@
         public String SaturdayClass { get; set; }            // DB: saturday_class（例: 0=A班, 1=B班）
         public int MonthlyDutyLimit { get; set; }         // DB: MonthlyDutyLimit（最大勤務数）
 
-        public int CanDoNightDuty { get; set; }
+        public bool CanDoNightDuty { get; set; }
 
         public int Role { get; set; }
 
-        public int CanDayDuty { get; set; }
+        public bool CanDayDuty { get; set; }
 
         public int is_active { get; set; }
 
@@ -38,6 +40,20 @@
                 kv.Key.Year == month.Year &&
                 kv.Key.Month == month.Month &&
                 (kv.Value == "当")); // A or Bが当直とみなす
+        }
+        //UI更新フラグ
+        private bool _isDirty;
+        public bool IsDirty
+        {
+            get => _isDirty;
+            private set { if (_isDirty != value) { _isDirty = value; OnPropertyChanged(nameof(IsDirty)); } }
+        }
+
+        public event PropertyChangedEventHandler PropertyChanged;
+
+        public virtual void OnPropertyChanged(string propertyName)
+        {
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
         }
     }
 }

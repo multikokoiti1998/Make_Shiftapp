@@ -199,8 +199,8 @@ namespace Shiftapp_demo.Business
             var canDayduty = _db.GetActiveEmployeesWithDayDutyClass();
 
             // カテ可/不可でリスト分割
-            var canCath = employees_active_all.Where(e => e.CanDoCatheterization && e.CanDoNightDuty == 1).ToList();
-            var cannotCath = employees_active_all.Where(e => !e.CanDoCatheterization && e.CanDoNightDuty == 1).ToList();
+            var canCath = employees_active_all.Where(e => e.CanDoCatheterization && e.CanDoNightDuty).ToList();
+            var cannotCath = employees_active_all.Where(e => !e.CanDoCatheterization && e.CanDoNightDuty).ToList();
 
             if (canCath.Count == 0 || cannotCath.Count == 0)
                 throw new InvalidOperationException("当直編成に必要な人員（カテ可/不可）が不足しています。");
