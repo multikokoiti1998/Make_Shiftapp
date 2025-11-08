@@ -5,21 +5,30 @@ namespace Shiftapp_demo.Models
     public class Employee
     {
         // --- データベースの employee テーブルと対応 ---
-        //ToDo　当直可能かなど対応させてない
 
-        public int EmployeeId { get; set; }               // DB: employee_id
-        public string EmployeeName { get; set; } = "";    // DB: employee_name
+        private int _employeeId;
+        public int EmployeeId { get => _employeeId; set { if (_employeeId != value) { _employeeId = value; Raise(nameof(EmployeeId)); IsDirty = true; } } }
 
-        public bool CanDoCatheterization { get; set; }    // DB: CanDoCatheterization（0 or 1 → bool）
+        private string _employeeName = "";
+        public string EmployeeName { get => _employeeName; set { if (_employeeName != value) { _employeeName = value; Raise(nameof(EmployeeName)); IsDirty = true; } } }
 
-        public String SaturdayClass { get; set; }            // DB: saturday_class（例: 0=A班, 1=B班）
-        public int MonthlyDutyLimit { get; set; }         // DB: MonthlyDutyLimit（最大勤務数）
+        private bool _canDoCatheterization;
+        public bool CanDoCatheterization { get => _canDoCatheterization; set { if (_canDoCatheterization != value) { _canDoCatheterization = value; Raise(nameof(CanDoCatheterization)); IsDirty = true; } } }
 
-        public bool CanDoNightDuty { get; set; }
+        private string _saturdayClass = "A"; // DBはTEXTで "A"/"B" 推奨
+        public string SaturdayClass { get => _saturdayClass; set { if (_saturdayClass != value) { _saturdayClass = value; Raise(nameof(SaturdayClass)); IsDirty = true; } } }
 
-        public int Role { get; set; }
+        private int _monthlyDutyLimit;
+        public int MonthlyDutyLimit { get => _monthlyDutyLimit; set { if (_monthlyDutyLimit != value) { _monthlyDutyLimit = value; Raise(nameof(MonthlyDutyLimit)); IsDirty = true; } } }
 
-        public bool CanDayDuty { get; set; }
+        private bool _canDoNightDuty;
+        public bool CanDoNightDuty { get => _canDoNightDuty; set { if (_canDoNightDuty != value) { _canDoNightDuty = value; Raise(nameof(CanDoNightDuty)); IsDirty = true; } } }
+
+        private int _role;
+        public int Role { get => _role; set { if (_role != value) { _role = value; Raise(nameof(Role)); IsDirty = true; } } }
+
+        private bool _canDayDuty;
+        public bool CanDayDuty { get => _canDayDuty; set { if (_canDayDuty != value) { _canDayDuty = value; Raise(nameof(CanDayDuty)); IsDirty = true; } } }
 
         public int is_active { get; set; }
 
@@ -49,11 +58,13 @@ namespace Shiftapp_demo.Models
             private set { if (_isDirty != value) { _isDirty = value; OnPropertyChanged(nameof(IsDirty)); } }
         }
 
-        public event PropertyChangedEventHandler PropertyChanged;
 
         public virtual void OnPropertyChanged(string propertyName)
         {
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
         }
+
+        public event PropertyChangedEventHandler? PropertyChanged;
+        void Raise(string n) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(n));
     }
 }
