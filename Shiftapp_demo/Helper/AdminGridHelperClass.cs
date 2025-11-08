@@ -1,4 +1,5 @@
-﻿using System.Collections.ObjectModel;
+﻿using Shiftapp_demo.Models;
+using System.Collections.ObjectModel;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Data;
@@ -8,7 +9,9 @@ namespace Shiftapp_demo.Helper
 {
     class AdminGridHelperClass
     {
-        public static ObservableCollection<DataGridColumn> GenerateColumnsForAdminEmployee(DateTime month)
+        public static ObservableCollection<DataGridColumn>GenerateColumnsForAdminEmployee
+            (DateTime month, 
+            IEnumerable<OptionItem> saturdayClassOptions)
         {
             var columns = new ObservableCollection<DataGridColumn>();
 
@@ -34,7 +37,7 @@ namespace Shiftapp_demo.Helper
                 ElementStyle = center,
                 EditingElementStyle = center,
                 CellStyle = centerCell,
-                IsReadOnly = false 
+                IsReadOnly = false
             });
 
             // 名前列（広く）
@@ -65,6 +68,9 @@ namespace Shiftapp_demo.Helper
             columns.Add(new DataGridComboBoxColumn
             {
                 Header = "土曜日班",
+                ItemsSource = saturdayClassOptions,
+                DisplayMemberPath = "Label",
+                SelectedValuePath = "Code",
                 Width = 180,
                 MinWidth = 120,
                 ElementStyle = center,
