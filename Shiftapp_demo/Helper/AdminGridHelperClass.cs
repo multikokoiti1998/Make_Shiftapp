@@ -79,6 +79,20 @@ namespace Shiftapp_demo.Helper
                 IsReadOnly = false
             });
 
+            columns.Add(new DataGridComboBoxColumn
+            {
+                Header = "月最大当直回数",
+                ItemsSource = new List<int> { 0, 1, 2, 3, 4 },
+                Width = 180,
+                MinWidth = 120,
+                ElementStyle = center,
+                EditingElementStyle = center,
+                CellStyle = centerCell,
+                IsReadOnly = false
+            });
+
+
+
             // --- 日付列（TextBlock表示 / 編集時ComboBox）---
             var firstDay = new DateTime(month.Year, month.Month, 1);
             var lastDay = firstDay.AddMonths(1).AddDays(-1);
