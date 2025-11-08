@@ -67,9 +67,8 @@
                 <DataGridTextColumn Header="土曜班" Binding="{Binding SaturdayClass}" Width="80"/>
                 <DataGridTextColumn Header="月最大当直数" Binding="{Binding MonthlyDutyLimit}" Width="120"/>
                 <DataGridTextColumn Header="当直可能" Binding="{Binding CanDoNightDuty}" Width="100"/>
-                <DataGridTextColumn Header="役割" Binding="{Binding Role}" Width="80"/>
-                <DataGridTextColumn Header="日直可否" Binding="{Binding CanDayNightDuty}" Width="100"/>
-                <DataGridTextColumn Header="有効フラグ" Binding="{Binding is_active}" Width="100"/>
+                <DataGridTextColumn Header="役職" Binding="{Binding Role}" Width="80"/>
+                <DataGridTextColumn Header="日勤可能" Binding="{Binding CanDayNightDuty}" Width="100"/>
             </DataGrid.Columns>
         </DataGrid>
 

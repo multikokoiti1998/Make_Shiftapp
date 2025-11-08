@@ -18,6 +18,9 @@ namespace Shiftapp_demo.Views
         public AdminWindow()
         {
             InitializeComponent();
+
+            DataContext = new AdminViewModel();
+
             Loaded += AdminWindow_Loaded;
         }
 
