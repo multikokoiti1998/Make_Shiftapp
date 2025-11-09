@@ -2,7 +2,7 @@
 
 namespace Shiftapp_demo.Models
 {
-    public class Employee
+    public class Employee : INotifyPropertyChanged
     {
         // --- データベースの employee テーブルと対応 ---
 

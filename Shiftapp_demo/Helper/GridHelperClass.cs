@@ -50,8 +50,8 @@ namespace Shiftapp_demo.Helper
                 IsReadOnly = true
             });
 
-
-            // --- 日付列（TextBlock表示 / 編集時ComboBox）---
+            //編集時だけ「表示時はTextBlock」「編集時だけComboBox」にしたい
+            // → DataGridTemplateColumnを使う
             var firstDay = new DateTime(month.Year, month.Month, 1);
             var lastDay = firstDay.AddMonths(1).AddDays(-1);
 
