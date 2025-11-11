@@ -54,6 +54,7 @@
         <DataGrid Grid.Row="1"
           x:Name="TechniciansDataGrid"
           AutoGenerateColumns="False"
+          ItemsSource="{Binding Employees}"
           CanUserAddRows="False"
           CanUserDeleteRows="False"
           IsReadOnly="False"
@@ -61,14 +62,43 @@
           Margin="0,8,0,8">
             
             <DataGrid.Columns>
-                <DataGridTextColumn Header="ID" Binding="{Binding EmployeeId}" IsReadOnly="True" Width="60"/>
-                <DataGridTextColumn Header="氏名" Binding="{Binding EmployeeName}" Width="120"/>
-                <DataGridCheckBoxColumn Header="カテ対応" Binding="{Binding CanDoCatheterization}" Width="80"/>
-                <DataGridTextColumn Header="土曜班" Binding="{Binding SaturdayClass}" Width="80"/>
-                <DataGridTextColumn Header="月最大当直数" Binding="{Binding MonthlyDutyLimit}" Width="120"/>
-                <DataGridTextColumn Header="当直可能" Binding="{Binding CanDoNightDuty}" Width="100"/>
-                <DataGridTextColumn Header="役職" Binding="{Binding Role}" Width="80"/>
-                <DataGridTextColumn Header="日勤可能" Binding="{Binding CanDayNightDuty}" Width="100"/>
+                <DataGridTextColumn Header="ID" 
+                                    Binding="{Binding EmployeeId}" 
+                                    Width="160"/>
+
+                <DataGridTextColumn Header="氏名"
+                            Binding="{Binding EmployeeName, UpdateSourceTrigger=PropertyChanged}"
+                            Width="120"/>
+
+                <!-- bool → CheckBox -->
+                <DataGridCheckBoxColumn Header="カテ対応"
+                                Binding="{Binding CanDoCatheterization}"
+                                Width="80"/>
+
+                <!-- 土曜班（文字列 A/B）-->
+                <DataGridTextColumn Header="土曜班"
+                            Binding="{Binding SaturdayClass, UpdateSourceTrigger=PropertyChanged}"
+                            Width="80"/>
+
+                <!-- int。将来は ComboBox(0-4) 推奨 -->
+                <DataGridTextColumn Header="月最大当直数"
+                            Binding="{Binding MonthlyDutyLimit, UpdateSourceTrigger=PropertyChanged}"
+                            Width="120"/>
+
+                <!-- bool → CheckBox に変更 -->
+                <DataGridCheckBoxColumn Header="当直可能"
+                                Binding="{Binding CanDoNightDuty}"
+                                Width="50"/>
+
+                <!-- 役職（今は数値/文字列そのまま表示）-->
+                <DataGridTextColumn Header="役職"
+                            Binding="{Binding Role}"
+                            Width="80"/>
+
+                <!-- プロパティ名修正: CanDayDuty -->
+                <DataGridCheckBoxColumn Header="日勤可能"
+                                Binding="{Binding CanDayDuty}"
+                                Width="100"/>
             </DataGrid.Columns>
         </DataGrid>
 
