@@ -122,8 +122,10 @@ namespace Shiftapp_demo.ViewModels
 
         // INotifyPropertyChanged 実装
         public event PropertyChangedEventHandler? PropertyChanged;
-        protected void OnPropertyChanged([CallerMemberName] string? name = null)
-            => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
+        public virtual void OnPropertyChanged(string propertyName)
+        {
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+        }
 
         // SetProperty ヘルパー
         protected bool SetProperty<T>(ref T field, T value, [CallerMemberName] string? name = null)

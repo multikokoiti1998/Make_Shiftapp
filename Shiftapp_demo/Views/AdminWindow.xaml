@@ -83,12 +83,12 @@
                 <!-- int。将来は ComboBox(0-4) 推奨 -->
                 <DataGridTextColumn Header="月最大当直数"
                             Binding="{Binding MonthlyDutyLimit, UpdateSourceTrigger=PropertyChanged}"
-                            Width="120"/>
+                            Width="50"/>
 
                 <!-- bool → CheckBox に変更 -->
                 <DataGridCheckBoxColumn Header="当直可能"
                                 Binding="{Binding CanDoNightDuty}"
-                                Width="50"/>
+                                Width="100"/>
 
                 <!-- 役職（今は数値/文字列そのまま表示）-->
                 <DataGridTextColumn Header="役職"
@@ -104,9 +104,7 @@
 
         <!-- 技師操作ボタン -->
         <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" >
-            <TextBox x:Name="SearchKeywordTextBox" Width="260" Height="32" Margin="0,0,8,0"
-                         ToolTip="氏名・班・メモなどを部分一致で検索"/>
-            <Button Content="新規技師追加" Padding="12,6" Margin="4" Click="AddTechnician_Click"/>
+            <Button Content="新規技師追加" Padding="12,6" Margin="4" Command=""/>
             <Button Content="選択技師削除" Padding="12,6" Margin="4" />
             <Button Content="保存（一覧の変更をDBへ）" Padding="12,6" Margin="4"/>
         </StackPanel>

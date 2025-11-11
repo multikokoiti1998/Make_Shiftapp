@@ -38,10 +38,11 @@ namespace Shiftapp_demo.DataAccess
 
             var cmd = connection.CreateCommand();
             cmd.CommandText = @"
-            SELECT employee_id, employee_name, Role, is_active
+            SELECT employee_id, employee_name,CanDoCatheterization,saturday_class, 
+            MonthlyDutyLimit,CanDoNightDuty,Role, CanDoDayduty,is_active
             FROM employee
             WHERE is_active = 1
-            ORDER BY employee_id";
+            ORDER BY Role";
 
             using var reader = cmd.ExecuteReader();
             while (reader.Read())
@@ -50,7 +51,12 @@ namespace Shiftapp_demo.DataAccess
                 {
                     EmployeeId = reader.GetInt32(0),
                     EmployeeName = reader.GetString(1),
-                    Role = reader.GetInt32(2)
+                    CanDoCatheterization = reader.GetInt32(2) == 1,
+                    SaturdayClass= reader.GetString(3),
+                    MonthlyDutyLimit= reader.GetInt32(4),
+                    CanDoNightDuty= reader.GetInt32(5) == 1,
+                    Role = reader.GetInt32(6),
+                    CanDayDuty= reader.GetInt32(7) == 1,
                 });
             }
             return employees;

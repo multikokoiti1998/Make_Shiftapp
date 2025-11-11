@@ -25,24 +25,19 @@ namespace Shiftapp_demo.Views
 
             DataContext = _vm;
 
-            Loaded += async (_, __) => await _vm.LoadAsync();
-
-        }
-
-        // ====== 技師：追加 ======
-        private void AddTechnician_Click(object sender, RoutedEventArgs e)
-        {
-            var newbie = new Employee
+            Loaded += async (_, __) =>
             {
-                EmployeeId = 0,                 // 0=未採番（保存時INSERT判定用など）
-                EmployeeName = "新規技師",
-                SaturdayClass = "B",
-                CanDoCatheterization = false,
+                await _vm.LoadAsync();
+
+                TechniciansDataGrid.AutoGenerateColumns = false;
+                TechniciansDataGrid.Columns.Clear();
+
+                foreach (var c in _vm.TechniciansDataGridColumns)
+                    TechniciansDataGrid.Columns.Add(c);
             };
-            Employees.Add(newbie);
-            TechniciansDataGrid.SelectedItem = newbie;
-            TechniciansDataGrid.ScrollIntoView(newbie);
+
         }
+
 
         private void AddHoliday_Click(object sender, RoutedEventArgs e)
         {

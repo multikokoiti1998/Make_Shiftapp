@@ -26,15 +26,27 @@ namespace Shiftapp_demo.Helper
             centerText.Setters.Add(new Setter(TextBlock.MarginProperty, new Thickness(0)));
             centerText.Setters.Add(new Setter(TextBlock.TextTrimmingProperty, TextTrimming.CharacterEllipsis));
 
+            // DataGridCell は Cell の見た目用
             var centerCell = new Style(typeof(DataGridCell));
             centerCell.Setters.Add(new Setter(DataGridCell.VerticalContentAlignmentProperty, VerticalAlignment.Center));
             centerCell.Setters.Add(new Setter(DataGridCell.HorizontalContentAlignmentProperty, HorizontalAlignment.Center));
             centerCell.Setters.Add(new Setter(DataGridCell.PaddingProperty, new Thickness(0)));
 
+            // TextBox 用スタイル
+            var centerTextBox = new Style(typeof(TextBox));
+            centerTextBox.Setters.Add(new Setter(TextBox.HorizontalContentAlignmentProperty, HorizontalAlignment.Center));
+            centerTextBox.Setters.Add(new Setter(TextBox.VerticalContentAlignmentProperty, VerticalAlignment.Center));
+            centerTextBox.Setters.Add(new Setter(TextBox.PaddingProperty, new Thickness(0)));
+
+            // CheckBox 用
             var centerCheck = new Style(typeof(CheckBox));
             centerCheck.Setters.Add(new Setter(CheckBox.HorizontalAlignmentProperty, HorizontalAlignment.Center));
             centerCheck.Setters.Add(new Setter(CheckBox.VerticalAlignmentProperty, VerticalAlignment.Center));
 
+            // ComboBox 用（編集時）
+            var centerCombo = new Style(typeof(ComboBox));
+            centerCombo.Setters.Add(new Setter(ComboBox.HorizontalContentAlignmentProperty, HorizontalAlignment.Center));
+            centerCombo.Setters.Add(new Setter(ComboBox.VerticalContentAlignmentProperty, VerticalAlignment.Center));
             columns.Add(new DataGridTextColumn
             {
                 Header = "ID",
@@ -42,7 +54,7 @@ namespace Shiftapp_demo.Helper
                 Width = 100,
                 MinWidth = 80,
                 ElementStyle = centerText,
-                EditingElementStyle =centerText ,
+                EditingElementStyle =centerTextBox ,
                 CellStyle = centerCell,
                 IsReadOnly = false
             });
@@ -54,7 +66,7 @@ namespace Shiftapp_demo.Helper
                 Width = 180,
                 MinWidth = 120,
                 ElementStyle =centerText ,
-                EditingElementStyle =centerText ,
+                EditingElementStyle =centerTextBox ,
                 CellStyle = centerCell,
                 IsReadOnly = false
             });
@@ -80,8 +92,8 @@ namespace Shiftapp_demo.Helper
                 SelectedValueBinding = b("SaturdayClass"),
                 Width = 180,
                 MinWidth = 120,
-                ElementStyle =centerCell ,
-                EditingElementStyle =centerCell,
+                ElementStyle = centerCombo,
+                EditingElementStyle =centerCombo,
                 CellStyle = centerCell,
                 IsReadOnly = false
             });
@@ -117,8 +129,8 @@ namespace Shiftapp_demo.Helper
                 SelectedItemBinding =b("MonthlyDutyLimit"),
                 Width = 180,
                 MinWidth = 120,
-                ElementStyle =centerCell ,
-                EditingElementStyle =centerCell ,
+                ElementStyle = centerCombo,
+                EditingElementStyle =centerCombo ,
                 CellStyle = centerCell,
                 IsReadOnly = false
             });
@@ -132,8 +144,8 @@ namespace Shiftapp_demo.Helper
                 SelectedValueBinding = b("Role"),
                 Width = 180,
                 MinWidth = 120,
-                ElementStyle =centerCell ,
-                EditingElementStyle =centerCell ,
+                ElementStyle =centerCombo ,
+                EditingElementStyle =centerCombo ,
                 CellStyle = centerCell,
                 IsReadOnly = false
             });
