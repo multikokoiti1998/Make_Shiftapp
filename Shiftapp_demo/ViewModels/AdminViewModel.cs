@@ -19,7 +19,7 @@ using System.Windows.Input;
 
 namespace Shiftapp_demo.ViewModels
 {
-    public class AdminViewModel : INotifyPropertyChanged
+    public class AdminViewModel : ViewModelBase
     {
         private ShiftDataLoader _dataLoader;
 
@@ -120,12 +120,12 @@ namespace Shiftapp_demo.ViewModels
                 new OptionItem("4", "非正規技師"),
             };
 
-        // INotifyPropertyChanged 実装
-        public event PropertyChangedEventHandler? PropertyChanged;
-        public virtual void OnPropertyChanged(string propertyName)
-        {
-            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
-        }
+        //// INotifyPropertyChanged 実装
+        //public event PropertyChangedEventHandler? PropertyChanged;
+        //public virtual void OnPropertyChanged(string propertyName)
+        //{
+        //    PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+        //}
 
         // SetProperty ヘルパー
         protected bool SetProperty<T>(ref T field, T value, [CallerMemberName] string? name = null)

@@ -18,7 +18,7 @@ using System.Windows.Input;
 
 namespace Shiftapp_demo.ViewModels
 {
-    public class MainViewModel : INotifyPropertyChanged
+    public class MainViewModel : ViewBase
     {
         private ShiftDataLoader _dataLoader;
 
@@ -267,12 +267,12 @@ namespace Shiftapp_demo.ViewModels
 
         }
 
-        public event PropertyChangedEventHandler PropertyChanged;
+        //public event PropertyChangedEventHandler PropertyChanged;
 
-        public virtual void OnPropertyChanged(string propertyName)
-        {
-            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
-        }
+        //public virtual void OnPropertyChanged(string propertyName)
+        //{
+        //    PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+        //}
 
     }
 }

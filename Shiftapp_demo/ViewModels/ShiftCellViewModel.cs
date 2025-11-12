@@ -1,12 +1,13 @@
 ﻿using System;
 using System.ComponentModel;
+using System.Windows.Controls;
 
 namespace Shiftapp_demo.ViewModels
 {
     /// <summary>
     /// 1セル（1人×1日）の表示・編集・Dirty管理を担当
     /// </summary>
-    public sealed class ShiftCellViewModel : INotifyPropertyChanged
+    public class ShiftCellViewModel : ViewBase
     {
         public int EmployeeId { get; }
         public DateTime Date { get; }
@@ -57,8 +58,9 @@ namespace Shiftapp_demo.ViewModels
             OnPropertyChanged(nameof(IsDirty));
         }
 
-        public event PropertyChangedEventHandler? PropertyChanged;
-        private void OnPropertyChanged(string name)
-            => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
+        //    public event PropertyChangedEventHandler? PropertyChanged;
+        //    private void OnPropertyChanged(string name)
+        //        => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
+        //}
     }
 }
