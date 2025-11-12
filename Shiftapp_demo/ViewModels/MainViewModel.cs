@@ -18,7 +18,7 @@ using System.Windows.Input;
 
 namespace Shiftapp_demo.ViewModels
 {
-    public class MainViewModel : ViewBase
+    public class MainViewModel : ViewModelBase
     {
         private ShiftDataLoader _dataLoader;
 

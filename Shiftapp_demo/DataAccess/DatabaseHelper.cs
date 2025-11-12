@@ -625,6 +625,33 @@ namespace Shiftapp_demo.DataAccess
             return result;
         }
 
+        public List<Holiday> GetAllHolidays()
+        {
+            var result = new List<Holiday>();
+            using var con = new SqliteConnection(_connectionString);
+            con.Open();
+
+            using var cmd = con.CreateCommand();
+            cmd.CommandText = @"
+             SELECT date
+             FROM holiday
+             WHERE DATE(date) BETWEEN DATE(@start) AND DATE(@end)";
+            cmd.Parameters.AddWithValue("@start", start.ToString("yyyy-MM-dd"));
+            cmd.Parameters.AddWithValue("@end", end.ToString("yyyy-MM-dd"));
+
+            using var reader = cmd.ExecuteReader();
+            while (reader.Read())
+            {
+                var date = DateTime.Parse(reader.GetString(0));
+                result.Add(new Holiday { date = date });
+            }
+
+            return result;
+        }
+
+
+
+
 
         public List<Employee> GetActiveEmployeesWithNightDutyClass()
         {

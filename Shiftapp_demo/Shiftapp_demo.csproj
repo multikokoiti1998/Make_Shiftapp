@@ -11,6 +11,10 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Remove="ViewModels\ShiftCellViewModel.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
     <Content Include="Resources\shift_app.ico" />
   </ItemGroup>
 

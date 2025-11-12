@@ -126,6 +126,7 @@
 
         <!-- 祝日一覧 -->
         <DataGrid Grid.Row="6" x:Name="HolidaysDataGrid"
+                  ItemsSource="{Binding Holidays}"
                   AutoGenerateColumns="False"
                   CanUserAddRows="False"
                   CanUserDeleteRows="False"

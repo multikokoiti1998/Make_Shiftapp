@@ -7,7 +7,7 @@ namespace Shiftapp_demo.ViewModels
     /// <summary>
     /// 1セル（1人×1日）の表示・編集・Dirty管理を担当
     /// </summary>
-    public class ShiftCellViewModel : ViewBase
+    public class ShiftCellViewModel : ViewModelBase
     {
         public int EmployeeId { get; }
         public DateTime Date { get; }
