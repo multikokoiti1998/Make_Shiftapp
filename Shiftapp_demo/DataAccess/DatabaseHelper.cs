@@ -52,11 +52,11 @@ namespace Shiftapp_demo.DataAccess
                     EmployeeId = reader.GetInt32(0),
                     EmployeeName = reader.GetString(1),
                     CanDoCatheterization = reader.GetInt32(2) == 1,
-                    SaturdayClass= reader.GetString(3),
-                    MonthlyDutyLimit= reader.GetInt32(4),
-                    CanDoNightDuty= reader.GetInt32(5) == 1,
+                    SaturdayClass = reader.GetString(3),
+                    MonthlyDutyLimit = reader.GetInt32(4),
+                    CanDoNightDuty = reader.GetInt32(5) == 1,
                     Role = reader.GetInt32(6),
-                    CanDayDuty= reader.GetInt32(7) == 1,
+                    CanDayDuty = reader.GetInt32(7) == 1,
                 });
             }
             return employees;
@@ -619,35 +619,45 @@ namespace Shiftapp_demo.DataAccess
             while (reader.Read())
             {
                 var date = DateTime.Parse(reader.GetString(0));
-                result.Add(new Holiday { date = date }); 
+                result.Add(new Holiday
+                {
+                    date = date
+                });
             }
 
             return result;
         }
 
-        public List<Holiday> GetAllHolidays()
-        {
-            var result = new List<Holiday>();
-            using var con = new SqliteConnection(_connectionString);
-            con.Open();
+        //public List<Holiday> GetAllHolidays(DateTime year)
+        //{
+        //    var result = new List<Holiday>();
+        //    year=<int>year
+        //    var startOfYear = new DateTime(year, 1, 1);
+        //    using var con = new SqliteConnection(_connectionString);
+        //    con.Open();
 
-            using var cmd = con.CreateCommand();
-            cmd.CommandText = @"
-             SELECT date
-             FROM holiday
-             WHERE DATE(date) BETWEEN DATE(@start) AND DATE(@end)";
-            cmd.Parameters.AddWithValue("@start", start.ToString("yyyy-MM-dd"));
-            cmd.Parameters.AddWithValue("@end", end.ToString("yyyy-MM-dd"));
+        //    using var cmd = con.CreateCommand();
+        //    cmd.CommandText = @"
+        //     SELECT date,name
+        //     FROM holiday
+        //     WHERE DATE(date) BETWEEN DATE(@start) AND DATE(@end)";
+        //    cmd.Parameters.AddWithValue("@start", start.ToString("yyyy-MM-dd"));
+        //    cmd.Parameters.AddWithValue("@end", end.ToString("yyyy-MM-dd"));
 
-            using var reader = cmd.ExecuteReader();
-            while (reader.Read())
-            {
-                var date = DateTime.Parse(reader.GetString(0));
-                result.Add(new Holiday { date = date });
-            }
+        //    using var reader = cmd.ExecuteReader();
+        //    while (reader.Read())
+        //    {
+        //        var date = DateTime.Parse(reader.GetString(0));
+        //        var name = reader.GetString(1);
+        //        result.Add(new Holiday
+        //        {
+        //            date = date,
+        //            name = name
+        //        });
+        //    }
 
-            return result;
-        }
+        //    return result;
+        //}
 
 
 
@@ -674,7 +684,7 @@ namespace Shiftapp_demo.DataAccess
                 {
                     EmployeeId = reader.GetInt32(0),
 
-                    CanDoNightDuty = reader.GetInt32(1)==1,
+                    CanDoNightDuty = reader.GetInt32(1) == 1,
 
                     CanDoCatheterization = reader.GetInt32(2) == 1
                 });
@@ -701,7 +711,7 @@ namespace Shiftapp_demo.DataAccess
                 {
                     EmployeeId = reader.GetInt32(0),
 
-                    CanDayDuty = reader.GetInt32(1)==1,
+                    CanDayDuty = reader.GetInt32(1) == 1,
                 });
             }
             return result;

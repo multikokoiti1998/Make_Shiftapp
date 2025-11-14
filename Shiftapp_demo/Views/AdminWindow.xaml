@@ -123,19 +123,41 @@
             <Button Content="追加" Padding="12,6" Margin="0,0,8,0" Click="AddHoliday_Click"/>
             <Button Content="選択削除" Padding="12,6" Margin="0,0,8,0" />
         </StackPanel>
+        <Grid Grid.Row="6" Margin="10">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="2*" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
 
-        <!-- 祝日一覧 -->
-        <DataGrid Grid.Row="6" x:Name="HolidaysDataGrid"
-                  ItemsSource="{Binding Holidays}"
-                  AutoGenerateColumns="False"
-                  CanUserAddRows="False"
-                  CanUserDeleteRows="False"
-                  IsReadOnly="False">
-            <DataGrid.Columns>
-                <DataGridTextColumn Header="日付" Binding="{Binding Date, StringFormat=\{0:yyyy-MM-dd\}}" Width="160" IsReadOnly="True"/>
-                <DataGridTextColumn Header="名称" Binding="{Binding Name, UpdateSourceTrigger=PropertyChanged}" Width="*"/>
-            </DataGrid.Columns>
-        </DataGrid>
+            <!-- 左：祝日一覧 -->
+            <DataGrid Grid.Column="0"
+              x:Name="HolidaysDataGrid"
+              ItemsSource="{Binding Holidays}"
+              AutoGenerateColumns="False"
+              CanUserAddRows="False"
+              CanUserDeleteRows="False"
+              IsReadOnly="False">
+                <DataGrid.Columns>
+                    <DataGridTextColumn Header="日付"
+                                Binding="{Binding Date, StringFormat=\{0:yyyy-MM-dd\}}"
+                                Width="160"
+                                IsReadOnly="True"/>
+                    <DataGridTextColumn Header="名称"
+                                Binding="{Binding Name, UpdateSourceTrigger=PropertyChanged}"
+                                Width="*"/>
+                </DataGrid.Columns>
+            </DataGrid>
 
+            <!-- 右：カレンダー -->
+            <Calendar Grid.Column="1"
+              x:Name="AdminCalendar"
+              FontSize="24"
+              Style="{DynamicResource MaterialDesignCalendarPortrait}"
+              CalendarDayButtonStyle="{DynamicResource MaterialDesignFlatButton}"
+              SelectionMode="MultipleRange"
+              SelectedDate="{Binding SelectedDate, Mode=TwoWay}"
+              DisplayDate="{Binding DisplayDate, Mode=TwoWay}">
+            </Calendar>
+        </Grid>
     </Grid>
 </Window>

@@ -12,9 +12,9 @@ namespace Shiftapp_demo.Helper
         private static Binding b(string path) =>
             new(path) { Mode = BindingMode.TwoWay, UpdateSourceTrigger = UpdateSourceTrigger.Explicit };
 
-        public static ObservableCollection<DataGridColumn>GenerateColumnsForAdminEmployee
+        public static ObservableCollection<DataGridColumn> GenerateColumnsForAdminEmployee
             (IEnumerable<OptionItem> saturdayClassOptions,
-             IEnumerable<OptionItem>  RoleClassOptions)
+             IEnumerable<OptionItem> RoleClassOptions)
         {
             var columns = new ObservableCollection<DataGridColumn>();
 
@@ -54,7 +54,7 @@ namespace Shiftapp_demo.Helper
                 Width = 100,
                 MinWidth = 80,
                 ElementStyle = centerText,
-                EditingElementStyle =centerTextBox ,
+                EditingElementStyle = centerTextBox,
                 CellStyle = centerCell,
                 IsReadOnly = false
             });
@@ -65,8 +65,8 @@ namespace Shiftapp_demo.Helper
                 Binding = b("EmployeeName"),
                 Width = 180,
                 MinWidth = 120,
-                ElementStyle =centerText ,
-                EditingElementStyle =centerTextBox ,
+                ElementStyle = centerText,
+                EditingElementStyle = centerTextBox,
                 CellStyle = centerCell,
                 IsReadOnly = false
             });
@@ -77,7 +77,7 @@ namespace Shiftapp_demo.Helper
                 Binding = b("CanDoCatheterization"),
                 Width = 180,
                 MinWidth = 120,
-                ElementStyle =centerCheck,
+                ElementStyle = centerCheck,
                 EditingElementStyle = centerCheck,
                 CellStyle = centerCell,
                 IsReadOnly = false
@@ -93,7 +93,7 @@ namespace Shiftapp_demo.Helper
                 Width = 180,
                 MinWidth = 120,
                 ElementStyle = centerCombo,
-                EditingElementStyle =centerCombo,
+                EditingElementStyle = centerCombo,
                 CellStyle = centerCell,
                 IsReadOnly = false
             });
@@ -104,8 +104,8 @@ namespace Shiftapp_demo.Helper
                 Binding = b("CanDoNightDuty"),
                 Width = 180,
                 MinWidth = 120,
-                ElementStyle =centerCheck ,
-                EditingElementStyle =centerCheck,
+                ElementStyle = centerCheck,
+                EditingElementStyle = centerCheck,
                 CellStyle = centerCell,
                 IsReadOnly = false
             });
@@ -116,8 +116,8 @@ namespace Shiftapp_demo.Helper
                 Binding = b("CanDayDuty"),
                 Width = 180,
                 MinWidth = 120,
-                ElementStyle =centerCheck ,
-                EditingElementStyle =centerCheck ,
+                ElementStyle = centerCheck,
+                EditingElementStyle = centerCheck,
                 CellStyle = centerCell,
                 IsReadOnly = false
             });
@@ -126,11 +126,11 @@ namespace Shiftapp_demo.Helper
             {
                 Header = "月最大当直回数",
                 ItemsSource = new List<int> { 0, 1, 2, 3, 4 },
-                SelectedItemBinding =b("MonthlyDutyLimit"),
+                SelectedItemBinding = b("MonthlyDutyLimit"),
                 Width = 180,
                 MinWidth = 120,
                 ElementStyle = centerCombo,
-                EditingElementStyle =centerCombo ,
+                EditingElementStyle = centerCombo,
                 CellStyle = centerCell,
                 IsReadOnly = false
             });
@@ -144,8 +144,8 @@ namespace Shiftapp_demo.Helper
                 SelectedValueBinding = b("Role"),
                 Width = 180,
                 MinWidth = 120,
-                ElementStyle =centerCombo ,
-                EditingElementStyle =centerCombo ,
+                ElementStyle = centerCombo,
+                EditingElementStyle = centerCombo,
                 CellStyle = centerCell,
                 IsReadOnly = false
             });

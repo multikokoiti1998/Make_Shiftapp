@@ -77,5 +77,20 @@ namespace Shiftapp_demo.Views
             }
         }
 
+        private void AdminCalendar_DisplayDateChanged(object sender, CalendarDateChangedEventArgs e)
+        {
+            if (!IsLoaded) return; // ← ロード前に走る初期イベントを無視
+
+            if (_vm == null) return;
+
+            //未タッチ時、西暦１年になる対策
+            DateTime today = DateTime.Today;
+            AdminCalendar.DisplayDate = today;
+            AdminCalendar.SelectedDate = today;
+
+            DateTime currentYear = AdminCalendar.DisplayDate;
+             
+        }
+
     }
 }

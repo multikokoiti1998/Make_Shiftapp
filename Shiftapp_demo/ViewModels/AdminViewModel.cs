@@ -31,6 +31,23 @@ namespace Shiftapp_demo.ViewModels
         public ObservableCollection<Employee> Employees { get; } = new();
         public ObservableCollection<Holiday> Holidays { get; } = new();
 
+        //カレンダー用
+        public DateTime? SelectedDate { get; set; } = DateTime.Today;
+
+        private DateTime _displayDate = DateTime.Today;
+        public DateTime DisplayDate
+        {
+            get => _displayDate;
+            set
+            {
+                if (_displayDate != value)
+                {
+                    _displayDate = value;
+                    OnPropertyChanged(nameof(DisplayDate));
+                }
+            }
+        }
+
         // DataGrid の列を VM から流す用
         private ObservableCollection<DataGridColumn> _techniciansDataGridColumns = new();
         public ObservableCollection<DataGridColumn> TechniciansDataGridColumns
