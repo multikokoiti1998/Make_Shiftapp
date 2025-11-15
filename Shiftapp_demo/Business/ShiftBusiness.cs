@@ -1,13 +1,13 @@
 ﻿using Shiftapp_demo.DataAccess;
 using Shiftapp_demo.Models;
-using static Shiftapp_demo.DataAccess.DatabaseHelper;
+using static Shiftapp_demo.DataAccess.MainDatabaseHelper;
 
 namespace Shiftapp_demo.Business
 {
     internal class ShiftBusiness
     {
         private DateTime baseSaturday = new DateTime(2025, 8, 16);
-        private readonly DatabaseHelper _db;
+        private readonly MainDatabaseHelper _db;
         private Random rand = new Random();
         private readonly int stidWork;
         private readonly int stidOff;
@@ -18,7 +18,7 @@ namespace Shiftapp_demo.Business
         const int MinDutyGapDays = 3;
 
 
-        public ShiftBusiness(DatabaseHelper db)
+        public ShiftBusiness(MainDatabaseHelper db)
         {
             _db = db;
             stidWork = _db.GetShiftTypeIdBySymbol("/");   // 土曜出勤

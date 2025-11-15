@@ -7,10 +7,10 @@ namespace Shiftapp_demo.Csv
 
     public sealed class CsvBusiness
     {
-        private readonly DatabaseHelper _db;
+        private readonly MainDatabaseHelper _db;
         private readonly IShiftCsvExporter _exporter;
 
-        public CsvBusiness(DatabaseHelper db, IShiftCsvExporter exporter)
+        public CsvBusiness(MainDatabaseHelper db, IShiftCsvExporter exporter)
         {
             _db = db ?? throw new ArgumentNullException(nameof(db));
             _exporter = exporter ?? throw new ArgumentNullException(nameof(exporter));

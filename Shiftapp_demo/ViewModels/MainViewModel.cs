@@ -22,7 +22,7 @@ namespace Shiftapp_demo.ViewModels
     {
         private ShiftDataLoader _dataLoader;
 
-        private readonly DatabaseHelper db;
+        private readonly MainDatabaseHelper db;
 
         private readonly ShiftBusiness _business;
         //カレンダー初期化用バインディング
@@ -108,7 +108,7 @@ namespace Shiftapp_demo.ViewModels
 
             ShiftGridColumns = new ObservableCollection<DataGridColumn>();
 
-            db = new DatabaseHelper();
+            db = new MainDatabaseHelper();
 
             _business = new ShiftBusiness(db);
 
@@ -207,7 +207,7 @@ namespace Shiftapp_demo.ViewModels
 
         public void LoadShiftDataForMonth(DateTime month)
         {
-            var db = new DatabaseHelper();
+            var db = new MainDatabaseHelper();
 
             LoadShiftTypes();
 
@@ -266,7 +266,5 @@ namespace Shiftapp_demo.ViewModels
             ShiftGridColumns = GridHelperClass.GenerateColumnsForMonth(month);
 
         }
-
-
     }
 }
