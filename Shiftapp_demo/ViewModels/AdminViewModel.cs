@@ -34,20 +34,6 @@ namespace Shiftapp_demo.ViewModels
         //カレンダー用
         public DateTime? SelectedDate { get; set; } = DateTime.Today;
 
-        private DateTime _displayDate = DateTime.Today;
-        public DateTime DisplayDate
-        {
-            get => _displayDate;
-            set
-            {
-                if (_displayDate != value)
-                {
-                    _displayDate = value;
-                    OnPropertyChanged(nameof(DisplayDate));
-                }
-            }
-        }
-
         // DataGrid の列を VM から流す用
         private ObservableCollection<DataGridColumn> _techniciansDataGridColumns = new();
         public ObservableCollection<DataGridColumn> TechniciansDataGridColumns
@@ -92,7 +78,7 @@ namespace Shiftapp_demo.ViewModels
         {
             // --- 技師一覧 ---
             Employees.Clear();
-            foreach (var e in _db.GetAllEmployees()) // 同期I/Oなら Task.Run に包む必要はない
+            foreach (var e in _db.GetAllEmployees())
             {
                 if (ct.IsCancellationRequested) return;
                 Employees.Add(e);
@@ -103,14 +89,14 @@ namespace Shiftapp_demo.ViewModels
             var first = new DateTime(CurrentMonth.Year, CurrentMonth.Month, 1);
             var next = first.AddMonths(1);
 
-            var holidays = _db.GetHolidays(first, next); // List<Holiday>（小文字プロパティ版）
+            var holidays = _db.GetAllHolidays(CurrentMonth); // List<Holiday>（小文字プロパティ版）
             foreach (var h in holidays)
             {
                 if (ct.IsCancellationRequested) return;
                 Holidays.Add(new Holiday
                 {
                     holiday_id = h.holiday_id,
-                    date = h.date.Date, 
+                    date = h.date.Date,
                     name = h.name
                 });
             }
@@ -137,14 +123,6 @@ namespace Shiftapp_demo.ViewModels
                 new OptionItem("4", "非正規技師"),
             };
 
-        //// INotifyPropertyChanged 実装
-        //public event PropertyChangedEventHandler? PropertyChanged;
-        //public virtual void OnPropertyChanged(string propertyName)
-        //{
-        //    PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
-        //}
-
-        // SetProperty ヘルパー
         protected bool SetProperty<T>(ref T field, T value, [CallerMemberName] string? name = null)
         {
             if (EqualityComparer<T>.Default.Equals(field, value)) return false;

@@ -60,7 +60,7 @@
           IsReadOnly="False"
           SelectionMode="Single"
           Margin="0,8,0,8">
-            
+
             <DataGrid.Columns>
                 <DataGridTextColumn Header="ID" 
                                     Binding="{Binding EmployeeId}" 
@@ -139,12 +139,13 @@
               IsReadOnly="False">
                 <DataGrid.Columns>
                     <DataGridTextColumn Header="日付"
-                                Binding="{Binding Date, StringFormat=\{0:yyyy-MM-dd\}}"
+                                Binding="{Binding date, StringFormat=\{0:yyyy-MM-dd\}}"
                                 Width="160"
                                 IsReadOnly="True"/>
                     <DataGridTextColumn Header="名称"
-                                Binding="{Binding Name, UpdateSourceTrigger=PropertyChanged}"
-                                Width="*"/>
+                                Binding="{Binding name, UpdateSourceTrigger=PropertyChanged}"
+                                Width="*"
+                                IsReadOnly="True"/>
                 </DataGrid.Columns>
             </DataGrid>
 
@@ -155,8 +156,8 @@
               Style="{DynamicResource MaterialDesignCalendarPortrait}"
               CalendarDayButtonStyle="{DynamicResource MaterialDesignFlatButton}"
               SelectionMode="MultipleRange"
-              SelectedDate="{Binding SelectedDate, Mode=TwoWay}"
-              DisplayDate="{Binding DisplayDate, Mode=TwoWay}">
+              SelectedDate="{Binding SelectedDate, Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}"
+              DisplayDate="{Binding CurrentMonth, Mode=TwoWay}">
             </Calendar>
         </Grid>
     </Grid>

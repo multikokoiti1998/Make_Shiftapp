@@ -64,33 +64,5 @@ namespace Shiftapp_demo.Views
             HolidayNameTextBox.Clear();
         }
 
-        private void DeleteSelectedHoliday_Click(object sender, RoutedEventArgs e)
-        {
-            if (HolidaysDataGrid.SelectedItem is Holiday sel)
-            {
-                Holidays.Remove(sel);
-            }
-            else
-            {
-                MessageBox.Show("削除する休日を選択してください。", "選択なし",
-                    MessageBoxButton.OK, MessageBoxImage.Warning);
-            }
-        }
-
-        private void AdminCalendar_DisplayDateChanged(object sender, CalendarDateChangedEventArgs e)
-        {
-            if (!IsLoaded) return; // ← ロード前に走る初期イベントを無視
-
-            if (_vm == null) return;
-
-            //未タッチ時、西暦１年になる対策
-            DateTime today = DateTime.Today;
-            AdminCalendar.DisplayDate = today;
-            AdminCalendar.SelectedDate = today;
-
-            DateTime currentYear = AdminCalendar.DisplayDate;
-             
-        }
-
     }
 }
