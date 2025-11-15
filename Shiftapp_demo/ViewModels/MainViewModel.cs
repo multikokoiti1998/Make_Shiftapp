@@ -45,8 +45,8 @@ namespace Shiftapp_demo.ViewModels
 
         private readonly Dictionary<string, int> _symbolToId = new();
 
-        private readonly HashSet<int> _parentTypeIds = new();    
-        
+        private readonly HashSet<int> _parentTypeIds = new();
+
         private readonly HashSet<string> _parentSymbols = new(new[] { "当", "●", "日" });
 
         private Dictionary<(int Eid, DateTime Date), string> _originalSymbolMap = new();
@@ -112,8 +112,8 @@ namespace Shiftapp_demo.ViewModels
 
             _business = new ShiftBusiness(db);
 
-            _exporter = new CsvHelperExporter(); 
-            
+            _exporter = new CsvHelperExporter();
+
             _csvBiz = new CsvBusiness(db, _exporter);
 
             ExportCsvRowsCommand = new RelayCommand(async p => await ExportCsvRowsAsync(p));
@@ -198,7 +198,7 @@ namespace Shiftapp_demo.ViewModels
 
         public void MakeNightDuty(DateTime month)
         {
-            db.DeleteMonthDutyAndDayParentsWithCascade(month,1,0);
+            db.DeleteMonthDutyAndDayParentsWithCascade(month, 1, 0);
 
             _business.GenerateNightDutiesForMonth(month);
 
@@ -223,10 +223,10 @@ namespace Shiftapp_demo.ViewModels
             MonthHeaderText = $"{month.Year}年 {month.Month}月";
 
             // 1) 全社員（ID／名前）を取得
-            var employees = db.GetAllEmployees(); 
+            var employees = db.GetAllEmployees();
 
             // 2) 期間内の実シフトだけ取得（無い日は返らない）
-            var shifts = db.GetShiftsOnly(firstDay, lastDay); 
+            var shifts = db.GetShiftsOnly(firstDay, lastDay);
 
             // 3) 社員ごとにまとめて、全日を空で初期化→存在するシフトだけ上書き
             var loaders = new List<ShiftDataLoader>(employees.Count);
@@ -267,12 +267,6 @@ namespace Shiftapp_demo.ViewModels
 
         }
 
-        //public event PropertyChangedEventHandler PropertyChanged;
-
-        //public virtual void OnPropertyChanged(string propertyName)
-        //{
-        //    PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
-        //}
 
     }
 }

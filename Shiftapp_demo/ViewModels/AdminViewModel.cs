@@ -15,34 +15,35 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Controls;
 using System.Windows.Input;
+using Shiftapp_demo.DataAccess;
 
 
 namespace Shiftapp_demo.ViewModels
 {
     public class AdminViewModel : ViewModelBase
     {
-        private ShiftDataLoader _dataLoader;
 
-        private readonly DatabaseHelper _db;
+        private readonly AdminDatabaseHelper _db;
 
-        private readonly ShiftBusiness _business;
 
         // ====== 画面バインド用コレクション ======
         public ObservableCollection<Employee> Employees { get; } = new();
         public ObservableCollection<Holiday> Holidays { get; } = new();
 
+        // ====== バインド用コマンド ======
+        public ICommand AddEmployeeCommand { get; }
+
+        public ICommand DeleteEmployeeCommand { get; }
+
+        public ICommand SaveEmployeeCommand { get; }
+
+        public ICommand DeleteHolidayCommand { get; }
+
+        public ICommand SaveHolidaysCommand { get; }
+
         //カレンダー用
         public DateTime? SelectedDate { get; set; } = DateTime.Today;
 
-        // DataGrid の列を VM から流す用
-        private ObservableCollection<DataGridColumn> _techniciansDataGridColumns = new();
-        public ObservableCollection<DataGridColumn> TechniciansDataGridColumns
-        {
-            get => _techniciansDataGridColumns;
-            private set => SetProperty(ref _techniciansDataGridColumns, value);
-        }
-
-        // 表示中の月（初期値＝今月）
         private DateTime _currentMonth = new DateTime(DateTime.Today.Year, DateTime.Today.Month, 1);
         public DateTime CurrentMonth
         {
@@ -57,13 +58,20 @@ namespace Shiftapp_demo.ViewModels
             }
         }
 
+        // DataGrid の列を VM から流す用
+        private ObservableCollection<DataGridColumn> _techniciansDataGridColumns = new();
+        public ObservableCollection<DataGridColumn> TechniciansDataGridColumns
+        {
+            get => _techniciansDataGridColumns;
+            private set => SetProperty(ref _techniciansDataGridColumns, value);
+        }
+
+        
+
         public AdminViewModel()
         {
-            _dataLoader = new ShiftDataLoader();
 
-            _db = new DatabaseHelper();
-
-            _business = new ShiftBusiness(_db);
+            _db = new AdminDatabaseHelper();
 
             // ★ 列をここで生成（Helper を呼ぶ）
             TechniciansDataGridColumns =
