@@ -58,6 +58,10 @@ namespace Shiftapp_demo.Models
             private set { if (_isDirty != value) { _isDirty = value; OnPropertyChanged(nameof(IsDirty)); } }
         }
 
+        public void AcceptChanges()
+        {
+            IsDirty = false;
+        }
 
         public virtual void OnPropertyChanged(string propertyName)
         {

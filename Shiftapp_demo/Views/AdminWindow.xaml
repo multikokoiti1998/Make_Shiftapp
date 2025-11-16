@@ -55,6 +55,7 @@
           x:Name="TechniciansDataGrid"
           AutoGenerateColumns="False"
           ItemsSource="{Binding Employees}"
+          SelectedItem="{Binding SelectedEmployee, Mode=TwoWay}"
           CanUserAddRows="False"
           CanUserDeleteRows="False"
           IsReadOnly="False"
@@ -104,9 +105,9 @@
 
         <!-- 技師操作ボタン -->
         <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" >
-            <Button Content="新規技師追加" Padding="12,6" Margin="4" Command=""/>
-            <Button Content="選択技師削除" Padding="12,6" Margin="4" />
-            <Button Content="保存（一覧の変更をDBへ）" Padding="12,6" Margin="4"/>
+            <Button Content="新規技師追加" Padding="12,6" Margin="4" Command="{Binding AddEmployeeCommand}"/>
+            <Button Content="選択技師削除" Padding="12,6" Margin="4" Command="{Binding DeleteEmployeeCommand}"/>
+            <Button Content="保存（一覧の変更をDBへ）" Padding="12,6" Margin="4" Command="{Binding SaveEmployeeCommand}"/>
         </StackPanel>
 
         <!-- 見出し：祝日 -->
@@ -114,15 +115,34 @@
 
         <!-- 祝日操作バー -->
         <StackPanel Grid.Row="5" Orientation="Horizontal" Margin="0,8,0,8">
+            
             <TextBlock Text="日付：" VerticalAlignment="Center" Margin="0,0,8,0"/>
-            <DatePicker x:Name="HolidayDatePicker" Width="160" Margin="0,0,16,0"/>
+            <DatePicker
+            Width="160"
+            Margin="0,0,16,0"
+            SelectedDate="{Binding NewHolidayDate, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
 
             <TextBlock Text="名称例：敬老の日：" VerticalAlignment="Center" Margin="0,0,8,0"/>
-            <TextBox x:Name="HolidayNameTextBox" Width="240" Height="30" Margin="0,0,16,0" ToolTip=""/>
+            <TextBox
+            Width="240"
+            Height="30"
+            Margin="0,0,16,0"
+            Text="{Binding NewHolidayName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
 
-            <Button Content="追加" Padding="12,6" Margin="0,0,8,0" Click="AddHoliday_Click"/>
-            <Button Content="選択削除" Padding="12,6" Margin="0,0,8,0" />
+            <Button
+            Content="追加"
+            Padding="12,6"
+            Margin="0,0,8,0"
+            Command="{Binding AddHolidaysCommand}" />
+
+            <Button
+            Content="選択削除"
+            Padding="12,6"
+            Margin="0,0,8,0"
+            Command="{Binding DeleteHolidayCommand}" />
+            
         </StackPanel>
+
         <Grid Grid.Row="6" Margin="10">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="2*" />
@@ -133,6 +153,7 @@
             <DataGrid Grid.Column="0"
               x:Name="HolidaysDataGrid"
               ItemsSource="{Binding Holidays}"
+              SelectedItem="{Binding SelectedHoliday, Mode=TwoWay}"
               AutoGenerateColumns="False"
               CanUserAddRows="False"
               CanUserDeleteRows="False"

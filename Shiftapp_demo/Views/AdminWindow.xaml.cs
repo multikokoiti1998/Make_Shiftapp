@@ -16,7 +16,6 @@ namespace Shiftapp_demo.Views
         private readonly AdminViewModel _vm;
         public ObservableCollection<Employee> Employees { get; set; } = new();
         public ObservableCollection<Holiday> Holidays { get; set; } = new();       // 祝日一覧（当月）
-
         public AdminWindow()
         {
             InitializeComponent();
@@ -37,32 +36,5 @@ namespace Shiftapp_demo.Views
             };
 
         }
-
-
-        private void AddHoliday_Click(object sender, RoutedEventArgs e)
-        {
-            // XAML に x:Name="HolidayDatePicker" / "HolidayNameTextBox" を付けておく前提
-            if (HolidayDatePicker.SelectedDate is not DateTime sel)
-            {
-                MessageBox.Show("日付を選択してください。", "入力不足",
-                    MessageBoxButton.OK, MessageBoxImage.Warning);
-                return;
-            }
-
-            var d = sel.Date;
-            var name = (HolidayNameTextBox.Text ?? "").Trim();
-            if (string.IsNullOrEmpty(name)) name = "休日";
-
-            if (Holidays.Any(x => x.date.Date == d))
-            {
-                MessageBox.Show("同じ日付の休日が既にあります。", "重複",
-                    MessageBoxButton.OK, MessageBoxImage.Information);
-                return;
-            }
-
-            Holidays.Add(new Holiday { date = d, name = name });
-            HolidayNameTextBox.Clear();
-        }
-
     }
 }
