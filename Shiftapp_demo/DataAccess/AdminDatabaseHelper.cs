@@ -15,12 +15,9 @@ namespace Shiftapp_demo.DataAccess
 {
     public class AdminDatabaseHelper : BaseDatabaseHelper
     {
-        //private string _connectionString;
         public AdminDatabaseHelper() : base()
         {
-            //var baseDir = AppDomain.CurrentDomain.BaseDirectory;
-            //var dbPath = Path.Combine(baseDir, "Data", "shiftapp.db");
-            //_connectionString = $"Data Source={dbPath}";
+
         }
 
         public int InsertEmployee(Employee e)
@@ -59,6 +56,7 @@ namespace Shiftapp_demo.DataAccess
             cmd.Parameters.AddWithValue("@canDay", e.CanDayDuty ? 1 : 0);
 
             var obj = cmd.ExecuteScalar();
+
             return Convert.ToInt32(obj);
         }
 
