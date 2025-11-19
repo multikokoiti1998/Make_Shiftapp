@@ -11,7 +11,7 @@ namespace Shiftapp_demo.DataAccess
 {
     public class BaseDatabaseHelper
     {
-        private string _connectionString;
+        protected string _connectionString;
 
         public BaseDatabaseHelper()
         {

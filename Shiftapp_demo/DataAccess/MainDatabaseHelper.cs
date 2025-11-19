@@ -7,7 +7,7 @@ namespace Shiftapp_demo.DataAccess
 { 
     public class MainDatabaseHelper : BaseDatabaseHelper
     {
-        private string _connectionString;
+        //private string _connectionString;
 
         public record ShiftWrite(
          int EmployeeId,
@@ -25,11 +25,11 @@ namespace Shiftapp_demo.DataAccess
            );
 
 
-        public MainDatabaseHelper()
+        public MainDatabaseHelper() : base()
         {
-            var baseDir = AppDomain.CurrentDomain.BaseDirectory;
-            var dbPath = Path.Combine(baseDir, "Data", "shiftapp.db");
-            _connectionString = $"Data Source={dbPath}";
+            //var baseDir = AppDomain.CurrentDomain.BaseDirectory;
+            //var dbPath = Path.Combine(baseDir, "Data", "shiftapp.db");
+            //_connectionString = $"Data Source={dbPath}";
         }
 
         public List<ShiftRow> GetShiftRow(DateTime startDate, DateTime endDate)

@@ -15,12 +15,12 @@ namespace Shiftapp_demo.DataAccess
 {
     public class AdminDatabaseHelper : BaseDatabaseHelper
     {
-        private string _connectionString;
-        public AdminDatabaseHelper()
+        //private string _connectionString;
+        public AdminDatabaseHelper() : base()
         {
-            var baseDir = AppDomain.CurrentDomain.BaseDirectory;
-            var dbPath = Path.Combine(baseDir, "Data", "shiftapp.db");
-            _connectionString = $"Data Source={dbPath}";
+            //var baseDir = AppDomain.CurrentDomain.BaseDirectory;
+            //var dbPath = Path.Combine(baseDir, "Data", "shiftapp.db");
+            //_connectionString = $"Data Source={dbPath}";
         }
 
         public int InsertEmployee(Employee e)
@@ -88,6 +88,7 @@ namespace Shiftapp_demo.DataAccess
           CanDoNightDuty       = @canNight,
           Role                 = @role,
           CanDoDayduty         = @canDay
+           
         WHERE employee_id = @id;";
 
             cmd.Parameters.AddWithValue("@name", e.EmployeeName);
