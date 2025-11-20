@@ -121,6 +121,7 @@ namespace Shiftapp_demo.DataAccess
             return result;
         }
 
+       
         //各技師の土曜日の班を取得
         public List<Employee> GetActiveEmployeesWithSaturdayClass()
         {
@@ -160,6 +161,7 @@ namespace Shiftapp_demo.DataAccess
             return Convert.ToInt32(obj);
         }
 
+        // シフト種別IDマップ取得 
         public Dictionary<(int EmployeeId, DateTime Date), int> GetShiftMap(DateTime start, DateTime end)
         {
             var map = new Dictionary<(int, DateTime), int>();
@@ -174,7 +176,7 @@ namespace Shiftapp_demo.DataAccess
               b.shift_date,
               b.shift_type_id
             FROM daily_employee_shifts b
-            JOIN employee e ON e.employee_id = b.employee_id AND e.is_active = 1
+            JOIN employee e ON e.employee_id = b.employee_id
             WHERE DATE(b.shift_date) >= DATE(@start)
               AND DATE(b.shift_date) <  DATE(@next)
             ORDER BY b.employee_id, b.shift_date;";
@@ -564,7 +566,7 @@ namespace Shiftapp_demo.DataAccess
             cmd.CommandText = @"
             SELECT employee_id, CanDoNightDuty,CanDoCatheterization
             FROM employee 
-            WHERE is_active = 1 and CanDoNightDuty=1";
+            WHERE CanDoNightDuty=1";
 
             using var reader = cmd.ExecuteReader();
             while (reader.Read())
@@ -591,7 +593,7 @@ namespace Shiftapp_demo.DataAccess
             cmd.CommandText = @"
             SELECT employee_id, CanDoDayduty,CanDoCatheterization
             FROM employee 
-            WHERE is_active = 1 and CanDoCatheterization==0 and CanDoDayduty==1 ";
+            WHERE CanDoCatheterization==0 and CanDoDayduty==1 ";
 
             using var reader = cmd.ExecuteReader();
             while (reader.Read())
@@ -635,45 +637,6 @@ namespace Shiftapp_demo.DataAccess
 
             return result;
         }
-
-        //public List<Holiday> GetAllHolidays(DateTime baseDate)
-        //{
-        //    var result = new List<Holiday>();
-
-        //    // DisplayDate から年だけ取り出す
-        //    int year = baseDate.Year;
-
-        //    // その年の 1/1 ～ 12/31 を範囲にする
-        //    var start = new DateTime(year, 1, 1);
-        //    var end = new DateTime(year, 12, 31);
-
-        //    using var con = new SqliteConnection(_connectionString);
-        //    con.Open();
-
-        //    using var cmd = con.CreateCommand();
-        //    cmd.CommandText = @"
-        //SELECT date, name
-        //FROM holiday
-        //WHERE DATE(date) BETWEEN DATE(@start) AND DATE(@end);";
-
-        //    cmd.Parameters.AddWithValue("@start", start.ToString("yyyy-MM-dd"));
-        //    cmd.Parameters.AddWithValue("@end", end.ToString("yyyy-MM-dd"));
-
-        //    using var reader = cmd.ExecuteReader();
-        //    while (reader.Read())
-        //    {
-        //        var date = DateTime.Parse(reader.GetString(0));
-        //        var name = reader.GetString(1);
-
-        //        result.Add(new Holiday
-        //        {
-        //            date = date,
-        //            name = name
-        //        });
-        //    }
-
-        //    return result;
-        //}
 
         // ====== 休日取得用 ======
     }

@@ -30,7 +30,6 @@ namespace Shiftapp_demo.DataAccess
             SELECT employee_id, employee_name,CanDoCatheterization,saturday_class, 
             MonthlyDutyLimit,CanDoNightDuty,Role, CanDoDayduty,is_active
             FROM employee
-            WHERE is_active = 1
             ORDER BY Role";
 
             using var reader = cmd.ExecuteReader();
