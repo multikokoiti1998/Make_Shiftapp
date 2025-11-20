@@ -170,9 +170,11 @@ namespace Shiftapp_demo.ViewModels
         // ====== コマンドの関数 ======
         private void AddEmployee()
         {
+            int newId = _db.InsertBlankEmployee();
+
             var emp = new Employee
             {
-                EmployeeId = 0,              // 新規
+                EmployeeId = newId,              // 新規
                 EmployeeName = "",
                 CanDoCatheterization = false,
                 SaturdayClass = "A",
@@ -254,17 +256,19 @@ namespace Shiftapp_demo.ViewModels
                         return;
                     }
 
-                    if (e.EmployeeId == 0)
-                    {
-                        // 新規 → INSERT
-                        var newId = _db.InsertEmployee(e);
-                        e.EmployeeId = newId;
-                    }
-                    else
-                    {
-                        // 既存 → UPDATE
-                        _db.UpdateEmployee(e);
-                    }
+                    //if (e.EmployeeId == 0)
+                    //{
+                    //    // 新規 → INSERT
+                    //    var newId = _db.InsertEmployee(e);
+                    //    e.EmployeeId = newId;
+                    //}
+
+                    _db.UpdateEmployee(e);
+                    // 既存 → UPDATE
+                    //else
+                    //{
+                    //    _db.UpdateEmployee(e);
+                    //}
 
                     // 保存完了したので Dirty フラグをクリア
                     e.AcceptChanges();

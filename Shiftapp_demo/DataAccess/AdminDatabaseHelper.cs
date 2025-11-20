@@ -20,45 +20,41 @@ namespace Shiftapp_demo.DataAccess
 
         }
 
-        public int InsertEmployee(Employee e)
+        public int InsertBlankEmployee()
         {
             using var con = new SqliteConnection(_connectionString);
             con.Open();
 
             using var cmd = con.CreateCommand();
             cmd.CommandText = @"
-        INSERT INTO employee
-          (employee_name,
-           CanDoCatheterization,
-           saturday_class,
-           MonthlyDutyLimit,
-           CanDoNightDuty,
-           Role,
-           CanDoDayduty,
-           is_active)
-        VALUES
-          (@name,
-           @canCath,
-           @satClass,
-           @monthlyLimit,
-           @canNight,
-           @role,
-           @canDay,
-           1);
-        SELECT last_insert_rowid();";
+            INSERT INTO employee (
+              employee_name,
+              CanDoCatheterization,
+              saturday_class,
+              MonthlyDutyLimit,
+              CanDoNightDuty,
+              Role,
+              CanDoDayduty,
+              is_active
+            )
+                VALUES (
+                  '',          -- 初期は空文字
+                  0,           -- false
+                  'A',         -- 初期クラス
+                  0,
+                  0,
+                  0,
+                  0,
+                  1
+                );
+            ";
 
-            cmd.Parameters.AddWithValue("@name", e.EmployeeName);
-            cmd.Parameters.AddWithValue("@canCath", e.CanDoCatheterization ? 1 : 0);
-            cmd.Parameters.AddWithValue("@satClass", e.SaturdayClass ?? "");
-            cmd.Parameters.AddWithValue("@monthlyLimit", e.MonthlyDutyLimit);
-            cmd.Parameters.AddWithValue("@canNight", e.CanDoNightDuty ? 1 : 0);
-            cmd.Parameters.AddWithValue("@role", e.Role);
-            cmd.Parameters.AddWithValue("@canDay", e.CanDayDuty ? 1 : 0);
+            cmd.ExecuteNonQuery();
 
-            var obj = cmd.ExecuteScalar();
-
-            return Convert.ToInt32(obj);
+            cmd.CommandText = "SELECT last_insert_rowid();";
+            return Convert.ToInt32(cmd.ExecuteScalar());
         }
+
 
         public void DeleteEmployee(int id)
         {
