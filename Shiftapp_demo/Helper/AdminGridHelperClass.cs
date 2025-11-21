@@ -10,7 +10,7 @@ namespace Shiftapp_demo.Helper
     class AdminGridHelperClass
     {
         private static Binding b(string path) =>
-            new(path) { Mode = BindingMode.TwoWay, UpdateSourceTrigger = UpdateSourceTrigger.Explicit };
+            new(path) { Mode = BindingMode.TwoWay, UpdateSourceTrigger = UpdateSourceTrigger.LostFocus};
 
         public static ObservableCollection<DataGridColumn> GenerateColumnsForAdminEmployee
             (IEnumerable<OptionItem> saturdayClassOptions,

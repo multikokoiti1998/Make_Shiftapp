@@ -84,7 +84,7 @@ namespace Shiftapp_demo.DataAccess
             MonthlyDutyLimit    = @monthlyLimit,
             CanDoNightDuty      = @canNight,
             Role                = @role,
-            CanDoDayduty        = @canDay,
+            CanDoDayduty        = @canDay
             WHERE employee_id = @id;
             ";
 

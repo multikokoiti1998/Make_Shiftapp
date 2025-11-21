@@ -93,7 +93,6 @@ namespace Shiftapp_demo.ViewModels
             {
                 if (SetProperty(ref _currentMonth, new DateTime(value.Year, value.Month, 1)))
                 {
-                    // 月が変わったらロードし直す（非同期 fire-and-forget を避ける場合は外から LoadAsync を呼ぶ）
                     _ = LoadAsync();
                 }
             }
@@ -152,8 +151,11 @@ namespace Shiftapp_demo.ViewModels
             var first = new DateTime(CurrentMonth.Year, CurrentMonth.Month, 1);
             var next = first.AddMonths(1);
 
-            var holidays = _db.GetAllHolidays(CurrentMonth); // List<Holiday>（小文字プロパティ版）
-            foreach (var h in holidays)
+            var holidays = _db.GetAllHolidays(CurrentMonth);
+            var holidays_ordered = holidays
+                            .OrderBy(x => x.date)
+                            .ToList();
+            foreach (var h in holidays_ordered)
             {
                 if (ct.IsCancellationRequested) return;
                 Holidays.Add(new Holiday
@@ -174,8 +176,8 @@ namespace Shiftapp_demo.ViewModels
 
             var emp = new Employee
             {
-                EmployeeId = newId,   // ← これ！ ShiftId じゃない
-                ShiftId = 0,       // DB上は NULL、必要なら0でもOK
+                EmployeeId = newId,   
+                ShiftId = 0,      
                 EmployeeName = "",
                 CanDoCatheterization = false,
                 SaturdayClass = "A",
