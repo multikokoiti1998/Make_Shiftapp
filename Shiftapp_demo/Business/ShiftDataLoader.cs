@@ -5,6 +5,8 @@ namespace Shiftapp_demo.Business
     public class ShiftDataLoader : INotifyPropertyChanged
     {
         public int EmployeeId { get; set; }
+
+        public int ShiftId { get; set; }
         public string EmployeeName { get; set; }
 
         public int Role { get; set; }

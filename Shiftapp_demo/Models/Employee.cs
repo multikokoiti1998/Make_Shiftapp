@@ -9,6 +9,10 @@ namespace Shiftapp_demo.Models
         private int _employeeId;
         public int EmployeeId { get => _employeeId; set { if (_employeeId != value) { _employeeId = value; Raise(nameof(EmployeeId)); IsDirty = true; } } }
 
+        private int _shiftId;
+
+        public int ShiftId { get => _shiftId; set { if (_shiftId != value) { _shiftId = value; Raise(nameof(ShiftId)); IsDirty = true; } } }
+
         private string _employeeName = "";
         public string EmployeeName { get => _employeeName; set { if (_employeeName != value) { _employeeName = value; Raise(nameof(EmployeeName)); IsDirty = true; } } }
 

@@ -231,11 +231,11 @@ namespace Shiftapp_demo.ViewModels
             // 3) 社員ごとにまとめて、全日を空で初期化→存在するシフトだけ上書き
             var loaders = new List<ShiftDataLoader>(employees.Count);
 
-            foreach (var e in employees.OrderBy(x => x.EmployeeId))
+            foreach (var e in employees.OrderBy(x => x.ShiftId))
             {
                 var loader = new ShiftDataLoader
                 {
-                    EmployeeId = e.EmployeeId,
+                    ShiftId = e.ShiftId,
                     EmployeeName = e.EmployeeName,
                     Role = e.Role
                 };
@@ -257,7 +257,7 @@ namespace Shiftapp_demo.ViewModels
 
             var ordered = loaders
                    .OrderBy(x => x.Role)
-                   .ThenBy(x => x.EmployeeId)
+                   .ThenBy(x => x.ShiftId)
                    .ToList();
 
             ShiftDataCollection = new ObservableCollection<ShiftDataLoader>(ordered);

@@ -29,7 +29,7 @@ namespace Shiftapp_demo.Helper
             columns.Add(new DataGridTextColumn
             {
                 Header = "ID",
-                Binding = new Binding("EmployeeId"),
+                Binding = new Binding("ShiftId"),
                 Width = 100,
                 MinWidth = 80,
                 ElementStyle = center,

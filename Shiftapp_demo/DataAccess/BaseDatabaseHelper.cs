@@ -27,8 +27,8 @@ namespace Shiftapp_demo.DataAccess
 
             var cmd = connection.CreateCommand();
             cmd.CommandText = @"
-            SELECT employee_id, employee_name,CanDoCatheterization,saturday_class, 
-            MonthlyDutyLimit,CanDoNightDuty,Role, CanDoDayduty,is_active
+            SELECT employee_id, Shift_id,employee_name,CanDoCatheterization,saturday_class, 
+            MonthlyDutyLimit,CanDoNightDuty,Role, CanDoDayduty
             FROM employee
             ORDER BY Role";
 
@@ -38,13 +38,14 @@ namespace Shiftapp_demo.DataAccess
                 employees.Add(new Employee
                 {
                     EmployeeId = reader.GetInt32(0),
-                    EmployeeName = reader.GetString(1),
-                    CanDoCatheterization = reader.GetInt32(2) == 1,
-                    SaturdayClass = reader.GetString(3),
-                    MonthlyDutyLimit = reader.GetInt32(4),
-                    CanDoNightDuty = reader.GetInt32(5) == 1,
-                    Role = reader.GetInt32(6),
-                    CanDayDuty = reader.GetInt32(7) == 1,
+                    ShiftId=reader.GetInt32(1),
+                    EmployeeName = reader.GetString(2),
+                    CanDoCatheterization = reader.GetInt32(3) == 1,
+                    SaturdayClass = reader.GetString(4),
+                    MonthlyDutyLimit = reader.GetInt32(5),
+                    CanDoNightDuty = reader.GetInt32(6) == 1,
+                    Role = reader.GetInt32(7),
+                    CanDayDuty = reader.GetInt32(8) == 1,
                 });
             }
             return employees;
