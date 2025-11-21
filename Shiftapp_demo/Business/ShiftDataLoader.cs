@@ -22,6 +22,18 @@ namespace Shiftapp_demo.Business
             }
         }
 
+        //UI更新フラグ
+        private bool _isDirty;
+        public bool IsDirty
+        {
+            get => _isDirty;
+            private set { if (_isDirty != value) { _isDirty = value; OnPropertyChanged(nameof(IsDirty)); } }
+        }
+        public void AcceptChanges()
+        {
+            IsDirty = false;
+        }
+
         public event PropertyChangedEventHandler PropertyChanged;
         protected void OnPropertyChanged(string propertyName)
         {

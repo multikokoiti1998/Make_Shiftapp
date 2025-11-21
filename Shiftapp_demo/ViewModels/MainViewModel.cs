@@ -217,6 +217,7 @@ namespace Shiftapp_demo.ViewModels
 
             //日付取得
             var firstDay = new DateTime(month.Year, month.Month, 1);
+
             var lastDay = firstDay.AddMonths(1).AddDays(-1);
 
             // ヘッダー
@@ -253,6 +254,8 @@ namespace Shiftapp_demo.ViewModels
                 }
 
                 loaders.Add(loader);
+
+                loader.AcceptChanges();
             }
 
             var ordered = loaders

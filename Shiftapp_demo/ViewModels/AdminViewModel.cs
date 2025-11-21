@@ -50,7 +50,6 @@ namespace Shiftapp_demo.ViewModels
                 {
                     _selectedEmployee = value;
                     OnPropertyChanged(nameof(SelectedEmployee));
-                    // Delete ボタンの活性切り替え
                     (DeleteEmployeeCommand as RelayCommand)?.RaiseCanExecuteChanged();
                 }
             }
@@ -100,6 +99,7 @@ namespace Shiftapp_demo.ViewModels
 
         // DataGrid の列を VM から流す用
         private ObservableCollection<DataGridColumn> _techniciansDataGridColumns = new();
+
         public ObservableCollection<DataGridColumn> TechniciansDataGridColumns
         {
             get => _techniciansDataGridColumns;
@@ -113,12 +113,13 @@ namespace Shiftapp_demo.ViewModels
 
             _db = new AdminDatabaseHelper();
 
-
             AddEmployeeCommand = new RelayCommand(_ => AddEmployee());
+
             DeleteEmployeeCommand = new RelayCommand(
             _ => DeleteEmployee(),
-            _ => SelectedEmployee != null   // 選択されているときだけ押せる
+            _ => SelectedEmployee != null  
                  );
+
             SaveEmployeeCommand = new RelayCommand(_ => SaveEmployees());
 
             AddHolidaysCommand = new RelayCommand(_ => AddHolidays());
@@ -144,6 +145,11 @@ namespace Shiftapp_demo.ViewModels
             {
                 if (ct.IsCancellationRequested) return;
                 Employees.Add(e);
+            }
+
+            foreach (var e in Employees)
+            {
+                e.AcceptChanges();   
             }
 
             // --- 祝日（当月） ---
