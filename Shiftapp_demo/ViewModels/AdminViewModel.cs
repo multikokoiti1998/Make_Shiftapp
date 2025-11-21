@@ -174,7 +174,8 @@ namespace Shiftapp_demo.ViewModels
 
             var emp = new Employee
             {
-                EmployeeId = newId,              // 新規
+                EmployeeId = newId,   // ← これ！ ShiftId じゃない
+                ShiftId = 0,       // DB上は NULL、必要なら0でもOK
                 EmployeeName = "",
                 CanDoCatheterization = false,
                 SaturdayClass = "A",
@@ -182,7 +183,6 @@ namespace Shiftapp_demo.ViewModels
                 CanDoNightDuty = false,
                 Role = 0,
                 CanDayDuty = false,
-                is_active = 1
             };
 
             Employees.Add(emp);
@@ -209,17 +209,11 @@ namespace Shiftapp_demo.ViewModels
 
             try
             {
-                if (emp.EmployeeId != 0)
-                {
-                    // 既にDBにいる人 → DBから削除
-                    _db.DeleteEmployee(emp.EmployeeId);
-                }
-                // 新規行(EmployeeId == 0) は DB呼ばずにコレクションだけ消す
 
-                // UI上からも削除
+                _db.DeleteEmployee(emp.EmployeeId);
+
                 Employees.Remove(emp);
 
-                // 選択解除
                 SelectedEmployee = null;
             }
             catch (Exception ex)
@@ -235,54 +229,43 @@ namespace Shiftapp_demo.ViewModels
 
         private void SaveEmployees()
         {
-            // 変更があった行だけ対象
-            var dirtyOnes = Employees.Where(e => e.IsDirty).ToList();
-            if (dirtyOnes.Count == 0)
+            var dirty = Employees.Where(e => e.IsDirty).ToList();
+            if (dirty.Count == 0)
             {
-                MessageBox.Show("保存する変更がありません。", "情報",
-                    MessageBoxButton.OK, MessageBoxImage.Information);
+                MessageBox.Show("保存する変更がありません。",
+                    "情報", MessageBoxButton.OK, MessageBoxImage.Information);
                 return;
             }
 
             try
             {
-                foreach (var e in dirtyOnes)
+                foreach (var e in dirty)
                 {
-                    // 最低限のバリデーション
                     if (string.IsNullOrWhiteSpace(e.EmployeeName))
                     {
-                        MessageBox.Show("名前が空の職員があります。", "入力不足",
-                            MessageBoxButton.OK, MessageBoxImage.Warning);
+                        MessageBox.Show("名前が空の職員があります。",
+                            "入力不足", MessageBoxButton.OK, MessageBoxImage.Warning);
                         return;
                     }
 
-                    //if (e.EmployeeId == 0)
-                    //{
-                    //    // 新規 → INSERT
-                    //    var newId = _db.InsertEmployee(e);
-                    //    e.EmployeeId = newId;
-                    //}
-
+                    // すべて UPDATE でよい（Add時点で DB に INSERT されているため）
                     _db.UpdateEmployee(e);
-                    // 既存 → UPDATE
-                    //else
-                    //{
-                    //    _db.UpdateEmployee(e);
-                    //}
 
-                    // 保存完了したので Dirty フラグをクリア
+                    // 完了したら Dirty フラグをクリア
                     e.AcceptChanges();
                 }
 
-                MessageBox.Show("職員情報を保存しました。", "完了",
-                    MessageBoxButton.OK, MessageBoxImage.Information);
+                MessageBox.Show("職員情報を保存しました。",
+                    "完了", MessageBoxButton.OK, MessageBoxImage.Information);
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"職員情報の保存中にエラーが発生しました:\n{ex.Message}",
+                MessageBox.Show(
+                    $"職員情報の保存中にエラーが発生しました:\n{ex.Message}",
                     "エラー", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
+
 
 
 

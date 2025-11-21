@@ -50,7 +50,7 @@ namespace Shiftapp_demo.Helper
             columns.Add(new DataGridTextColumn
             {
                 Header = "ID",
-                Binding = b("EmployeeId"),
+                Binding = b("ShiftId"),
                 Width = 100,
                 MinWidth = 80,
                 ElementStyle = centerText,
