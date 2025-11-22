@@ -41,15 +41,17 @@ namespace Shiftapp_demo.ViewModels
 
         public ICommand GenerateShiftCommand { get; }
 
+        public ICommand UpdateShiftCommand { get; }
+
         public ObservableCollection<ShiftTypeM> ShiftTypes { get; } = new(); // プルダウン用マスタ
 
         private readonly Dictionary<string, int> _symbolToId = new();
 
         private readonly HashSet<int> _parentTypeIds = new();
 
-        private readonly HashSet<string> _parentSymbols = new(new[] { "当", "●", "日" });
+        //private readonly HashSet<string> _parentSymbols = new(new[] { "当", "●", "日" });
 
-        private Dictionary<(int Eid, DateTime Date), string> _originalSymbolMap = new();
+        //private Dictionary<(int Eid, DateTime Date), string> _originalSymbolMap = new();
 
         //行
         public ObservableCollection<ShiftDataLoader> ShiftDataCollection
@@ -121,6 +123,8 @@ namespace Shiftapp_demo.ViewModels
             OpenAdminCommand = new RelayCommand(OpenAdmin);
 
             GenerateShiftCommand = new RelayCommand(p => GenerateShift(p));
+
+            UpdateShiftCommand = new RelayCommand(p => UpdateShift(p));
         }
 
         private void OpenAdmin(object? _)
@@ -146,6 +150,17 @@ namespace Shiftapp_demo.ViewModels
             }
         }
 
+        private void UpdateShift(object? param)
+        {
+            var dirty = ShiftDataCollection.Where(e => e.IsDirty).ToList();
+            if (dirty.Count == 0)
+            {
+                MessageBox.Show("保存する変更がありません。",
+                    "情報", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+        }
 
         private async Task ExportCsvRowsAsync(object? param)
         {

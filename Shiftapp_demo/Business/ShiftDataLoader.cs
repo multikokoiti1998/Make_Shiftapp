@@ -4,12 +4,18 @@ namespace Shiftapp_demo.Business
 {
     public class ShiftDataLoader : INotifyPropertyChanged
     {
-        public int EmployeeId { get; set; }
+        private int _employeeId { get; set; }
 
-        public int ShiftId { get; set; }
-        public string EmployeeName { get; set; }
+        public int EmployeeId { get => _employeeId; set { if (_shiftId != value) { _employeeId = value; Raise(nameof(EmployeeId)); IsDirty = true; } } }
 
-        public int Role { get; set; }
+        private int _shiftId { get; set; }
+        public int ShiftId { get => _shiftId; set { if (_shiftId != value) { _shiftId = value; Raise(nameof(ShiftId)); IsDirty = true; } } }
+
+        private string _employeeName { get; set; }
+        public string EmployeeName { get => _employeeName; set { if (_employeeName != value) { _employeeName = value; Raise(nameof(EmployeeId)); IsDirty = true; } } }
+
+        private int _role;
+        public int Role { get => _role; set { if (_role!= value) {_role= value; Raise(nameof(Role)); IsDirty = true; } } }
 
         private Dictionary<string, string> _shifts = new();
         public Dictionary<string, string> Shifts
@@ -18,7 +24,10 @@ namespace Shiftapp_demo.Business
             set
             {
                 _shifts = value;
+
                 OnPropertyChanged(nameof(Shifts));
+                
+                IsDirty=true;
             }
         }
 
@@ -39,5 +48,7 @@ namespace Shiftapp_demo.Business
         {
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
         }
+
+        void Raise(string n) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(n));
     }
 }

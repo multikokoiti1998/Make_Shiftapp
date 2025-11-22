@@ -19,7 +19,6 @@ namespace Shiftapp_demo.DataAccess
         {
 
         }
-
         public int InsertBlankEmployee()
         {
             using var con = new SqliteConnection(_connectionString);
