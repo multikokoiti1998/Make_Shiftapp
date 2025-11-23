@@ -18,16 +18,24 @@ namespace Shiftapp_demo.Business
         public int Role { get => _role; set { if (_role!= value) {_role= value; Raise(nameof(Role)); IsDirty = true; } } }
 
         private Dictionary<string, string> _shifts = new();
-        public Dictionary<string, string> Shifts
+        public IReadOnlyDictionary<string, string> Shifts => _shifts;
+
+        // UI 編集はすべてこのインデクサを通す
+        public string this[string key]
         {
-            get => _shifts;
+            get => _shifts.TryGetValue(key, out var v) ? v : "";
             set
             {
-                _shifts = value;
+                if (_shifts.TryGetValue(key, out var old) && old == value)
+                    return;
 
-                OnPropertyChanged(nameof(Shifts));
-                
-                IsDirty=true;
+                _shifts[key] = value;
+
+                // DataGrid のセル更新通知
+                Raise($"Item[{key}]");
+
+                // モデルの更新フラグ
+                IsDirty = true;
             }
         }
 
