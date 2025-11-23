@@ -33,7 +33,8 @@
                       DisplayDateChanged="ShiftCalendar_DisplayDateChanged"
                       SelectionMode="MultipleRange"
                       SelectedDate="{Binding SelectedDate, Mode=TwoWay}"
-                      DisplayDate="{Binding DisplayDate, Mode=TwoWay}">
+                      DisplayDate="{Binding DisplayDate, Mode=TwoWay}"
+                      DisplayDateStart="2020-01-01">
             </Calendar>
 
             <Button Content="シフト作成" Height="70" FontSize="20" 

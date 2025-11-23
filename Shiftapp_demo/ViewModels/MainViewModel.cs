@@ -25,8 +25,7 @@ namespace Shiftapp_demo.ViewModels
         private readonly MainDatabaseHelper db;
 
         private readonly ShiftBusiness _business;
-        //カレンダー初期化用バインディング
-        public DateTime? SelectedDate { get; set; } = DateTime.Today;
+
 
         // DataGridのItemsSourceにバインド グリッドの行データを保持
         private ObservableCollection<ShiftDataLoader> _shiftDataCollection;
@@ -86,6 +85,8 @@ namespace Shiftapp_demo.ViewModels
                 OnPropertyChanged(nameof(MonthHeaderText));
             }
         }
+        //カレンダー初期化用バインディング
+        public DateTime? SelectedDate { get; set; } = DateTime.Today;
 
         private DateTime _displayDate = DateTime.Today;
         public DateTime DisplayDate
@@ -259,13 +260,13 @@ namespace Shiftapp_demo.ViewModels
                 // その月の全日付キーを空で用意
                 for (var d = firstDay; d <= lastDay; d = d.AddDays(1))
                 {
-                    loader.Shifts[d.ToString("yyyy-MM-dd")] = string.Empty;
+                    loader[d.ToString("yyyy-MM-dd")] = string.Empty;
                 }
 
                 // 3-2) 実シフトを上書き
                 foreach (var s in shifts.Where(s => s.EmployeeId == e.EmployeeId))
                 {
-                    loader.Shifts[s.ShiftDate.ToString("yyyy-MM-dd")] = s.Symbol ?? string.Empty;
+                    loader[s.ShiftDate.ToString("yyyy-MM-dd")] = s.Symbol ?? string.Empty;
                 }
 
                 loaders.Add(loader);

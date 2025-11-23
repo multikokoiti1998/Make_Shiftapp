@@ -73,7 +73,7 @@ namespace Shiftapp_demo.Helper
                 {
                     var tbFactory = new FrameworkElementFactory(typeof(TextBlock));
                     // セルの値とバインド
-                    var b = new Binding($"Shift[{key}]") { TargetNullValue = "", Mode = BindingMode.OneWay };
+                    var b = new Binding($"Item[{key}]") { TargetNullValue = "", Mode = BindingMode.OneWay };
                     tbFactory.SetBinding(TextBlock.TextProperty, b);
                     tbFactory.SetValue(TextBlock.HorizontalAlignmentProperty, HorizontalAlignment.Center);
                     tbFactory.SetValue(TextBlock.VerticalAlignmentProperty, VerticalAlignment.Center);
@@ -99,7 +99,7 @@ namespace Shiftapp_demo.Helper
                     // セルの値と双方向バインド
                     cbFactory.SetBinding(
                         ComboBox.SelectedValueProperty,
-                        new Binding($"Shifts[{key}]")
+                        new Binding($"Item[{key}]")
                         {
                             Mode = BindingMode.TwoWay,
                             UpdateSourceTrigger = UpdateSourceTrigger.PropertyChanged
