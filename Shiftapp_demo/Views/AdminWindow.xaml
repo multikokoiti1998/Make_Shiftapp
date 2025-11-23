@@ -181,7 +181,9 @@
               CalendarDayButtonStyle="{DynamicResource MaterialDesignFlatButton}"
               SelectionMode="MultipleRange"
               SelectedDate="{Binding SelectedDate, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-              DisplayDate="{Binding CurrentMonth, Mode=TwoWay}"/>
+              DisplayDate="{Binding CurrentMonth, Mode=TwoWay}"
+              DisplayDateStart="2020-01-01"
+              DisplayDateChanged="AdminCalendar_DisplayDateChanged"/>
         </Grid>
     </Grid>
 </Window>
