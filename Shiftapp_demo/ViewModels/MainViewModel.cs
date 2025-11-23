@@ -98,7 +98,9 @@ namespace Shiftapp_demo.ViewModels
                 {
                     _displayDate = value;
                     OnPropertyChanged(nameof(DisplayDate));
+                   
                 }
+                LoadShiftDataForMonth(_displayDate);
             }
         }
 

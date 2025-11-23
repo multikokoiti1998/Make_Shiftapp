@@ -44,9 +44,10 @@ namespace Shiftapp_demo.Views
             if (ViewModel == null) return;
 
 
-            DateTime currentMonth = ShiftCalendar.DisplayDate;
-
-            ViewModel.LoadShiftDataForMonth(currentMonth);
+            if (ShiftCalendar.DisplayDate== new DateTime(2020, 1, 1))
+            {
+                ShiftCalendar.DisplayDate = DateTime.Today;
+            }
 
             // DataGrid更新
             ShiftDataGrid.Columns.Clear();
