@@ -6,7 +6,8 @@ namespace Shiftapp_demo.Business
 {
     internal class ShiftBusiness
     {
-        private DateTime baseSaturday = new DateTime(2025, 8, 16);
+        private readonly　DateTime _baselineSaturday;
+        private  bool _baselineIsA;
         private readonly MainDatabaseHelper _db;
         private Random rand = new Random();
         private readonly int stidWork;
@@ -21,6 +22,7 @@ namespace Shiftapp_demo.Business
         public ShiftBusiness(MainDatabaseHelper db)
         {
             _db = db;
+            _baselineSaturday= new DateTime(2025, 8, 16);
             stidWork = _db.GetShiftTypeIdBySymbol("/");   // 土曜出勤
             stidOff = _db.GetShiftTypeIdBySymbol("○");   // 日・祭日休み
             stidDuty = _db.GetShiftTypeIdBySymbol("当");  // 当直
@@ -62,30 +64,44 @@ namespace Shiftapp_demo.Business
         }
 
         /// <summary>
-        /// 指定日の属する「土曜日」を返す
-        /// （指定日が土曜ならその日、他曜日なら直近の土曜）
+        /// 指定日の属する週の「土曜日」を返す
+        /// （基準土曜と比較するために必要）
         /// </summary>
-        static DateTime GetWeekSaturday(DateTime date)
+        private static DateTime GetWeekSaturday(DateTime date)
         {
             int diff = DayOfWeek.Saturday - date.DayOfWeek;
             return date.AddDays(diff);
         }
 
         /// <summary>
-        /// 基準土曜から見て何週目かを返す（0,1,2,...）
+        /// 基準土曜から見て「何週目」か（0,1,2,...）
         /// </summary>
-        static int WeekIndexFromBaseline(DateTime date, DateTime baselineSaturday)
+        private int WeekIndexFromBaseline(DateTime date)
         {
             var sat = GetWeekSaturday(date);
-            var delta = (sat.Date - baselineSaturday.Date).TotalDays;
+            var delta = (sat.Date - _baselineSaturday.Date).TotalDays;
             return (int)Math.Floor(delta / 7.0);
+        }
+
+        /// <summary>
+        /// その日の担当クラス（A or B）を返す→休みの班を返す
+        /// </summary>
+        private string GetWorkingClass(DateTime day)
+        {
+            int k = WeekIndexFromBaseline(day);
+            bool isEvenWeek = (k % 2 == 0);
+
+            return isEvenWeek
+                ? (_baselineIsA ? "A" : "B")
+                : (_baselineIsA ? "B" : "A");
         }
 
 
         // 土曜日勤務登録
         public void UpdateSaturdayShifts(DateTime month, string worksClassAtBaseline = "B")
         {
-            // 1) データ取得
+            _baselineIsA = worksClassAtBaseline.Equals("A", StringComparison.OrdinalIgnoreCase);
+
             var employees = _db.GetActiveEmployeesWithSaturdayClass(); // EmployeeId, SaturdayClass("A"/"B")
 
             var saturdays = GetSaturdaysInMonth(month);
@@ -95,45 +111,27 @@ namespace Shiftapp_demo.Business
             var last = first.AddMonths(1).AddDays(-1);
             var existing = _db.GetShiftMap(first, last);
 
-            // 2) 基準週→偶奇を求める関数（“土曜基点”で数える）
-            // rotationStartSaturday は必ず土曜日を渡すのが前提
-            static int SaturdayIndexFromBaseline(DateTime saturday, DateTime baselineSaturday)
-            {
-                // baseline の翌日から何日差か → 7 で割る（負もOK）
-                var delta = (saturday.Date - baselineSaturday.Date).TotalDays;
-                // 同じ土曜なら 0
-                return (int)Math.Floor(delta / 7.0);
-            }
 
-            bool baselineIsA = worksClassAtBaseline.Equals("A", StringComparison.OrdinalIgnoreCase);
-
-            // 3) 一括割当バッファ
             var assigns = new List<(int eid, DateTime date, int stid)>();
 
             foreach (var sat in saturdays)
             {
-                // 今週が基準から何番目の土曜か（0,1,2,...）
-                int k = SaturdayIndexFromBaseline(sat, baseSaturday);
-
-                // この土曜に“出勤する班”はどっち？
-                // k 偶数 → baseline と同じ班が出勤 / k 奇数 → 逆の班が出勤
-                string workingClass = (k % 2 == 0)
-                    ? (baselineIsA ? "A" : "B")
-                    : (baselineIsA ? "B" : "A");
+                // この週に働く班を共通関数で取得
+                string workingClass = GetWorkingClass(sat);
 
                 foreach (var emp in employees)
                 {
                     // SaturdayClass 未設定はスキップ
                     if (string.IsNullOrWhiteSpace(emp.SaturdayClass)) continue;
 
-                    bool isWorker = emp.SaturdayClass.Equals(workingClass, StringComparison.OrdinalIgnoreCase);
+                    bool isWorker =
+                        emp.SaturdayClass.Equals(workingClass, StringComparison.OrdinalIgnoreCase);
 
-                    // 出勤者には "/"、休みには "〇" を入れる
-                    assigns.Add((emp.EmployeeId, sat, isWorker ? stidWork : stidOff));
+                    // 出勤者には勤務シフト、休みにはOFFシフト
+                    assigns.Add((emp.EmployeeId, sat.Date, isWorker ? stidWork : stidOff));
                 }
             }
 
-            // 4) 一括Upsert
             var map = new Dictionary<(int, DateTime), int>(existing);
             var upserts = new List<ShiftWrite>();
 
@@ -146,8 +144,6 @@ namespace Shiftapp_demo.Business
             // 5) 変更分のみをDBへ反映
             if (upserts.Count > 0)
             {
-                // DatabaseHelper 側のシグネチャが (IEnumerable<(int eid, DateTime date, int stid)>, DateTime month)
-                // の場合は、3タプルに落として渡す
                 var triples = upserts
                     .Select(x => (x.EmployeeId, x.Date, x.ShiftTypeId))
                     .ToList();
@@ -300,24 +296,19 @@ namespace Shiftapp_demo.Business
 
                 //日勤候補
                 Models.Employee? cand3 = null, cand4 = null;
-
+                var workingClass = GetWorkingClass(day);
                 //祝日候補
                 if (day.DayOfWeek == DayOfWeek.Sunday)
                 {
                     var prevDay = day.AddDays(-1).Date;
                     cand3 = canDayduty
-                              .Where(e =>
-                                (cand1 == null || e.EmployeeId != cand1.EmployeeId) &&
-                                (cand2 == null || e.EmployeeId != cand2.EmployeeId))
-                            // 前日OFFの人を優先（true が先頭になる）
-                            .OrderByDescending(e =>
-                                existingMap.TryGetValue((e.EmployeeId, prevDay), out var st) &&
-                                st == stidOff)
-                            // その中で日勤回数が少ない人から
-                            .ThenBy(e => dayWorkCount.TryGetValue(e.EmployeeId, out var v) ? v : 0)
-                            //.ThenBy(e => nextAvailable[e.EmployeeId])
-                            .ThenBy(_ => rand.Next())
-                            .FirstOrDefault();
+                            .OrderBy(e =>
+                                    e.SaturdayClass.Equals(workingClass, StringComparison.OrdinalIgnoreCase))
+                                // 同じ班の中はランダム
+                                .ThenBy(_ => rand.Next())
+                                // ランダム後、日勤回数が少ない人優先（確率は保たれる）
+                                .ThenBy(e => dayWorkCount.TryGetValue(e.EmployeeId, out var v) ? v : 0)
+                                .FirstOrDefault();
                 }
                 else if (holidays.Contains(day.Date))
                 {
