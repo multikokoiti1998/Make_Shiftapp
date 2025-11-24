@@ -275,28 +275,48 @@ namespace Shiftapp_demo.Business
             for (var day = first; day <= last; day = day.AddDays(1))
             {
                 Models.Employee? cand1 = null, cand2 = null;
-
                 if (day.DayOfWeek == DayOfWeek.Friday)
                 {
                     var saturday = day.AddDays(1).Date;
-                    var workingClassSat = GetWorkingClass(saturday); // "A" or "B"
+                    var workingClassSat = GetWorkingClass(saturday); // 土曜に働く班
 
-                    cand1 = canCath
+                    // 1) 金曜にそもそも立てる「基本候補」
+                    var pool1 = canCath
                         .Where(e => nextAvailable[e.EmployeeId] <= day)
-                        // 土曜に当たる班の人を優先（true が先頭）
+                        .ToList();
+
+                    // 2) その中から「土曜休み班だけ」に絞る
+                    var poolFri = pool1
                         .Where(e =>
-                                e.SaturdayClass.Equals(workingClassSat, StringComparison.OrdinalIgnoreCase))
-                        // その中で公平性ロジック
+                            e.SaturdayClass.Equals(workingClassSat, StringComparison.OrdinalIgnoreCase))
+                        .ToList();
+
+                    // 3) もし誰もいなければ、土曜ルールを崩してでも立てる
+                    if (poolFri.Count == 0)
+                        poolFri = pool1;
+
+                    cand1 = poolFri
                         .OrderBy(e => dutyCount.TryGetValue(e.EmployeeId, out var v) ? v : 0)
                         .ThenBy(e => restcount.TryGetValue(e.EmployeeId, out var v) ? v : 0)
                         .ThenBy(e => nextAvailable[e.EmployeeId])
                         .ThenBy(_ => rand.Next())
                         .FirstOrDefault();
 
-                    cand2 = cannotCath
+
+                    // ★ cannotCath も同じパターン
+                    var pool2 = cannotCath
                         .Where(e => nextAvailable[e.EmployeeId] <= day)
+                        .ToList();
+
+                    var poolFri2 = pool2
                         .Where(e =>
-                                e.SaturdayClass.Equals(workingClassSat, StringComparison.OrdinalIgnoreCase))
+                            e.SaturdayClass.Equals(workingClassSat, StringComparison.OrdinalIgnoreCase))
+                        .ToList();
+
+                    if (poolFri2.Count == 0)
+                        poolFri2 = pool2;
+
+                    cand2 = poolFri2
                         .OrderBy(e => dutyCount.TryGetValue(e.EmployeeId, out var v) ? v : 0)
                         .ThenBy(e => restcount.TryGetValue(e.EmployeeId, out var v) ? v : 0)
                         .ThenBy(e => nextAvailable[e.EmployeeId])
