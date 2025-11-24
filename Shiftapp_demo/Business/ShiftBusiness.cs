@@ -274,25 +274,53 @@ namespace Shiftapp_demo.Business
 
             for (var day = first; day <= last; day = day.AddDays(1))
             {
-                // その日にすでに当直が入っていればスキップ
-                // 今回は作成者なので、既存当直は尊重しつつ足りない側だけ補完したければ、
-                // 片側ずつ判定するロジックに分ける。ここではシンプルに新規作成前提。
-                // 候補抽出：カテ可
-                var cand1 = canCath
-                .Where(e => nextAvailable[e.EmployeeId] <= day)
-                .OrderBy(e => dutyCount.TryGetValue(e.EmployeeId, out var v) ? v : 0)
-                .ThenBy(e => restcount.TryGetValue(e.EmployeeId, out var v) ? v : 0)
-                .ThenBy(e => nextAvailable[e.EmployeeId])
-                .ThenBy(_ => rand.Next())
-                .FirstOrDefault();
+                Models.Employee? cand1 = null, cand2 = null;
 
-                var cand2 = cannotCath
-                .Where(e => nextAvailable[e.EmployeeId] <= day)
-                .OrderBy(e => dutyCount.TryGetValue(e.EmployeeId, out var v) ? v : 0)
-                .ThenBy(e => restcount.TryGetValue(e.EmployeeId, out var v) ? v : 0)
-                .ThenBy(e => nextAvailable[e.EmployeeId])
-                .ThenBy(_ => rand.Next())
-                .FirstOrDefault();
+                if (day.DayOfWeek == DayOfWeek.Friday)
+                {
+                    var saturday = day.AddDays(1).Date;
+                    var workingClassSat = GetWorkingClass(saturday); // "A" or "B"
+
+                    cand1 = canCath
+                        .Where(e => nextAvailable[e.EmployeeId] <= day)
+                        // 土曜に当たる班の人を優先（true が先頭）
+                        .Where(e =>
+                                e.SaturdayClass.Equals(workingClassSat, StringComparison.OrdinalIgnoreCase))
+                        // その中で公平性ロジック
+                        .OrderBy(e => dutyCount.TryGetValue(e.EmployeeId, out var v) ? v : 0)
+                        .ThenBy(e => restcount.TryGetValue(e.EmployeeId, out var v) ? v : 0)
+                        .ThenBy(e => nextAvailable[e.EmployeeId])
+                        .ThenBy(_ => rand.Next())
+                        .FirstOrDefault();
+
+                    cand2 = cannotCath
+                        .Where(e => nextAvailable[e.EmployeeId] <= day)
+                        .Where(e =>
+                                e.SaturdayClass.Equals(workingClassSat, StringComparison.OrdinalIgnoreCase))
+                        .OrderBy(e => dutyCount.TryGetValue(e.EmployeeId, out var v) ? v : 0)
+                        .ThenBy(e => restcount.TryGetValue(e.EmployeeId, out var v) ? v : 0)
+                        .ThenBy(e => nextAvailable[e.EmployeeId])
+                        .ThenBy(_ => rand.Next())
+                        .FirstOrDefault();
+                }
+                else
+                {
+                    cand1 = canCath
+                        .Where(e => nextAvailable[e.EmployeeId] <= day)
+                        .OrderBy(e => dutyCount.TryGetValue(e.EmployeeId, out var v) ? v : 0)
+                        .ThenBy(e => restcount.TryGetValue(e.EmployeeId, out var v) ? v : 0)
+                        .ThenBy(e => nextAvailable[e.EmployeeId])
+                        .ThenBy(_ => rand.Next())
+                        .FirstOrDefault();
+
+                    cand2 = cannotCath
+                        .Where(e => nextAvailable[e.EmployeeId] <= day)
+                        .OrderBy(e => dutyCount.TryGetValue(e.EmployeeId, out var v) ? v : 0)
+                        .ThenBy(e => restcount.TryGetValue(e.EmployeeId, out var v) ? v : 0)
+                        .ThenBy(e => nextAvailable[e.EmployeeId])
+                        .ThenBy(_ => rand.Next())
+                        .FirstOrDefault();
+                }
 
                 //日勤候補
                 Models.Employee? cand3 = null, cand4 = null;
