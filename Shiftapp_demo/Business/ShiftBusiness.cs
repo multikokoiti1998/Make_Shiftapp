@@ -591,7 +591,17 @@ namespace Shiftapp_demo.Business
             );
         }
 
+        //UIからシフト登録用
+        public void SaveShifts(
+        DateTime month,
+        IEnumerable<ShiftDataLoader> dirtyRows,
+        IReadOnlyDictionary<string, int> symbolToId)
+        {
+            var first = new DateTime(month.Year, month.Month, 1);
+            var last = first.AddMonths(1).AddDays(-1);
 
+            _db.SaveDailyShifts(first, last, dirtyRows, symbolToId);
+        }
     }
 
 }

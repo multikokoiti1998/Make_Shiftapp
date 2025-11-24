@@ -163,6 +163,25 @@ namespace Shiftapp_demo.ViewModels
                 return;
             }
 
+            try
+            {
+                _business.SaveShifts(DisplayDate, dirty, _symbolToId);
+
+                // 保存成功したら Dirty クリア
+                foreach (var row in dirty)
+                {
+                    row.AcceptChanges();
+                }
+
+                MessageBox.Show("シフトを保存しました。", "完了",
+                    MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"シフト保存中にエラーが発生しました:\n{ex.Message}",
+                    "エラー", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+
         }
 
         private async Task ExportCsvRowsAsync(object? param)
@@ -254,6 +273,7 @@ namespace Shiftapp_demo.ViewModels
             {
                 var loader = new ShiftDataLoader
                 {
+                    EmployeeId = e.EmployeeId,
                     ShiftId = e.ShiftId,
                     EmployeeName = e.EmployeeName,
                     Role = e.Role

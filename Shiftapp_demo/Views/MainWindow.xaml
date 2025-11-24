@@ -63,6 +63,7 @@
 
                 <!-- シフト修正ボタン -->
                 <Button Content="シフト修正"
+            Command="{Binding  UpdateShiftCommand}"
             Width="150" Height="70"
             FontSize="18"
             Margin="0,15,0,0"
