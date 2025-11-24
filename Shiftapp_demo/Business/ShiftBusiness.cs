@@ -61,6 +61,27 @@ namespace Shiftapp_demo.Business
             return _db.GetHolidays(first, last);
         }
 
+        /// <summary>
+        /// 指定日の属する「土曜日」を返す
+        /// （指定日が土曜ならその日、他曜日なら直近の土曜）
+        /// </summary>
+        static DateTime GetWeekSaturday(DateTime date)
+        {
+            int diff = DayOfWeek.Saturday - date.DayOfWeek;
+            return date.AddDays(diff);
+        }
+
+        /// <summary>
+        /// 基準土曜から見て何週目かを返す（0,1,2,...）
+        /// </summary>
+        static int WeekIndexFromBaseline(DateTime date, DateTime baselineSaturday)
+        {
+            var sat = GetWeekSaturday(date);
+            var delta = (sat.Date - baselineSaturday.Date).TotalDays;
+            return (int)Math.Floor(delta / 7.0);
+        }
+
+
         // 土曜日勤務登録
         public void UpdateSaturdayShifts(DateTime month, string worksClassAtBaseline = "B")
         {
@@ -285,13 +306,18 @@ namespace Shiftapp_demo.Business
                 {
                     var prevDay = day.AddDays(-1).Date;
                     cand3 = canDayduty
-                        .Where(e => e.EmployeeId != cand1?.EmployeeId
-                                 && e.EmployeeId != cand2?.EmployeeId
-                                 && existingMap.TryGetValue((e.EmployeeId, prevDay), out var st) && st == stidOff)
-                        //.OrderBy(e => dayWorkCount.TryGetValue(e.EmployeeId, out var v) ? v : 0)
-                        //.ThenBy(e => nextAvailable[e.EmployeeId])
-                        //.ThenBy(_ => rand.Next())
-                        .FirstOrDefault();
+                              .Where(e =>
+                                (cand1 == null || e.EmployeeId != cand1.EmployeeId) &&
+                                (cand2 == null || e.EmployeeId != cand2.EmployeeId))
+                            // 前日OFFの人を優先（true が先頭になる）
+                            .OrderByDescending(e =>
+                                existingMap.TryGetValue((e.EmployeeId, prevDay), out var st) &&
+                                st == stidOff)
+                            // その中で日勤回数が少ない人から
+                            .ThenBy(e => dayWorkCount.TryGetValue(e.EmployeeId, out var v) ? v : 0)
+                            //.ThenBy(e => nextAvailable[e.EmployeeId])
+                            .ThenBy(_ => rand.Next())
+                            .FirstOrDefault();
                 }
                 else if (holidays.Contains(day.Date))
                 {
