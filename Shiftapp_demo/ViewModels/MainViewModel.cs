@@ -25,8 +25,7 @@ namespace Shiftapp_demo.ViewModels
         private readonly MainDatabaseHelper db;
 
         private readonly ShiftBusiness _business;
-        //カレンダー初期化用バインディング
-        public DateTime? SelectedDate { get; set; } = DateTime.Today;
+
 
         // DataGridのItemsSourceにバインド グリッドの行データを保持
         private ObservableCollection<ShiftDataLoader> _shiftDataCollection;
@@ -41,15 +40,17 @@ namespace Shiftapp_demo.ViewModels
 
         public ICommand GenerateShiftCommand { get; }
 
+        public ICommand UpdateShiftCommand { get; }
+
         public ObservableCollection<ShiftTypeM> ShiftTypes { get; } = new(); // プルダウン用マスタ
 
         private readonly Dictionary<string, int> _symbolToId = new();
 
         private readonly HashSet<int> _parentTypeIds = new();
 
-        private readonly HashSet<string> _parentSymbols = new(new[] { "当", "●", "日" });
+        //private readonly HashSet<string> _parentSymbols = new(new[] { "当", "●", "日" });
 
-        private Dictionary<(int Eid, DateTime Date), string> _originalSymbolMap = new();
+        //private Dictionary<(int Eid, DateTime Date), string> _originalSymbolMap = new();
 
         //行
         public ObservableCollection<ShiftDataLoader> ShiftDataCollection
@@ -84,6 +85,8 @@ namespace Shiftapp_demo.ViewModels
                 OnPropertyChanged(nameof(MonthHeaderText));
             }
         }
+        //カレンダー初期化用バインディング
+        public DateTime? SelectedDate { get; set; } = DateTime.Today;
 
         private DateTime _displayDate = DateTime.Today;
         public DateTime DisplayDate
@@ -95,7 +98,9 @@ namespace Shiftapp_demo.ViewModels
                 {
                     _displayDate = value;
                     OnPropertyChanged(nameof(DisplayDate));
+                   
                 }
+                LoadShiftDataForMonth(_displayDate);
             }
         }
 
@@ -121,6 +126,8 @@ namespace Shiftapp_demo.ViewModels
             OpenAdminCommand = new RelayCommand(OpenAdmin);
 
             GenerateShiftCommand = new RelayCommand(p => GenerateShift(p));
+
+            UpdateShiftCommand = new RelayCommand(p => UpdateShift(p));
         }
 
         private void OpenAdmin(object? _)
@@ -146,6 +153,36 @@ namespace Shiftapp_demo.ViewModels
             }
         }
 
+        private void UpdateShift(object? param)
+        {
+            var dirty = ShiftDataCollection.Where(e => e.IsDirty).ToList();
+            if (dirty.Count == 0)
+            {
+                MessageBox.Show("保存する変更がありません。",
+                    "情報", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            try
+            {
+                _business.SaveShifts(DisplayDate, dirty, _symbolToId);
+
+                // 保存成功したら Dirty クリア
+                foreach (var row in dirty)
+                {
+                    row.AcceptChanges();
+                }
+
+                MessageBox.Show("シフトを保存しました。", "完了",
+                    MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"シフト保存中にエラーが発生しました:\n{ex.Message}",
+                    "エラー", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+
+        }
 
         private async Task ExportCsvRowsAsync(object? param)
         {
@@ -217,6 +254,7 @@ namespace Shiftapp_demo.ViewModels
 
             //日付取得
             var firstDay = new DateTime(month.Year, month.Month, 1);
+
             var lastDay = firstDay.AddMonths(1).AddDays(-1);
 
             // ヘッダー
@@ -231,11 +269,12 @@ namespace Shiftapp_demo.ViewModels
             // 3) 社員ごとにまとめて、全日を空で初期化→存在するシフトだけ上書き
             var loaders = new List<ShiftDataLoader>(employees.Count);
 
-            foreach (var e in employees.OrderBy(x => x.EmployeeId))
+            foreach (var e in employees.OrderBy(x => x.ShiftId))
             {
                 var loader = new ShiftDataLoader
                 {
                     EmployeeId = e.EmployeeId,
+                    ShiftId = e.ShiftId,
                     EmployeeName = e.EmployeeName,
                     Role = e.Role
                 };
@@ -243,21 +282,23 @@ namespace Shiftapp_demo.ViewModels
                 // その月の全日付キーを空で用意
                 for (var d = firstDay; d <= lastDay; d = d.AddDays(1))
                 {
-                    loader.Shifts[d.ToString("yyyy-MM-dd")] = string.Empty;
+                    loader[d.ToString("yyyy-MM-dd")] = string.Empty;
                 }
 
                 // 3-2) 実シフトを上書き
                 foreach (var s in shifts.Where(s => s.EmployeeId == e.EmployeeId))
                 {
-                    loader.Shifts[s.ShiftDate.ToString("yyyy-MM-dd")] = s.Symbol ?? string.Empty;
+                    loader[s.ShiftDate.ToString("yyyy-MM-dd")] = s.Symbol ?? string.Empty;
                 }
 
                 loaders.Add(loader);
+
+                loader.AcceptChanges();
             }
 
             var ordered = loaders
                    .OrderBy(x => x.Role)
-                   .ThenBy(x => x.EmployeeId)
+                   .ThenBy(x => x.ShiftId)
                    .ToList();
 
             ShiftDataCollection = new ObservableCollection<ShiftDataLoader>(ordered);

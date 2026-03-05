@@ -20,6 +20,7 @@
 
   <ItemGroup>
     <PackageReference Include="CsvHelper" Version="33.1.0" />
+    <PackageReference Include="Google.OrTools" Version="9.15.6755" />
     <PackageReference Include="MaterialDesignThemes" Version="5.2.1" />
     <PackageReference Include="Microsoft.Data.Sqlite" Version="9.0.6" />
     <PackageReference Include="PlantUml.Net" Version="1.4.80" />

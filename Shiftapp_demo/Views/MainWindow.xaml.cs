@@ -9,6 +9,8 @@ namespace Shiftapp_demo.Views
     {
         private MainViewModel ViewModel => (MainViewModel)DataContext; // ViewModelにアクセスするヘルパープロパティ
 
+        public bool IsCalendarTouched { get; set; } = false;
+
         public MainWindow()
         {
             InitializeComponent();
@@ -41,15 +43,11 @@ namespace Shiftapp_demo.Views
 
             if (ViewModel == null) return;
 
-            //未タッチ時、西暦１年になる対策
-            DateTime today = DateTime.Today;
-            ShiftCalendar.DisplayDate = today;
-            ShiftCalendar.SelectedDate = today;
 
-
-            DateTime currentMonth = ShiftCalendar.DisplayDate;
-
-            ViewModel.LoadShiftDataForMonth(currentMonth);
+            if (ShiftCalendar.DisplayDate== new DateTime(2020, 1, 1))
+            {
+                ShiftCalendar.DisplayDate = DateTime.Today;
+            }
 
             // DataGrid更新
             ShiftDataGrid.Columns.Clear();

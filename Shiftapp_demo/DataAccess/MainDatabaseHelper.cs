@@ -1,10 +1,12 @@
 ﻿using Microsoft.Data.Sqlite;
+using Shiftapp_demo.Business;
 using Shiftapp_demo.Models;
 using System.Collections.ObjectModel;
 using System.IO;
+using System.Windows;
 
 namespace Shiftapp_demo.DataAccess
-{ 
+{
     public class MainDatabaseHelper : BaseDatabaseHelper
     {
 
@@ -121,6 +123,7 @@ namespace Shiftapp_demo.DataAccess
             return result;
         }
 
+
         //各技師の土曜日の班を取得
         public List<Employee> GetActiveEmployeesWithSaturdayClass()
         {
@@ -160,6 +163,7 @@ namespace Shiftapp_demo.DataAccess
             return Convert.ToInt32(obj);
         }
 
+        // シフト種別IDマップ取得 
         public Dictionary<(int EmployeeId, DateTime Date), int> GetShiftMap(DateTime start, DateTime end)
         {
             var map = new Dictionary<(int, DateTime), int>();
@@ -174,7 +178,7 @@ namespace Shiftapp_demo.DataAccess
               b.shift_date,
               b.shift_type_id
             FROM daily_employee_shifts b
-            JOIN employee e ON e.employee_id = b.employee_id AND e.is_active = 1
+            JOIN employee e ON e.employee_id = b.employee_id
             WHERE DATE(b.shift_date) >= DATE(@start)
               AND DATE(b.shift_date) <  DATE(@next)
             ORDER BY b.employee_id, b.shift_date;";
@@ -564,7 +568,7 @@ namespace Shiftapp_demo.DataAccess
             cmd.CommandText = @"
             SELECT employee_id, CanDoNightDuty,CanDoCatheterization
             FROM employee 
-            WHERE is_active = 1 and CanDoNightDuty=1";
+            WHERE CanDoNightDuty=1";
 
             using var reader = cmd.ExecuteReader();
             while (reader.Read())
@@ -591,7 +595,7 @@ namespace Shiftapp_demo.DataAccess
             cmd.CommandText = @"
             SELECT employee_id, CanDoDayduty,CanDoCatheterization
             FROM employee 
-            WHERE is_active = 1 and CanDoCatheterization==0 and CanDoDayduty==1 ";
+            WHERE CanDoCatheterization==0 and CanDoDayduty==1 ";
 
             using var reader = cmd.ExecuteReader();
             while (reader.Read())
@@ -636,45 +640,62 @@ namespace Shiftapp_demo.DataAccess
             return result;
         }
 
-        //public List<Holiday> GetAllHolidays(DateTime baseDate)
-        //{
-        //    var result = new List<Holiday>();
+        // ====== シフトInsert用 ======
+        public void SaveDailyShifts(
+        DateTime startDate,
+        DateTime endDate,
+        IEnumerable<ShiftDataLoader> dirtyRows,
+        IReadOnlyDictionary<string, int> symbolToId)
+        {
+            using var con = new SqliteConnection(_connectionString);
+            con.Open();
+            using var tx = con.BeginTransaction();
 
-        //    // DisplayDate から年だけ取り出す
-        //    int year = baseDate.Year;
+            foreach (var row in dirtyRows)
+            {
+                foreach (var kv in row.Shifts) 
+                {
+                    var dateKey = kv.Key;
+                    var symbol = kv.Value ?? "";
+                    var date = DateTime.Parse(dateKey);
 
-        //    // その年の 1/1 ～ 12/31 を範囲にする
-        //    var start = new DateTime(year, 1, 1);
-        //    var end = new DateTime(year, 12, 31);
+                    if (date < startDate || date > endDate)
+                        continue;
 
-        //    using var con = new SqliteConnection(_connectionString);
-        //    con.Open();
+                    if (string.IsNullOrEmpty(symbol))
+                    {
+                        // シフト空文字 → DELETE
+                        using var cmd = con.CreateCommand();
+                        cmd.CommandText = @"
+                        DELETE FROM daily_employee_shifts
+                        WHERE employee_id = @eid AND shift_date = @date;";
+                        cmd.Parameters.AddWithValue("@eid", row.EmployeeId);
+                        cmd.Parameters.AddWithValue("@date", date.ToString("yyyy-MM-dd"));
+                        cmd.ExecuteNonQuery();
+                    }
+                    else
+                    {
+                        if (!symbolToId.TryGetValue(symbol, out var shiftTypeId))
+                            throw new Exception($"未知のシフト記号です: '{symbol}'");
 
-        //    using var cmd = con.CreateCommand();
-        //    cmd.CommandText = @"
-        //SELECT date, name
-        //FROM holiday
-        //WHERE DATE(date) BETWEEN DATE(@start) AND DATE(@end);";
+                        using var cmd = con.CreateCommand();
+                        cmd.CommandText = @"
+                        INSERT INTO daily_employee_shifts
+                            (employee_id, shift_date, shift_type_id)
+                        VALUES (@eid, @date, @sid)
+                        ON CONFLICT(employee_id, shift_date)
+                        DO UPDATE SET shift_type_id = excluded.shift_type_id;";
 
-        //    cmd.Parameters.AddWithValue("@start", start.ToString("yyyy-MM-dd"));
-        //    cmd.Parameters.AddWithValue("@end", end.ToString("yyyy-MM-dd"));
+                        cmd.Parameters.AddWithValue("@eid", row.EmployeeId);
+                        cmd.Parameters.AddWithValue("@date", date.ToString("yyyy-MM-dd"));
+                        cmd.Parameters.AddWithValue("@sid", shiftTypeId);
+                        cmd.ExecuteNonQuery();
+                    }
+                }
+            }
 
-        //    using var reader = cmd.ExecuteReader();
-        //    while (reader.Read())
-        //    {
-        //        var date = DateTime.Parse(reader.GetString(0));
-        //        var name = reader.GetString(1);
+            tx.Commit();
+        }
 
-        //        result.Add(new Holiday
-        //        {
-        //            date = date,
-        //            name = name
-        //        });
-        //    }
-
-        //    return result;
-        //}
-
-        // ====== 休日取得用 ======
     }
 }

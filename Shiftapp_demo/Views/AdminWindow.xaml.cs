@@ -35,6 +35,20 @@ namespace Shiftapp_demo.Views
                     TechniciansDataGrid.Columns.Add(c);
             };
 
+
+
+        }
+
+        private void AdminCalendar_DisplayDateChanged(object sender, CalendarDateChangedEventArgs e)
+        {
+            if (!IsLoaded) return;
+            if (DataContext is not AdminViewModel vm) return;
+
+            // 表示月を ViewModel に反映させるだけ
+            if (AdminCalendar.DisplayDate == new DateTime(2020, 1, 1))
+            {
+                AdminCalendar.DisplayDate = DateTime.Today;
+            }
         }
     }
 }

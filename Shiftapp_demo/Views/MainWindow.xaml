@@ -5,6 +5,7 @@
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:local="clr-namespace:Shiftapp_demo"
+    xmlns:sys="clr-namespace:System;assembly=mscorlib"
     xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
     xmlns:vm="clr-namespace:Shiftapp_demo.ViewModels" 
     d:DataContext="{d:DesignInstance Type=vm:MainViewModel}"
@@ -33,7 +34,8 @@
                       DisplayDateChanged="ShiftCalendar_DisplayDateChanged"
                       SelectionMode="MultipleRange"
                       SelectedDate="{Binding SelectedDate, Mode=TwoWay}"
-                      DisplayDate="{Binding DisplayDate, Mode=TwoWay}">
+                      DisplayDate="{Binding DisplayDate, Mode=TwoWay}"
+                      DisplayDateStart="2020-01-01">
             </Calendar>
 
             <Button Content="シフト作成" Height="70" FontSize="20" 
@@ -61,6 +63,7 @@
 
                 <!-- シフト修正ボタン -->
                 <Button Content="シフト修正"
+            Command="{Binding  UpdateShiftCommand}"
             Width="150" Height="70"
             FontSize="18"
             Margin="0,15,0,0"

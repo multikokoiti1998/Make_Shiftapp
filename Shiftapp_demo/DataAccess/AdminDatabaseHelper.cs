@@ -19,7 +19,6 @@ namespace Shiftapp_demo.DataAccess
         {
 
         }
-
         public int InsertBlankEmployee()
         {
             using var con = new SqliteConnection(_connectionString);
@@ -28,6 +27,7 @@ namespace Shiftapp_demo.DataAccess
             using var cmd = con.CreateCommand();
             cmd.CommandText = @"
             INSERT INTO employee (
+              Shift_id,
               employee_name,
               CanDoCatheterization,
               saturday_class,
@@ -38,6 +38,7 @@ namespace Shiftapp_demo.DataAccess
               is_active
             )
                 VALUES (
+                   0,          -- 初期シフトID
                   '',          -- 初期は空文字
                   0,           -- false
                   'A',         -- 初期クラス
@@ -73,18 +74,20 @@ namespace Shiftapp_demo.DataAccess
 
             using var cmd = con.CreateCommand();
             cmd.CommandText = @"
-        UPDATE employee
-        SET
-          employee_name        = @name,
-          CanDoCatheterization = @canCath,
-          saturday_class       = @satClass,
-          MonthlyDutyLimit     = @monthlyLimit,
-          CanDoNightDuty       = @canNight,
-          Role                 = @role,
-          CanDoDayduty         = @canDay
-           
-        WHERE employee_id = @id;";
+            UPDATE employee
+            SET
+            Shift_id            = @shiftId,
+            employee_name       = @name,
+            CanDoCatheterization = @canCath,
+            saturday_class      = @satClass,
+            MonthlyDutyLimit    = @monthlyLimit,
+            CanDoNightDuty      = @canNight,
+            Role                = @role,
+            CanDoDayduty        = @canDay
+            WHERE employee_id = @id;
+            ";
 
+            cmd.Parameters.AddWithValue("@shiftId", e.ShiftId);
             cmd.Parameters.AddWithValue("@name", e.EmployeeName);
             cmd.Parameters.AddWithValue("@canCath", e.CanDoCatheterization ? 1 : 0);
             cmd.Parameters.AddWithValue("@satClass", e.SaturdayClass ?? "");
@@ -92,10 +95,12 @@ namespace Shiftapp_demo.DataAccess
             cmd.Parameters.AddWithValue("@canNight", e.CanDoNightDuty ? 1 : 0);
             cmd.Parameters.AddWithValue("@role", e.Role);
             cmd.Parameters.AddWithValue("@canDay", e.CanDayDuty ? 1 : 0);
+
             cmd.Parameters.AddWithValue("@id", e.EmployeeId);
 
             cmd.ExecuteNonQuery();
         }
+
 
 
         public List<Holiday> GetAllHolidays(DateTime baseDate)
