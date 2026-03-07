@@ -6,7 +6,7 @@ namespace Shiftapp_demo.Business
 {
     internal class ShiftBusiness
     {
-        private readonly　DateTime _baselineSaturday;
+        //private readonly　DateTime _baselineSaturday;
         private  bool _baselineIsA;
         private readonly MainDatabaseHelper _db;
         private Random rand = new Random();
@@ -17,12 +17,13 @@ namespace Shiftapp_demo.Business
         private readonly int stidAfterDuty;
         private readonly int stidDayWork;
         const int MinDutyGapDays = 3;
+        public static readonly DateTime _baselineSaturday= new DateTime(2025, 8, 16);
 
 
         public ShiftBusiness(MainDatabaseHelper db)
         {
             _db = db;
-            _baselineSaturday= new DateTime(2025, 8, 16);
+            //_baselineSaturday= new DateTime(2025, 8, 16);
             stidWork = _db.GetShiftTypeIdBySymbol("/");   // 土曜出勤
             stidOff = _db.GetShiftTypeIdBySymbol("○");   // 日・祭日休み
             stidDuty = _db.GetShiftTypeIdBySymbol("当");  // 当直
@@ -420,14 +421,15 @@ namespace Shiftapp_demo.Business
             // 5) 選抜アルゴリズム（フェアネス：当月回数が少ない人→次に早く入れる人→ラウンド）
             var upserts = new List<ShiftWrite>();
 
+           
+
             for (var day = first; day <= last; day = day.AddDays(1))
             {
                 Models.Employee? cand1 = null, cand2 = null;
+                var saturday = day.AddDays(1).Date;
+                var workingClassSat = GetWorkingClass(saturday); // 土曜に働く班
                 if (day.DayOfWeek == DayOfWeek.Friday)
                 {
-                    var saturday = day.AddDays(1).Date;
-                    var workingClassSat = GetWorkingClass(saturday); // 土曜に働く班
-
                     // 1) 金曜にそもそも立てる「基本候補」
                     var pool1 = canCath
                         .Where(e => nextAvailable[e.EmployeeId] <= day)
@@ -469,6 +471,10 @@ namespace Shiftapp_demo.Business
                         .ThenBy(e => nextAvailable[e.EmployeeId])
                         .ThenBy(_ => rand.Next())
                         .FirstOrDefault();
+                }
+                else if(day.DayOfWeek==DayOfWeek.Saturday)
+                {
+
                 }
                 else
                 {
