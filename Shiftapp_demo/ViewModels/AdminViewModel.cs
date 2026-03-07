@@ -1,7 +1,6 @@
 ﻿using Shiftapp_demo.Business;
 using Shiftapp_demo.Csv;
 using Shiftapp_demo.DataAccess;
-using Shiftapp_demo.DataAccess;
 using Shiftapp_demo.FrameWork;
 using Shiftapp_demo.Helper;
 using Shiftapp_demo.Models;
@@ -55,7 +54,7 @@ namespace Shiftapp_demo.ViewModels
             }
         }
 
-        private string _newHolidayName;
+        private string _newHolidayName= string.Empty;
         public string NewHolidayName
         {
             get => _newHolidayName;

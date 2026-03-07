@@ -1,6 +1,4 @@
 ﻿using Microsoft.Data.Sqlite;
-using Microsoft.Data.Sqlite;
-using Shiftapp_demo.Models;
 using Shiftapp_demo.Models;
 using System;
 using System.Collections.Generic;
