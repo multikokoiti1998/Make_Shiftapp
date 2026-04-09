@@ -3,6 +3,7 @@ using Shiftapp_demo.Business;
 using Shiftapp_demo.Models;
 using System.Collections.ObjectModel;
 using System.IO;
+using Serilog;
 using System.Windows;
 
 namespace Shiftapp_demo.DataAccess
@@ -201,7 +202,7 @@ namespace Shiftapp_demo.DataAccess
             }
             return map;
         }
-        public void DeleteMonthDutyAndDayParentsWithCascade(DateTime monthFirst, int stidDuty, int stidDay)
+        public void DeleteMonthDutyAndDayParentsWithCascade(DateTime monthFirst)
         {
             var first = new DateTime(monthFirst.Year, monthFirst.Month, 1);
             var next = first.AddMonths(1);
@@ -222,28 +223,29 @@ namespace Shiftapp_demo.DataAccess
             // 共通パラメータ
             cmd.Parameters.AddWithValue("@first", first.ToString("yyyy-MM-dd"));
             cmd.Parameters.AddWithValue("@next", next.ToString("yyyy-MM-dd"));
-            cmd.Parameters.AddWithValue("@sidDuty", stidDuty);
-            cmd.Parameters.AddWithValue("@sidDay", stidDay);
-            cmd.Parameters.AddWithValue("@stidSatWork", 5);
-            cmd.Parameters.AddWithValue("@stidoff", 4);
+            cmd.Parameters.AddWithValue("@sidDay", 0);
+            cmd.Parameters.AddWithValue("@sidDuty", 1);
+            cmd.Parameters.AddWithValue("@stidake", 2);
+            cmd.Parameters.AddWithValue("@stidoff", 3);
 
             // 1) 親のシンプル削除：origin_shifts_id IS NULL AND type IN (当/日)
             cmd.CommandText = @"
             DELETE FROM daily_employee_shifts
             WHERE origin_shifts_id IS NULL
-              AND shift_type_id IN (@sidDuty, @sidDay,@stidSatWork, @stidoff)
+              AND shift_type_id IN (@sidDuty, @sidDay)
               AND shift_date >= @first
               AND shift_date <  @next;";
-            cmd.ExecuteNonQuery();
+            int deleted_count=cmd.ExecuteNonQuery();
 
             //2) 当月内の孤児（親が存在しない子）を削除
             cmd.CommandText = @"
              DELETE FROM daily_employee_shifts AS c
               WHERE c.shift_date >= @first AND c.shift_date < @next
               AND c.origin_shifts_id IS NULL
-              AND c.shift_type_id IN (@sidDuty, @sidDay);";
+              AND c.shift_type_id IN (@stidake, @sidDay);";
             cmd.ExecuteNonQuery();
 
+            Log.Information($"{deleted_count} 件削除されました",deleted_count);
             tx.Commit();
         }
 

@@ -1,0 +1,15 @@
+﻿SELECT * FROM daily_employee_shifts AS c
+WHERE c.employee_id = 88014
+  AND c.shift_date BETWEEN '2026-03-01' AND '2026-03-30';
+  
+  -- 消え残っているデータがこの検索で見つかるか確認
+SELECT * FROM daily_employee_shifts 
+WHERE shift_date >= '2026-03-01' AND shift_date < '2026-04-01'
+  AND origin_shifts_id IS NULL
+  AND shift_type_id IN (1); -- 消したいIDを直接指定
+
+  DELETE FROM daily_employee_shifts
+    WHERE origin_shifts_id IS NULL
+      AND shift_date = '2026-03-01'
+      AND employee_id = 142042
+      AND shift_type_id = 1;

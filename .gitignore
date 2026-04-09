@@ -363,3 +363,4 @@ MigrationBackup/
 FodyWeavers.xsd
 /Shiftapp_demo/Data/shiftapp.db-shm
 /Shiftapp_demo/Data/shiftapp.db-wal
+/Shiftapp_demo/bin/

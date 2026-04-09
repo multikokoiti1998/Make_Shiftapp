@@ -20,8 +20,10 @@ namespace Shiftapp_demo.Business
         private readonly int stidAfterDuty;
         private readonly int stidDayWork;
         public static int MinDutyGapDays = 3;
-        //public static readonly DateTime _baselineSaturday = new DateTime(2025, 8, 16);
-        public static readonly DateTime _baselineSaturday = new DateTime(2026, 2, 28);
+        public static readonly DateTime _baselineSaturday = new DateTime(2025, 8, 16);
+
+        //テスト用
+        //public static readonly DateTime _baselineSaturday = new DateTime(2026, 2, 28);
 
 
         public ShiftBusiness(MainDatabaseHelper db)
@@ -493,7 +495,7 @@ namespace Shiftapp_demo.Business
                 }
                 if (filtered.Count == 0)
                 {
-                    Log.Warning("No duty candidate found for {day}, using original pool", day);
+                    Log.Information("No duty candidate found for {day}, using original pool", day);
                     return source.ToList();
                 }
 

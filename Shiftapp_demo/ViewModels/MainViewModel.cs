@@ -1,6 +1,7 @@
 ﻿// MainViewModel.cs
 using Microsoft.Data.Sqlite;
 using Microsoft.Win32;
+using Serilog;
 using Shiftapp_demo.Business; // DataGridColumn, TextBlock を参照するため
 using Shiftapp_demo.Csv;
 using Shiftapp_demo.DataAccess; // DatabaseHelperを参照するため
@@ -140,6 +141,7 @@ namespace Shiftapp_demo.ViewModels
         {
             if (param is DateTime displayDate)
             {
+                Log.Warning("シフトの自動生成を開始します。{displayDate}", displayDate);
                 MakeNightDuty(displayDate);
                 GenerateOffShift(displayDate);
                 LoadShiftDataForMonth(displayDate);
@@ -235,7 +237,7 @@ namespace Shiftapp_demo.ViewModels
 
         public void MakeNightDuty(DateTime month)
         {
-            db.DeleteMonthDutyAndDayParentsWithCascade(month, 1, 0);
+            db.DeleteMonthDutyAndDayParentsWithCascade(month);
 
             _business.GenerateNightDutiesForMonth(month);
 
