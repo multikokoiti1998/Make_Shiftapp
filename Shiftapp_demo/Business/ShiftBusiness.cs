@@ -480,19 +480,10 @@ namespace Shiftapp_demo.Business
 
             List<Employee> FilterBySaturday(List<Employee> source, string satClass, DateTime day, bool CanSatWork)
             {
-                var filtered = source;
-                if (CanSatWork)
-                {
-                    filtered
-                       .Where(e => e.SaturdayClass.Equals(satClass, StringComparison.OrdinalIgnoreCase))
-                       .ToList();
-                }
-                else
-                {
-                    filtered
-                        .Where(e => !e.SaturdayClass.Equals(satClass, StringComparison.OrdinalIgnoreCase))
-                        .ToList();
-                }
+                var filtered = CanSatWork
+                    ? source.Where(e => e.SaturdayClass.Equals(satClass, StringComparison.OrdinalIgnoreCase)).ToList()
+                    : source.Where(e => !e.SaturdayClass.Equals(satClass, StringComparison.OrdinalIgnoreCase)).ToList();
+
                 if (filtered.Count == 0)
                 {
                     Log.Information("No duty candidate found for {day}, using original pool", day);
