@@ -36,7 +36,7 @@ namespace Shiftapp_demo.Business
 
         //START---------------------------基本関数-----------------
         // 月初・月末を返すヘルパー
-        private static (DateTime first, DateTime last) GetMonthRange(DateTime month)
+        internal static (DateTime first, DateTime last) GetMonthRange(DateTime month)
         {
             var first = new DateTime(month.Year, month.Month, 1);
             var last = first.AddMonths(1).AddDays(-1);
@@ -83,7 +83,8 @@ namespace Shiftapp_demo.Business
         /// 指定日の属する週の「土曜日」との差を返す
 
         //END---------------------A,B班の判定のための基準土曜日をセットするメソッド----------------
-        private string GetWorkingClass(DateTime day)
+        // dayが属する週の土曜日が働く班("A"/"B")を判定する。DB非依存の純粋関数（テスト容易性のためinternal static）。
+        internal static string GetWorkingClass(DateTime day, bool baselineIsA)
         {
             // 1. その日が属する「基準の土曜日」を特定する
             // 日曜日の場合は「前日の土曜」、それ以外は「次の土曜」をその週の基準とする
@@ -99,18 +100,18 @@ namespace Shiftapp_demo.Business
             bool isEvenWeek = (weekIndex % 2 == 0);
 
             return isEvenWeek
-                ? (_baselineIsA ? ClassA : ClassB)
-                : (_baselineIsA ? ClassB : ClassA);
+                ? (baselineIsA ? ClassA : ClassB)
+                : (baselineIsA ? ClassB : ClassA);
         }
 
         //START---------------------------代休付与のヘルパー関数-----------------
         // 平日の営業日 (Mon-Fri かつ 祝日でない)
-        private static bool IsBusinessDay(DateTime d, List<DateTime> holidays)
+        internal static bool IsBusinessDay(DateTime d, List<DateTime> holidays)
             => d.DayOfWeek is >= DayOfWeek.Monday and <= DayOfWeek.Friday
                && !holidays.Contains(d.Date);
 
         // 営業日に前進（自分が営業日ならそのまま）
-        private static DateTime BumpToNextBusinessDay(DateTime d, List<DateTime> holidays)
+        internal static DateTime BumpToNextBusinessDay(DateTime d, List<DateTime> holidays)
         {
             var x = d.Date;
             while (!IsBusinessDay(x, holidays))
@@ -119,7 +120,7 @@ namespace Shiftapp_demo.Business
         }
 
 
-        private DateTime? GetCompWorkOff(DateTime dutyDay, List<DateTime> holidays)
+        internal static DateTime? GetCompWorkOff(DateTime dutyDay, List<DateTime> holidays)
         {
             var day = dutyDay.Date;
             var hset = new HashSet<DateTime>(holidays.Select(x => x.Date));
@@ -164,7 +165,7 @@ namespace Shiftapp_demo.Business
 
 
         // 直前の営業日を最大 daysBack 日さかのぼって探す（同一 monthOnly に限定）
-        private static DateTime? PickPrevBusinessDayWithin(DateTime anchor, int daysBack, List<DateTime> holidays, int monthOnly)
+        internal static DateTime? PickPrevBusinessDayWithin(DateTime anchor, int daysBack, List<DateTime> holidays, int monthOnly)
         {
             for (int i = 1; i <= daysBack; i++)
             {
@@ -178,7 +179,7 @@ namespace Shiftapp_demo.Business
 
         //START---------------------------代休付与関数-------------------------
 
-        private bool TrySetWithPriority(
+        internal static bool TrySetWithPriority(
             Dictionary<(int EmployeeId, DateTime Date), int> map,
             List<ShiftWrite> upserts,
             int eid, DateTime d, int newStid,
@@ -206,7 +207,7 @@ namespace Shiftapp_demo.Business
             });
         }
 
-        private DateTime NextWeekday(DateTime from, DayOfWeek target)
+        internal static DateTime NextWeekday(DateTime from, DayOfWeek target)
         {
             // 「次の target 曜日」（翌週の同曜日も含めて最短）
             int diff = ((int)target - (int)from.DayOfWeek + 7) % 7;
@@ -265,7 +266,7 @@ namespace Shiftapp_demo.Business
             foreach (var sat in saturdays)
             {
                 // この週に働く班を共通関数で取得
-                string workingClass = GetWorkingClass(sat);
+                string workingClass = GetWorkingClass(sat, _baselineIsA);
 
                 foreach (var emp in employees)
                 {
@@ -389,7 +390,7 @@ namespace Shiftapp_demo.Business
         }
 
         // 土曜出勤班によるプールの絞り込み（絞り込んだ結果が0件ならフォールバックして元のプールを返す）
-        private List<Employee> FilterBySaturday(List<Employee> source, string satClass, DateTime day, bool canSatWork)
+        internal static List<Employee> FilterBySaturday(List<Employee> source, string satClass, DateTime day, bool canSatWork)
         {
             var filtered = canSatWork
                 ? source.Where(e => e.SaturdayClass.Equals(satClass, StringComparison.OrdinalIgnoreCase)).ToList()
@@ -536,7 +537,7 @@ namespace Shiftapp_demo.Business
 
             for (var day = first; day <= last; day = day.AddDays(1))
             {
-                var workingClass = GetWorkingClass(day); // dayが属する週の土曜に働く班
+                var workingClass = GetWorkingClass(day, _baselineIsA); // dayが属する週の土曜に働く班
 
                 bool? shouldBeWorking = day.DayOfWeek switch
                 {
