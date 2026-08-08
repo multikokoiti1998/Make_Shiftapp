@@ -151,16 +151,24 @@ namespace Shiftapp_demo.Business
             // ========= 3) 当直・日勤の人数制約（毎日：当直=カテ可1+カテ不可1、日勤は0～1） =========
             for (int d = 0; d < daysCount; d++)
             {
+                var dayWorkVars = new List<BoolVar>();
+                for (int e = 0; e < numEmp; e++) dayWorkVars.Add(w[e, d]);
+
+                // 月最終日はセクション4で全員 x=0 に固定されるため、その日も当直必須(==1)にすると
+                // 必ずINFEASIBLEになる。最終日は当直なし（要運用調整）とし、日勤のみ対象とする。
+                if (d == daysCount - 1)
+                {
+                    model.Add(LinearExpr.Sum(dayWorkVars) <= 1);
+                    continue;
+                }
+
                 var cath = new List<BoolVar>();
                 var nonCath = new List<BoolVar>();
-                var dayWorkVars = new List<BoolVar>();
 
                 for (int e = 0; e < numEmp; e++)
                 {
                     if (_employees[e].CanDoCatheterization) cath.Add(x[e, d]);
                     else nonCath.Add(x[e, d]);
-
-                    dayWorkVars.Add(w[e, d]);
                 }
                 // カテ可から1人、カテ不可から1人の合計2人が必要
                 model.Add(LinearExpr.Sum(cath) == 1);
@@ -224,12 +232,14 @@ namespace Shiftapp_demo.Business
 
                 for (int e = 0; e < numEmp; e++)
                 {
-                    // 当直(d) ↔ 代休(t1) を同値にして固定
-                    model.Add(s[e, t1.Value] == x[e, d]);
-
-                    // 代休の日は当直/明けにしない（当直が立ったときだけ強制）
-                    model.Add(x[e, t1.Value] == 0).OnlyEnforceIf(x[e, d]);
-                    model.Add(a[e, t1.Value] == 0).OnlyEnforceIf(x[e, d]);
+                    // 当直(d)があれば代休(t1)を確保する（片方向の含意のみ）。
+                    // 双方向の等式 s[e,t1]==x[e,d] にすると、別々の当直日dが同じ代休先t1に
+                    // 集約されるケース（例: 土曜当直と平日祝日当直がどちらも同じ月曜に代休となる場合）で
+                    // 「その2つの当直日は同一人物でなければならない」という誤った制約になり、
+                    // 間隔制約(セクション6)と矛盾してINFEASIBLEになることがあったため、
+                    // 片方向の含意にとどめる。他シフトとの排他はセクション5のsum<=1に委ねるため、
+                    // x[e,t1]/a[e,t1]を個別に0固定する必要もない。
+                    model.Add(s[e, t1.Value] == 1).OnlyEnforceIf(x[e, d]);
                 }
             }
 
