@@ -39,11 +39,18 @@ namespace Shiftapp_demo.Business
         }
 
         //START---------------------------基本関数-----------------
-        //その月の土曜日を取得するメソッド
-        public static List<DateTime> GetSaturdaysInMonth(DateTime month)
+        // 月初・月末を返すヘルパー
+        private static (DateTime first, DateTime last) GetMonthRange(DateTime month)
         {
             var first = new DateTime(month.Year, month.Month, 1);
             var last = first.AddMonths(1).AddDays(-1);
+            return (first, last);
+        }
+
+        //その月の土曜日を取得するメソッド
+        public static List<DateTime> GetSaturdaysInMonth(DateTime month)
+        {
+            var (first, last) = GetMonthRange(month);
             var list = new List<DateTime>();
             for (var d = first; d <= last; d = d.AddDays(1))
                 if (d.DayOfWeek == DayOfWeek.Saturday) list.Add(d);
@@ -53,8 +60,7 @@ namespace Shiftapp_demo.Business
         //その月の日曜日を取得するメソッド
         public static List<DateTime> GetSundaysInMonth(DateTime month)
         {
-            var first = new DateTime(month.Year, month.Month, 1);
-            var last = first.AddMonths(1).AddDays(-1);
+            var (first, last) = GetMonthRange(month);
             var list = new List<DateTime>();
             for (var d = first; d <= last; d = d.AddDays(1))
                 if (d.DayOfWeek == DayOfWeek.Sunday) list.Add(d);
@@ -183,14 +189,7 @@ namespace Shiftapp_demo.Business
             Func<int, bool>? cannotOverwrite = null)
         {
             var key = (eid, d.Date);
-            if (!map.TryGetValue(key, out var cur))
-            {
-                map[key] = newStid;
-                upserts.Add(new ShiftWrite(eid, d.Date, newStid));
-                return true;
-            }
-
-            if (cannotOverwrite?.Invoke(cur) == true)
+            if (map.TryGetValue(key, out var cur) && cannotOverwrite?.Invoke(cur) == true)
                 return false;
 
             map[key] = newStid;
@@ -242,8 +241,7 @@ namespace Shiftapp_demo.Business
         IEnumerable<ShiftDataLoader> dirtyRows,
         IReadOnlyDictionary<string, int> symbolToId)
         {
-            var first = new DateTime(month.Year, month.Month, 1);
-            var last = first.AddMonths(1).AddDays(-1);
+            var (first, last) = GetMonthRange(month);
 
             _db.SaveDailyShifts(first, last, dirtyRows, symbolToId);
         }
@@ -262,8 +260,7 @@ namespace Shiftapp_demo.Business
             var saturdays = GetSaturdaysInMonth(month);
 
             // 返り値の想定: Dictionary<(int EmployeeId, DateTime Date), int ShiftTypeId>
-            var first = new DateTime(month.Year, month.Month, 1);
-            var last = first.AddMonths(1).AddDays(-1);
+            var (first, last) = GetMonthRange(month);
             var existing = _db.GetShiftMap(first, last);
 
 
@@ -316,8 +313,7 @@ namespace Shiftapp_demo.Business
 
             // 月間の既存シフト（当直など）があれば優先したいので先に取得
             // 返り値の想定: Dictionary<(int EmployeeId, DateTime Date), int ShiftTypeId>
-            var first = new DateTime(month.Year, month.Month, 1);
-            var last = first.AddMonths(1).AddDays(-1);
+            var (first, last) = GetMonthRange(month);
             var existing = _db.GetShiftMap(first, last);
 
             var assigns = new List<(int eid, DateTime date, int stid)>();
@@ -383,6 +379,64 @@ namespace Shiftapp_demo.Business
             }
         }
 
+        //プールから該当者抽出（フェアネス：当直回数が少ない人→日勤回数が少ない人→休日出勤回数が少ない人→次に早く入れる人→ランダム）
+        private Employee? FindEmployee(List<Employee> pool, Dictionary<int, EmployeeWorkState> states, DateTime currentDay)
+        {
+            return pool
+             .Where(e => states.GetValueOrDefault(e.EmployeeId)?.NextAvailable <= currentDay)
+             .OrderBy(e => states.GetValueOrDefault(e.EmployeeId)?.DutyCount ?? 0)
+             .ThenBy(e => states.GetValueOrDefault(e.EmployeeId)?.DayWorkCount ?? 0)
+             .ThenBy(e => states.GetValueOrDefault(e.EmployeeId)?.RestCount ?? 0)
+             .ThenBy(e => states.GetValueOrDefault(e.EmployeeId)?.NextAvailable ?? DateTime.MinValue)
+             .ThenBy(_ => rand.Next())
+             .FirstOrDefault();
+        }
+
+        // 土曜出勤班によるプールの絞り込み（絞り込んだ結果が0件ならフォールバックして元のプールを返す）
+        private List<Employee> FilterBySaturday(List<Employee> source, string satClass, DateTime day, bool canSatWork)
+        {
+            var filtered = canSatWork
+                ? source.Where(e => e.SaturdayClass.Equals(satClass, StringComparison.OrdinalIgnoreCase)).ToList()
+                : source.Where(e => !e.SaturdayClass.Equals(satClass, StringComparison.OrdinalIgnoreCase)).ToList();
+
+            if (filtered.Count == 0)
+            {
+                Log.Warning("No duty candidate found for {day}, using original pool", day);
+                return source.ToList();
+            }
+
+            return filtered;
+        }
+
+        // 土曜出勤班フィルタ→候補者選出→状態更新をまとめて行う
+        private Employee? AssignAndLog(
+            List<Employee> source,
+            string workingClass,
+            bool? shouldBeWorking,
+            string label,
+            DateTime day,
+            Dictionary<int, EmployeeWorkState> states,
+            Action<EmployeeWorkState> updateAction) // ← 何を更新するかを「命令」として受け取る
+        {
+            var pool = shouldBeWorking.HasValue
+                ? FilterBySaturday(source, workingClass, day, shouldBeWorking.Value)
+                : source.ToList();
+
+            var candidate = FindEmployee(pool, states, day);
+
+            if (candidate != null)
+            {
+                // 見つかったら、渡された「命令（updateAction）」を実行する
+                updateAction(states[candidate.EmployeeId]);
+            }
+            else
+            {
+                Log.Warning("No {label} found for {day}", label, day);
+            }
+
+            return candidate;
+        }
+
         /// <summary>
         /// 指定月の当直を作成する。
         /// 1日あたり カテ可1名 + カテ不可1名 を選出し、翌日明け休/週末代休を付与。
@@ -391,8 +445,7 @@ namespace Shiftapp_demo.Business
         public void GenerateNightDutiesForMonth(DateTime month)
         {
             //----変数セット
-            var first = new DateTime(month.Year, month.Month, 1);
-            var last = first.AddMonths(1).AddDays(-1);
+            var (first, last) = GetMonthRange(month);
 
             // 1) 対象社員の取得（is_active=1、夜勤できる前提）
             var employees_active_all = _db.GetActiveEmployeesWithNightDutyClass();
@@ -463,65 +516,30 @@ namespace Shiftapp_demo.Business
             // 5) 選抜アルゴリズム（フェアネス：当月回数が少ない人→次に早く入れる人→ラウンド）
             var upserts = new List<ShiftWrite>();
 
-            //プールから該当者抽出
-            Employee? FindEployee(List<Employee> pools, Dictionary<int, EmployeeWorkState> states, DateTime CurrentDay)
+            //-----割当登録（当直・日勤共通）------
+            // existingMap/upserts/employeeStatesのみ参照し、日ごとに変化しないため、ループ外で一度だけ定義する
+            Employee? RegisterAssignment(Employee? cand, DateTime day, int statusId, bool isDuty)
             {
-                return pools
-                 .Where(e => states.GetValueOrDefault(e.EmployeeId)?.NextAvailable <= CurrentDay)
-                 .OrderBy(e => states.GetValueOrDefault(e.EmployeeId)?.DutyCount ?? 0)
-                 .ThenBy(e => states.GetValueOrDefault(e.EmployeeId)?.DayWorkCount ?? 0)
-                 .ThenBy(e => states.GetValueOrDefault(e.EmployeeId)?.RestCount ?? 0)
-                 .ThenBy(e => states.GetValueOrDefault(e.EmployeeId)?.NextAvailable ?? DateTime.MinValue)
-                 .ThenBy(_ => rand.Next())
-                 .FirstOrDefault();
-            }
+                if (cand == null) return null;
 
-            List<Employee> FilterBySaturday(List<Employee> source, string satClass, DateTime day, bool CanSatWork)
-            {
-                var filtered = CanSatWork
-                    ? source.Where(e => e.SaturdayClass.Equals(satClass, StringComparison.OrdinalIgnoreCase)).ToList()
-                    : source.Where(e => !e.SaturdayClass.Equals(satClass, StringComparison.OrdinalIgnoreCase)).ToList();
+                // 1. メインの勤務を登録
+                bool placed = TrySetWithPriority(existingMap, upserts, cand.EmployeeId, day, statusId);
+                if (!placed) return null;
 
-                if (filtered.Count == 0)
+                // 2. 当直なら翌日に「明け休み」を入れる
+                if (isDuty)
                 {
-                    Log.Warning("No duty candidate found for {day}, using original pool", day);
-                    return source.ToList();
+                    TrySetWithPriority(existingMap, upserts, cand.EmployeeId, day.AddDays(1), stidAfterDuty);
                 }
 
-                return filtered;
-            }
+                // 3. 次回可能日を更新 (間隔をあける)
+                employeeStates[cand.EmployeeId].NextAvailable = day.AddDays(MinDutyGapDays);
 
-            // --- 共通ヘルパー関数 ---
-            Employee? AssignAndLog(
-                List<Employee> source,
-                string workingClassSat,
-                bool? shouldBeWorking,
-                string label,
-                DateTime day,
-                Action<EmployeeWorkState> updateAction) // ← 何を更新するかを「命令」として受け取る
-            {
-                var pool = shouldBeWorking.HasValue
-                    ? FilterBySaturday(source, workingClassSat, day, shouldBeWorking.Value)
-                    : source.ToList();
-
-                var candidate = FindEployee(pool, employeeStates, day);
-
-                if (candidate != null)
-                {
-                    // 見つかったら、渡された「命令（updateAction）」を実行する
-                    updateAction(employeeStates[candidate.EmployeeId]);
-                }
-                else
-                {
-                    Log.Warning("No {label} found for {day}", label, day);
-                }
-
-                return candidate;
+                return cand;
             }
 
             for (var day = first; day <= last; day = day.AddDays(1))
             {
-                Models.Employee? cand1 = null, cand2 = null;
                 var workingClass = GetWorkingClass(day); // dayが属する週の土曜に働く班
 
                 bool? shouldBeWorking = day.DayOfWeek switch
@@ -531,28 +549,21 @@ namespace Shiftapp_demo.Business
                     _ => null   // 平日はフィルタなし
                 };
 
+                // 当直候補選定（カテ可/不可それぞれ1名ずつ）
+                Employee? SelectDutyCandidate(List<Employee> pool, string label) =>
+                    AssignAndLog(pool, workingClass, shouldBeWorking, label, day, employeeStates, state =>
+                    {
+                        state.AddDutyWorkCount();
+                        // 祝日・日曜なら明け休みも追加
+                        if (holidays.Contains(day.Date) || day.DayOfWeek == DayOfWeek.Sunday)
+                        {
+                            state.AddRestCount();
+                        }
+                    });
+
                 // 2) can/cannot それぞれから1人ずつ選んで更新
-                cand1 = AssignAndLog(canCath, workingClass, shouldBeWorking, "cand1", day, state =>
-                {
-                    state.AddDutyWorkCount();
-                    // 祝日・日曜なら明け休みも追加
-                    if (holidays.Contains(day.Date) || day.DayOfWeek == DayOfWeek.Sunday)
-                    {
-                        state.AddRestCount();
-                    }
-                });
-
-                cand2 = AssignAndLog(cannotCath, workingClass, shouldBeWorking, "cand2", day, state =>
-                {
-                    state.AddDutyWorkCount();
-                    // 祝日・日曜なら明け休みも追加
-                    if (holidays.Contains(day.Date) || day.DayOfWeek == DayOfWeek.Sunday)
-                    {
-                        state.AddRestCount();
-                    }
-                });
-
-                //-----当直候補者------
+                var cand1 = SelectDutyCandidate(canCath, "cand1");
+                var cand2 = SelectDutyCandidate(cannotCath, "cand2");
 
                 //-----日勤候補者------
                 //日勤候補
@@ -562,7 +573,7 @@ namespace Shiftapp_demo.Business
                 {
                     var pool3 = canDayduty.Where(e => e.EmployeeId != cand1?.EmployeeId && e.EmployeeId != cand2?.EmployeeId).ToList();
                     var poolSun = FilterBySaturday(pool3, workingClass, day, false);
-                    cand3 = AssignAndLog(poolSun, workingClass, shouldBeWorking, "cand3", day, state =>
+                    cand3 = AssignAndLog(poolSun, workingClass, shouldBeWorking, "cand3", day, employeeStates, state =>
                     {
                         state.AddDayWorkCount(); // 日勤の回数だけを増やす
                     });
@@ -571,31 +582,10 @@ namespace Shiftapp_demo.Business
                 else if (holidays.Contains(day.Date))
                 {
                     var pool4 = canDayduty.Where(e => e.EmployeeId != cand1?.EmployeeId && e.EmployeeId != cand2?.EmployeeId).ToList();
-                    cand4 = AssignAndLog(pool4, workingClass, shouldBeWorking, "cnad4", day, state =>
+                    cand4 = AssignAndLog(pool4, workingClass, shouldBeWorking, "cand4", day, employeeStates, state =>
                     {
                         state.AddDayWorkCount(); // 日勤の回数だけを増やす
                     });
-                }
-
-                //-----代休付与------
-                Employee? RegisterAssignment(Employee? cand, DateTime day, int statusId, bool isDuty)
-                {
-                    if (cand == null) return null;
-
-                    // 1. メインの勤務を登録
-                    bool placed = TrySetWithPriority(existingMap, upserts, cand.EmployeeId, day, statusId);
-                    if (!placed) return null;
-
-                    // 2. 当直なら翌日に「明け休み」を入れる
-                    if (isDuty)
-                    {
-                        TrySetWithPriority(existingMap, upserts, cand.EmployeeId, day.AddDays(1), stidAfterDuty);
-                    }
-
-                    // 3. 次回可能日を更新 (間隔をあける)
-                    employeeStates[cand.EmployeeId].NextAvailable = day.AddDays(MinDutyGapDays);
-
-                    return cand;
                 }
 
                 // 当直の確定
