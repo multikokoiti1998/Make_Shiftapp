@@ -616,6 +616,36 @@ namespace Shiftapp_demo.DataAccess
             return result;
         }
 
+        // Solverへ渡す職員一覧: 当直対応可 or 日勤対応可のいずれかを満たす有効職員をまとめて取得
+        // （ヒューリスティックのcanCath/cannotCath/canDayduty相当を1つのリストに統合し、
+        //  Solver側はEmployee.CanDoNightDuty/CanDayDuty/CanDoCatheterizationで個別に判定する）
+        public List<Employee> GetActiveEmployeesForScheduling()
+        {
+            var result = new List<Employee>();
+            using var connection = new SqliteConnection(_connectionString);
+            connection.Open();
+
+            var cmd = connection.CreateCommand();
+            cmd.CommandText = @"
+            SELECT employee_id, CanDoNightDuty, CanDoCatheterization, CanDoDayduty, saturday_class
+            FROM employee
+            WHERE is_active=1 AND (CanDoNightDuty=1 OR CanDoDayduty=1)";
+
+            using var reader = cmd.ExecuteReader();
+            while (reader.Read())
+            {
+                result.Add(new Employee
+                {
+                    EmployeeId = reader.GetInt32(0),
+                    CanDoNightDuty = reader.GetInt32(1) == 1,
+                    CanDoCatheterization = reader.GetInt32(2) == 1,
+                    CanDayDuty = reader.GetInt32(3) == 1,
+                    SaturdayClass = reader.IsDBNull(4) ? "" : reader.GetString(4),
+                });
+            }
+            return result;
+        }
+
         // シフト生成(Solver)側から使う: 全職員分の有効な勤務希望を employee_id ごとにまとめて取得
         public Dictionary<int, List<EmployeePreference>> GetAllActivePreferencesByEmployee()
         {

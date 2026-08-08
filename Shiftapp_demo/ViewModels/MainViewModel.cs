@@ -265,7 +265,24 @@ namespace Shiftapp_demo.ViewModels
         {
             db.DeleteMonthDutyAndDayParentsWithCascade(month);
 
-            _business.GenerateNightDutiesForMonth(month);
+            // _symbolToId はLoadShiftDataForMonth経由でしか埋まらないため、参照前に明示的にロードする
+            LoadShiftTypes();
+
+            var employees = db.GetActiveEmployeesForScheduling();
+            var (first, last) = ShiftBusiness.GetMonthRange(month);
+            var preloadStart = first.AddDays(-7);
+            var preloadEnd = last.AddDays(21); // 週末代休を安全に見る
+            var existingMap = db.GetShiftMap(preloadStart, preloadEnd);
+            var holidays = _business.GetHolidaysInMonth(month).Select(h => h.date).ToList();
+            var preferences = db.GetAllActivePreferencesByEmployee();
+
+            var solver = new ShiftsSolver(month, employees, existingMap, holidays,
+                _symbolToId["当"], _symbolToId["明"], _symbolToId["●"], _symbolToId["○"], _symbolToId["日"],
+                baselineIsA: false, // UpdateSaturdayShifts(GenerateOffShift)の既定"B"に合わせる
+                preferencesByEmployee: preferences);
+
+            var writes = solver.Solve();
+            db.BulkUpsert_Duty_Shifts(writes, month);
 
             LoadShiftDataForMonth(month);
         }
