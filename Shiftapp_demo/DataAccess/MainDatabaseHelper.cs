@@ -568,9 +568,9 @@ namespace Shiftapp_demo.DataAccess
 
             var cmd = connection.CreateCommand();
             cmd.CommandText = @"
-            SELECT employee_id, CanDoNightDuty,CanDoCatheterization
-            FROM employee 
-            WHERE CanDoNightDuty=1";
+            SELECT employee_id, CanDoNightDuty, CanDoCatheterization, saturday_class
+            FROM employee
+            WHERE CanDoNightDuty=1 AND is_active=1";
 
             using var reader = cmd.ExecuteReader();
             while (reader.Read())
@@ -581,7 +581,9 @@ namespace Shiftapp_demo.DataAccess
 
                     CanDoNightDuty = reader.GetInt32(1) == 1,
 
-                    CanDoCatheterization = reader.GetInt32(2) == 1
+                    CanDoCatheterization = reader.GetInt32(2) == 1,
+
+                    SaturdayClass = reader.IsDBNull(3) ? "" : reader.GetString(3)
                 });
             }
             return result;
@@ -595,9 +597,9 @@ namespace Shiftapp_demo.DataAccess
 
             var cmd = connection.CreateCommand();
             cmd.CommandText = @"
-            SELECT employee_id, CanDoDayduty,CanDoCatheterization
-            FROM employee 
-            WHERE CanDoCatheterization==0 and CanDoDayduty==1 ";
+            SELECT employee_id, CanDoDayduty, CanDoCatheterization, saturday_class
+            FROM employee
+            WHERE CanDoCatheterization==0 and CanDoDayduty==1 AND is_active=1";
 
             using var reader = cmd.ExecuteReader();
             while (reader.Read())
@@ -607,6 +609,8 @@ namespace Shiftapp_demo.DataAccess
                     EmployeeId = reader.GetInt32(0),
 
                     CanDayDuty = reader.GetInt32(1) == 1,
+
+                    SaturdayClass = reader.IsDBNull(3) ? "" : reader.GetString(3)
                 });
             }
             return result;

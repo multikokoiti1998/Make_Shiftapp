@@ -371,12 +371,10 @@ namespace Shiftapp_demo.Business
             public void AddDutyWorkCount()
             {
                 DutyCount++;
-                NextAvailable.AddDays(MinDutyGapDays);
             }
             public void AddDayWorkCount()
             {
                 DayWorkCount++;
-                NextAvailable.AddDays(MinDutyGapDays);
             }
 
             public void AddRestCount()
@@ -486,7 +484,7 @@ namespace Shiftapp_demo.Business
 
                 if (filtered.Count == 0)
                 {
-                    Log.Information("No duty candidate found for {day}, using original pool", day);
+                    Log.Warning("No duty candidate found for {day}, using original pool", day);
                     return source.ToList();
                 }
 
@@ -524,8 +522,7 @@ namespace Shiftapp_demo.Business
             for (var day = first; day <= last; day = day.AddDays(1))
             {
                 Models.Employee? cand1 = null, cand2 = null;
-                var saturday = day.AddDays(1).Date;
-                var workingClassSat = GetWorkingClass(saturday); // 土曜に働く班
+                var workingClass = GetWorkingClass(day); // dayが属する週の土曜に働く班
 
                 bool? shouldBeWorking = day.DayOfWeek switch
                 {
@@ -535,7 +532,7 @@ namespace Shiftapp_demo.Business
                 };
 
                 // 2) can/cannot それぞれから1人ずつ選んで更新
-                cand1 = AssignAndLog(canCath, workingClassSat, shouldBeWorking, "cand1", day, state =>
+                cand1 = AssignAndLog(canCath, workingClass, shouldBeWorking, "cand1", day, state =>
                 {
                     state.AddDutyWorkCount();
                     // 祝日・日曜なら明け休みも追加
@@ -545,7 +542,7 @@ namespace Shiftapp_demo.Business
                     }
                 });
 
-                cand2 = AssignAndLog(cannotCath, workingClassSat, shouldBeWorking, "cand2", day, state =>
+                cand2 = AssignAndLog(cannotCath, workingClass, shouldBeWorking, "cand2", day, state =>
                 {
                     state.AddDutyWorkCount();
                     // 祝日・日曜なら明け休みも追加
@@ -560,13 +557,12 @@ namespace Shiftapp_demo.Business
                 //-----日勤候補者------
                 //日勤候補
                 Models.Employee? cand3 = null, cand4 = null;
-                var workingClass = GetWorkingClass(day);
                 //祝日候補
                 if (day.DayOfWeek == DayOfWeek.Sunday)
                 {
                     var pool3 = canDayduty.Where(e => e.EmployeeId != cand1?.EmployeeId && e.EmployeeId != cand2?.EmployeeId).ToList();
                     var poolSun = FilterBySaturday(pool3, workingClass, day, false);
-                    cand3 = AssignAndLog(poolSun, workingClassSat, shouldBeWorking, "cand3", day, state =>
+                    cand3 = AssignAndLog(poolSun, workingClass, shouldBeWorking, "cand3", day, state =>
                     {
                         state.AddDayWorkCount(); // 日勤の回数だけを増やす
                     });
@@ -575,7 +571,7 @@ namespace Shiftapp_demo.Business
                 else if (holidays.Contains(day.Date))
                 {
                     var pool4 = canDayduty.Where(e => e.EmployeeId != cand1?.EmployeeId && e.EmployeeId != cand2?.EmployeeId).ToList();
-                    cand4 = AssignAndLog(pool4, workingClassSat, shouldBeWorking, "cnad4", day, state =>
+                    cand4 = AssignAndLog(pool4, workingClass, shouldBeWorking, "cnad4", day, state =>
                     {
                         state.AddDayWorkCount(); // 日勤の回数だけを増やす
                     });
