@@ -76,10 +76,11 @@
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
 
             <Border Grid.Row="0"
-               Background="{DynamicResource MaterialDesignPaper}"  
+               Background="{DynamicResource MaterialDesignPaper}"
                Padding="12,10,12,8">
                 <TextBlock x:Name="MonthHeaderTextBlock"
                HorizontalAlignment="Left"
@@ -88,7 +89,7 @@
                FontWeight="Bold"
                Text="{Binding MonthHeaderText}"/>
             </Border>
-            
+
             <DataGrid x:Name="ShiftDataGrid"
               Grid.Row="1"
               Margin="0,6,0,0" 
@@ -144,6 +145,18 @@
                 </DataGrid.Resources>
 
             </DataGrid>
+
+            <Border Grid.Row="2"
+               Background="{DynamicResource MaterialDesignPaper}"
+               Padding="12,8"
+               Margin="0,6,0,0">
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                    <TextBlock Text="当直: " FontWeight="Bold" VerticalAlignment="Center"/>
+                    <TextBlock Text="{Binding TodayDutyNames}" VerticalAlignment="Center"/>
+                    <TextBlock Text="日勤: " FontWeight="Bold" VerticalAlignment="Center" Margin="24,0,0,0"/>
+                    <TextBlock Text="{Binding TodayDayWorkNames}" VerticalAlignment="Center"/>
+                </StackPanel>
+            </Border>
         </Grid>
     </Grid>
 </Window>

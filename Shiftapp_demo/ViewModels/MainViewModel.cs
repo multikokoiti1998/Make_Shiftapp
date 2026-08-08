@@ -87,7 +87,33 @@ namespace Shiftapp_demo.ViewModels
             }
         }
         //カレンダー初期化用バインディング
-        public DateTime? SelectedDate { get; set; } = DateTime.Today;
+        private DateTime? _selectedDate = DateTime.Today;
+        public DateTime? SelectedDate
+        {
+            get => _selectedDate;
+            set
+            {
+                if (SetProperty(ref _selectedDate, value))
+                {
+                    OnPropertyChanged(nameof(TodayDutyNames));
+                    OnPropertyChanged(nameof(TodayDayWorkNames));
+                }
+            }
+        }
+
+        // 画面右下「本日の当直/日勤」表示用（SelectedDateが未選択ならシステムの今日にフォールバック）
+        public string TodayDutyNames => string.Join("、", GetNamesForSymbolOnSelectedDate("当"));
+        public string TodayDayWorkNames => string.Join("、", GetNamesForSymbolOnSelectedDate("日"));
+
+        private IEnumerable<string> GetNamesForSymbolOnSelectedDate(string symbol)
+        {
+            var date = SelectedDate ?? DateTime.Today;
+            var key = date.ToString("yyyy-MM-dd");
+
+            return ShiftDataCollection
+                .Where(loader => loader[key] == symbol)
+                .Select(loader => loader.EmployeeName ?? string.Empty);
+        }
 
         private DateTime _displayDate = DateTime.Today;
         public DateTime DisplayDate
@@ -308,6 +334,9 @@ namespace Shiftapp_demo.ViewModels
             // 5) 列（ID/名前＋1..末日）
             ShiftGridColumns = GridHelperClass.GenerateColumnsForMonth(month);
 
+            // ShiftDataCollectionを丸ごと差し替えたため、本日表示パネルにも再計算を通知する
+            OnPropertyChanged(nameof(TodayDutyNames));
+            OnPropertyChanged(nameof(TodayDayWorkNames));
         }
     }
 }
