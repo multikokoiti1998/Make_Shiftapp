@@ -157,7 +157,8 @@ namespace Shiftapp_demo.Business
             if ((day.DayOfWeek == DayOfWeek.Friday || isWeekdayHoliday) && candidate.Month != day.Month)
             {
                 var fallback = PickPrevBusinessDayWithin(candidate, 7, holidays, day.Month);
-                return fallback;
+                // 付け替え先が当直日以前になってしまう場合（同月内に有効な代休日が見つからない場合）は付与しない
+                return (fallback.HasValue && fallback.Value > day) ? fallback : null;
             }
 
             return candidate;
@@ -170,7 +171,10 @@ namespace Shiftapp_demo.Business
             for (int i = 1; i <= daysBack; i++)
             {
                 var d = anchor.Date.AddDays(-i);
-                if (d.Month != monthOnly) break;
+                // 対象月にまだ到達していない場合はスキップして遡り続ける
+                // (以前は candidate が対象月から複数日離れていると、最初の1日だけ見て
+                //  即座に探索を打ち切ってしまい、対象月内に有効な営業日があっても null を返す不具合があった)
+                if (d.Month != monthOnly) continue;
                 if (IsBusinessDay(d, holidays)) return d;
             }
             return null;

@@ -273,6 +273,35 @@ public class ShiftBusinessTests
         Assert.Equal(new DateTime(2025, 9, 30), result);
     }
 
+    [Fact]
+    public void GetCompWorkOff_FridayNearMonthEnd_SkipsMultipleDaysIntoNextMonth_StillFallsBackWithinSameMonth()
+    {
+        // PickPrevBusinessDayWithin の回帰テスト:
+        // 付け替え候補日(candidate)が翌月に2日以上入り込む場合、以前は最初の1日だけを見て
+        // 探索を打ち切ってしまい、同月内に有効な営業日があっても null を返してしまっていた。
+        var friday = new DateTime(2025, 9, 26); // 次の水曜は 10/1 だが、それを祝日にして 10/2 まで押し出す
+        var holidays = new List<DateTime> { new DateTime(2025, 10, 1) };
+
+        var result = ShiftBusiness.GetCompWorkOff(friday, holidays);
+
+        Assert.Equal(new DateTime(2025, 9, 30), result);
+    }
+
+    [Fact]
+    public void GetCompWorkOff_NoValidFallbackWithinSameMonth_ReturnsNull_RatherThanCollidingWithDutyDay()
+    {
+        // 月末最後の金曜の直後が土日で月が終わる場合、同月内に有効な代休日が存在しない。
+        // このとき当直日自身や当直日より前を代休日として返すと当直シフトを上書きしてしまうため、
+        // 代休なし(null)を返すのが安全な挙動。
+        var friday = new DateTime(2025, 8, 29); // 8/30(土), 8/31(日) で月が終わる
+        Assert.Equal(DayOfWeek.Friday, friday.DayOfWeek);
+        Assert.Equal(new DateTime(2025, 8, 31), ShiftBusiness.GetMonthRange(friday).last);
+
+        var result = ShiftBusiness.GetCompWorkOff(friday, new List<DateTime>());
+
+        Assert.Null(result);
+    }
+
     // ===== GetMonthRange / GetSaturdaysInMonth / GetSundaysInMonth =====
 
     [Fact]
