@@ -615,6 +615,45 @@ namespace Shiftapp_demo.DataAccess
             }
             return result;
         }
+
+        // シフト生成(Solver)側から使う: 全職員分の有効な勤務希望を employee_id ごとにまとめて取得
+        public Dictionary<int, List<EmployeePreference>> GetAllActivePreferencesByEmployee()
+        {
+            var result = new Dictionary<int, List<EmployeePreference>>();
+
+            using var connection = new SqliteConnection(_connectionString);
+            connection.Open();
+
+            var cmd = connection.CreateCommand();
+            cmd.CommandText = @"
+            SELECT preference_id, employee_id, day_of_week, is_weekend, polarity, weight
+            FROM employee_preference
+            WHERE is_active = 1";
+
+            using var reader = cmd.ExecuteReader();
+            while (reader.Read())
+            {
+                var pref = new EmployeePreference
+                {
+                    PreferenceId = reader.GetInt32(0),
+                    EmployeeId = reader.GetInt32(1),
+                    DayOfWeek = reader.IsDBNull(2) ? null : (DayOfWeek)reader.GetInt32(2),
+                    IsWeekend = reader.GetInt32(3) == 1,
+                    Polarity = (PreferencePolarity)reader.GetInt32(4),
+                    Weight = reader.GetInt32(5),
+                    IsActive = true,
+                };
+
+                if (!result.TryGetValue(pref.EmployeeId, out var list))
+                {
+                    list = new List<EmployeePreference>();
+                    result[pref.EmployeeId] = list;
+                }
+                list.Add(pref);
+            }
+
+            return result;
+        }
         // ====== シフト作成用 ======
 
 

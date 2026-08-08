@@ -37,6 +37,9 @@
             <RowDefinition Height="Auto"/>
             <!-- 技師ボタン列 -->
 
+            <RowDefinition Height="Auto"/>
+            <!-- 選択技師の勤務希望 -->
+
             <RowDefinition Height="20"/>
             <!-- スペーサ -->
             <RowDefinition Height="Auto"/>
@@ -110,11 +113,55 @@
             <Button Content="保存（一覧の変更をDBへ）" Padding="12,6" Margin="4" Command="{Binding SaveEmployeeCommand}"/>
         </StackPanel>
 
+        <!-- 選択技師の勤務希望 -->
+        <Border Grid.Row="3" BorderBrush="Gray" BorderThickness="1" Padding="8" Margin="0,0,0,8">
+            <StackPanel>
+                <TextBlock FontWeight="Bold" Margin="0,0,0,4">
+                    <Run Text="勤務希望"/>
+                    <Run Text=" - "/>
+                    <Run Text="{Binding SelectedEmployee.EmployeeName}"/>
+                </TextBlock>
+
+                <ItemsControl ItemsSource="{Binding SelectedEmployeePreferences}">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <WrapPanel/>
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Border BorderBrush="LightGray" BorderThickness="1" CornerRadius="4" Padding="6,2" Margin="0,0,6,6">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="{Binding DisplayLabel}" Margin="0,0,4,0"/>
+                                    <TextBlock Text="{Binding Polarity}" Margin="0,0,4,0"/>
+                                    <Button Content="削除" Padding="4,0"
+                                            Command="{Binding DataContext.RemovePreferenceCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                            CommandParameter="{Binding}"/>
+                                </StackPanel>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+
+                <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+                    <ComboBox Width="140" Margin="0,0,8,0"
+                              ItemsSource="{Binding PreferenceDayOptions}"
+                              DisplayMemberPath="Label"
+                              SelectedItem="{Binding NewPreferenceDay}"/>
+                    <ComboBox Width="120" Margin="0,0,8,0"
+                              ItemsSource="{Binding PreferencePolarityOptions}"
+                              DisplayMemberPath="Label"
+                              SelectedItem="{Binding NewPreferencePolarity}"/>
+                    <Button Content="希望を追加" Padding="12,4" Command="{Binding AddPreferenceCommand}"/>
+                </StackPanel>
+            </StackPanel>
+        </Border>
+
         <!-- 見出し：祝日 -->
-        <TextBlock Grid.Row="4" Text="祝日設定" FontSize="20" FontWeight="Bold" />
+        <TextBlock Grid.Row="5" Text="祝日設定" FontSize="20" FontWeight="Bold" />
 
         <!-- 祝日操作バー -->
-        <StackPanel Grid.Row="5" Orientation="Horizontal" Margin="0,8,0,8">
+        <StackPanel Grid.Row="6" Orientation="Horizontal" Margin="0,8,0,8">
 
             <TextBlock Text="日付：" VerticalAlignment="Center" Margin="0,0,8,0"/>
             <DatePicker
@@ -143,7 +190,7 @@
 
         </StackPanel>
 
-        <Grid Grid.Row="6" Margin="10">
+        <Grid Grid.Row="7" Margin="10">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="2*" />
                 <ColumnDefinition Width="*" />

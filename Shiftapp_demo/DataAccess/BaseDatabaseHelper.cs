@@ -17,6 +17,29 @@ namespace Shiftapp_demo.DataAccess
         {
             var dbPath = GetDbPath();
             _connectionString = $"Data Source={dbPath}";
+            EnsureSchema();
+        }
+
+        // 配布されたDBファイルにマイグレーション機構がないため、未作成のテーブルを起動のたびに
+        // 冪等に用意する（CREATE TABLE IF NOT EXISTS のみ・既存テーブルには触れない）。
+        private void EnsureSchema()
+        {
+            using var connection = new SqliteConnection(_connectionString);
+            connection.Open();
+
+            var cmd = connection.CreateCommand();
+            cmd.CommandText = @"
+            CREATE TABLE IF NOT EXISTS employee_preference (
+                preference_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                employee_id   INTEGER NOT NULL,
+                day_of_week   INTEGER NULL,
+                is_weekend    INTEGER NOT NULL DEFAULT 0,
+                polarity      INTEGER NOT NULL,
+                weight        INTEGER NOT NULL DEFAULT 1,
+                is_active     INTEGER NOT NULL DEFAULT 1,
+                FOREIGN KEY (employee_id) REFERENCES employee(employee_id)
+            );";
+            cmd.ExecuteNonQuery();
         }
 
         /// <summary>

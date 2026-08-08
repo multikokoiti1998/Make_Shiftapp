@@ -167,5 +167,71 @@ namespace Shiftapp_demo.DataAccess
             cmd.ExecuteNonQuery();
         }
 
+        // ====== 技師の勤務希望 ======
+
+        public List<EmployeePreference> GetPreferencesForEmployee(int employeeId)
+        {
+            var result = new List<EmployeePreference>();
+
+            using var con = new SqliteConnection(_connectionString);
+            con.Open();
+
+            using var cmd = con.CreateCommand();
+            cmd.CommandText = @"
+            SELECT preference_id, employee_id, day_of_week, is_weekend, polarity, weight
+            FROM employee_preference
+            WHERE employee_id = @id AND is_active = 1
+            ORDER BY preference_id;";
+            cmd.Parameters.AddWithValue("@id", employeeId);
+
+            using var reader = cmd.ExecuteReader();
+            while (reader.Read())
+            {
+                result.Add(new EmployeePreference
+                {
+                    PreferenceId = reader.GetInt32(0),
+                    EmployeeId = reader.GetInt32(1),
+                    DayOfWeek = reader.IsDBNull(2) ? null : (DayOfWeek)reader.GetInt32(2),
+                    IsWeekend = reader.GetInt32(3) == 1,
+                    Polarity = (PreferencePolarity)reader.GetInt32(4),
+                    Weight = reader.GetInt32(5),
+                    IsActive = true,
+                });
+            }
+
+            return result;
+        }
+
+        public int InsertPreference(EmployeePreference p)
+        {
+            using var con = new SqliteConnection(_connectionString);
+            con.Open();
+
+            using var cmd = con.CreateCommand();
+            cmd.CommandText = @"
+            INSERT INTO employee_preference (employee_id, day_of_week, is_weekend, polarity, weight, is_active)
+            VALUES (@employeeId, @dayOfWeek, @isWeekend, @polarity, @weight, 1);";
+            cmd.Parameters.AddWithValue("@employeeId", p.EmployeeId);
+            cmd.Parameters.AddWithValue("@dayOfWeek", p.IsWeekend || p.DayOfWeek is null ? (object)DBNull.Value : (int)p.DayOfWeek.Value);
+            cmd.Parameters.AddWithValue("@isWeekend", p.IsWeekend ? 1 : 0);
+            cmd.Parameters.AddWithValue("@polarity", (int)p.Polarity);
+            cmd.Parameters.AddWithValue("@weight", p.Weight);
+            cmd.ExecuteNonQuery();
+
+            cmd.CommandText = "SELECT last_insert_rowid();";
+            return Convert.ToInt32(cmd.ExecuteScalar());
+        }
+
+        public void DeletePreference(int preferenceId)
+        {
+            using var con = new SqliteConnection(_connectionString);
+            con.Open();
+
+            using var cmd = con.CreateCommand();
+            cmd.CommandText = "DELETE FROM employee_preference WHERE preference_id = @id;";
+            cmd.Parameters.AddWithValue("@id", preferenceId);
+            cmd.ExecuteNonQuery();
+        }
+
     }
 }

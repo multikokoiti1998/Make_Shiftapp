@@ -50,9 +50,48 @@ namespace Shiftapp_demo.ViewModels
                     _selectedEmployee = value;
                     OnPropertyChanged(nameof(SelectedEmployee));
                     (DeleteEmployeeCommand as RelayCommand)?.RaiseCanExecuteChanged();
+                    LoadPreferencesForSelectedEmployee();
                 }
             }
         }
+
+        // ====== 選択技師の勤務希望 ======
+        public ObservableCollection<EmployeePreference> SelectedEmployeePreferences { get; } = new();
+
+        public ObservableCollection<OptionItem> PreferenceDayOptions { get; } = new(new[]
+        {
+            new OptionItem("weekend", "週末（土日）"),
+            new OptionItem(((int)DayOfWeek.Sunday).ToString(), "日曜日"),
+            new OptionItem(((int)DayOfWeek.Monday).ToString(), "月曜日"),
+            new OptionItem(((int)DayOfWeek.Tuesday).ToString(), "火曜日"),
+            new OptionItem(((int)DayOfWeek.Wednesday).ToString(), "水曜日"),
+            new OptionItem(((int)DayOfWeek.Thursday).ToString(), "木曜日"),
+            new OptionItem(((int)DayOfWeek.Friday).ToString(), "金曜日"),
+            new OptionItem(((int)DayOfWeek.Saturday).ToString(), "土曜日"),
+        });
+
+        public ObservableCollection<OptionItem> PreferencePolarityOptions { get; } = new(new[]
+        {
+            new OptionItem(((int)PreferencePolarity.Prefer).ToString(), "希望する"),
+            new OptionItem(((int)PreferencePolarity.Avoid).ToString(), "避けたい"),
+        });
+
+        private OptionItem? _newPreferenceDay;
+        public OptionItem? NewPreferenceDay
+        {
+            get => _newPreferenceDay;
+            set => SetProperty(ref _newPreferenceDay, value);
+        }
+
+        private OptionItem? _newPreferencePolarity;
+        public OptionItem? NewPreferencePolarity
+        {
+            get => _newPreferencePolarity;
+            set => SetProperty(ref _newPreferencePolarity, value);
+        }
+
+        public ICommand AddPreferenceCommand { get; }
+        public ICommand RemovePreferenceCommand { get; }
 
         private string _newHolidayName= string.Empty;
         public string NewHolidayName
@@ -127,6 +166,17 @@ namespace Shiftapp_demo.ViewModels
             _ => DeleteHoliday(SelectedHoliday),
             _ => SelectedHoliday != null
                 );
+
+            AddPreferenceCommand = new RelayCommand(
+            _ => AddPreference(),
+            _ => SelectedEmployee != null && NewPreferenceDay != null && NewPreferencePolarity != null
+                );
+
+            RemovePreferenceCommand = new RelayCommand(
+            p => RemovePreference(p as EmployeePreference)
+                );
+
+            NewPreferencePolarity = PreferencePolarityOptions[0];
 
             TechniciansDataGridColumns =
                 AdminGridHelperClass.GenerateColumnsForAdminEmployee(SaturdayClassOptions, RoleClassOptions);
@@ -342,6 +392,58 @@ namespace Shiftapp_demo.ViewModels
             Holidays.Remove(target);
         }
 
+        // ====== 勤務希望 ======
+        private void LoadPreferencesForSelectedEmployee()
+        {
+            SelectedEmployeePreferences.Clear();
+            if (_selectedEmployee is null) return;
+
+            foreach (var p in _db.GetPreferencesForEmployee(_selectedEmployee.EmployeeId))
+                SelectedEmployeePreferences.Add(p);
+        }
+
+        private void AddPreference()
+        {
+            if (SelectedEmployee is null || NewPreferenceDay is null || NewPreferencePolarity is null)
+                return;
+
+            bool isWeekend = NewPreferenceDay.Code == "weekend";
+
+            var pref = new EmployeePreference
+            {
+                EmployeeId = SelectedEmployee.EmployeeId,
+                IsWeekend = isWeekend,
+                DayOfWeek = isWeekend ? null : (DayOfWeek)int.Parse(NewPreferenceDay.Code),
+                Polarity = (PreferencePolarity)int.Parse(NewPreferencePolarity.Code),
+            };
+
+            try
+            {
+                pref.PreferenceId = _db.InsertPreference(pref);
+                SelectedEmployeePreferences.Add(pref);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"希望の追加中にエラーが発生しました:\n{ex.Message}",
+                    "エラー", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private void RemovePreference(EmployeePreference? target)
+        {
+            if (target is null) return;
+
+            try
+            {
+                _db.DeletePreference(target.PreferenceId);
+                SelectedEmployeePreferences.Remove(target);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"希望の削除中にエラーが発生しました:\n{ex.Message}",
+                    "エラー", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
 
 
         // ====== 土曜日班オプション ======
