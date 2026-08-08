@@ -1,15 +1,16 @@
 ﻿using Serilog;
 using Shiftapp_demo.DataAccess;
 using Shiftapp_demo.Models;
-using System.Security.RightsManagement;
 using static Shiftapp_demo.DataAccess.MainDatabaseHelper;
-using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace Shiftapp_demo.Business
 {
     internal class ShiftBusiness
     {
-        //private readonly　DateTime _baselineSaturday;
+        // SaturdayClass ("A"/"B") のマジック文字列を集約
+        private const string ClassA = "A";
+        private const string ClassB = "B";
+
         private bool _baselineIsA;
         private readonly MainDatabaseHelper _db;
         private Random rand = new Random();
@@ -22,14 +23,9 @@ namespace Shiftapp_demo.Business
         public static int MinDutyGapDays = 3;
         public static readonly DateTime _baselineSaturday = new DateTime(2025, 8, 16);
 
-        //テスト用
-        //public static readonly DateTime _baselineSaturday = new DateTime(2026, 2, 28);
-
-
         public ShiftBusiness(MainDatabaseHelper db)
         {
             _db = db;
-            //_baselineSaturday= new DateTime(2025, 8, 16);
             stidWork = _db.GetShiftTypeIdBySymbol("/");   // 土曜出勤
             stidOff = _db.GetShiftTypeIdBySymbol("○");   // 日・祭日休み
             stidDuty = _db.GetShiftTypeIdBySymbol("当");  // 当直
@@ -103,8 +99,8 @@ namespace Shiftapp_demo.Business
             bool isEvenWeek = (weekIndex % 2 == 0);
 
             return isEvenWeek
-                ? (_baselineIsA ? "A" : "B")
-                : (_baselineIsA ? "B" : "A");
+                ? (_baselineIsA ? ClassA : ClassB)
+                : (_baselineIsA ? ClassB : ClassA);
         }
 
         //START---------------------------代休付与のヘルパー関数-----------------
@@ -251,9 +247,9 @@ namespace Shiftapp_demo.Business
 
         //----------------------------ここからシフト生成ロジック-----------------
         // 土曜日勤務登録
-        public void UpdateSaturdayShifts(DateTime month, string worksClassAtBaseline = "B")
+        public void UpdateSaturdayShifts(DateTime month, string worksClassAtBaseline = ClassB)
         {
-            _baselineIsA = worksClassAtBaseline.Equals("A", StringComparison.OrdinalIgnoreCase);
+            _baselineIsA = worksClassAtBaseline.Equals(ClassA, StringComparison.OrdinalIgnoreCase);
 
             var employees = _db.GetActiveEmployeesWithSaturdayClass(); // EmployeeId, SaturdayClass("A"/"B")
 
