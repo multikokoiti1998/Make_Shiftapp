@@ -310,11 +310,17 @@ namespace Shiftapp_demo.Business
             // 1) データ取得
             var employees = _db.GetAllEmployees();
             var sundays = GetSundaysInMonth(month);
-            var holidays = GetHolidaysInMonth(month);
 
             // 月間の既存シフト（当直など）があれば優先したいので先に取得
             // 返り値の想定: Dictionary<(int EmployeeId, DateTime Date), int ShiftTypeId>
             var (first, last) = GetMonthRange(month);
+
+            // GetHolidaysInMonth は代休の月またぎ計算のために当月＋翌月の2ヶ月分を返す仕様のため、
+            // ここでそのまま使うと「今月分を生成しただけで翌月の祝日にも全職員○が付いてしまい、
+            // 翌月のシフト生成時に候補者が全員ブロックされてINFEASIBLEになる」不具合の原因になる。
+            // ○付与は当月分の祝日のみに限定する。
+            var holidays = _db.GetHolidays(first, last);
+
             var existing = _db.GetShiftMap(first, last);
 
             var assigns = new List<(int eid, DateTime date, int stid)>();

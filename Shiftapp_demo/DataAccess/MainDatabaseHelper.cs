@@ -227,6 +227,8 @@ namespace Shiftapp_demo.DataAccess
             cmd.Parameters.AddWithValue("@sidDuty", 1);
             cmd.Parameters.AddWithValue("@stidake", 2);
             cmd.Parameters.AddWithValue("@stidoff", 3);
+            cmd.Parameters.AddWithValue("@stidSun", GetShiftTypeIdBySymbol("○"));
+            cmd.Parameters.AddWithValue("@stidSatWork", GetShiftTypeIdBySymbol("/"));
 
             // 1) 親のシンプル削除：origin_shifts_id IS NULL AND type IN (当/日)
             cmd.CommandText = @"
@@ -243,6 +245,18 @@ namespace Shiftapp_demo.DataAccess
               WHERE c.shift_date >= @first AND c.shift_date < @next
               AND c.origin_shifts_id IS NULL
               AND c.shift_type_id IN (@stidake, @sidDay);";
+            cmd.ExecuteNonQuery();
+
+            // 3) 土日祝の自動割当（○/出勤"/"）も当直・日勤と合わせて作り直す。
+            // これらは常にGenerateOffShift側で全職員分を無条件に再計算する値のため、
+            // ここで消さずに残すと、以前の生成時に付いた○が当直・日勤の候補者を
+            // ブロックしたまま次回の再生成に持ち越されてしまう（INFEASIBLEや日勤0件の原因）。
+            cmd.CommandText = @"
+            DELETE FROM daily_employee_shifts
+            WHERE origin_shifts_id IS NULL
+              AND shift_type_id IN (@stidSun, @stidSatWork)
+              AND shift_date >= @first
+              AND shift_date <  @next;";
             cmd.ExecuteNonQuery();
 
             Log.Information($"{deleted_count} 件削除されました",deleted_count);
