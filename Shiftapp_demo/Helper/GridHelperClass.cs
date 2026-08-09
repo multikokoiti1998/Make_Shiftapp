@@ -71,7 +71,8 @@ namespace Shiftapp_demo.Helper
                 {
                     Header = header,
                     Width = new DataGridLength(1, DataGridLengthUnitType.Star),
-                    MinWidth = 28,
+                    // 土曜列は"16(土/B)"のように班の文字が付き横幅が必要なため、見切れないよう広めに確保する
+                    MinWidth = d.DayOfWeek == DayOfWeek.Saturday ? 46 : 28,
                     CellStyle = centerCell,
                     IsReadOnly = false
                 };

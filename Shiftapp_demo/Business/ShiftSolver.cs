@@ -141,10 +141,12 @@ namespace Shiftapp_demo.Business
                         model.Add(s[e, d] == 0);
                     }
 
-                    // 日勤は日曜/祝日のみ、かつ日勤対応可能な職員のみ。
+                    // 日勤は日曜/祝日のみ、かつ日勤対応可能でカテ不可の職員のみ
+                    // （ShiftBusiness.GetActiveEmployeesWithDayDutyClassの
+                    //  "CanDoCatheterization==0 and CanDoDayduty==1" と同じ基準に統一）。
                     // 既に公休/代休が入っている日も対象外にする（当直と同じ既存シフト保護ルール）。
                     bool dayWorkApplicable = currentDate.DayOfWeek == DayOfWeek.Sunday || _holidays.Contains(currentDate.Date);
-                    if (!dayWorkApplicable || !emp.CanDayDuty || hasExistingOffOrSubOff)
+                    if (!dayWorkApplicable || !emp.CanDayDuty || emp.CanDoCatheterization || hasExistingOffOrSubOff)
                     {
                         model.Add(w[e, d] == 0);
                     }

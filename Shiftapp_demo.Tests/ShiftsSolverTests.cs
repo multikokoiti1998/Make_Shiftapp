@@ -114,9 +114,11 @@ public class ShiftsSolverTests
     public void Solve_DayWork_OnlyOnSundayOrHoliday_ForEligibleEmployees()
     {
         var employees = BuildSymmetricEmployees();
-        employees[0].CanDayDuty = true;
-        employees[4].CanDayDuty = true;
-        var dayWorkEligibleIds = new[] { employees[0].EmployeeId, employees[4].EmployeeId };
+        // ShiftBusiness.GetActiveEmployeesWithDayDutyClass同様、日勤対象はカテ不可(CanDoCatheterization=false)の
+        // 職員のみのため、非カテ班(index 8以降)からCanDayDutyを付与する
+        employees[8].CanDayDuty = true;
+        employees[12].CanDayDuty = true;
+        var dayWorkEligibleIds = new[] { employees[8].EmployeeId, employees[12].EmployeeId };
 
         var holidays = new List<DateTime> { new DateTime(2026, 2, 11) }; // 水曜日を祝日にする
 
@@ -144,12 +146,12 @@ public class ShiftsSolverTests
     public void Solve_DayWork_SkipsEmployeeAlreadyOffOnThatDay()
     {
         var employees = BuildSymmetricEmployees();
-        employees[0].CanDayDuty = true; // 日勤対応可能なのはこの1名のみ
+        employees[8].CanDayDuty = true; // 日勤対応可能(カテ不可)なのはこの1名のみ
         var blockedDate = new DateTime(2026, 2, 1); // Feb 2026の最初の日曜日
 
         var existingMap = new Dictionary<(int, DateTime), int>
         {
-            [(employees[0].EmployeeId, blockedDate)] = StidOff, // 既に公休が入っている
+            [(employees[8].EmployeeId, blockedDate)] = StidOff, // 既に公休が入っている
         };
 
         var solver = new ShiftsSolver(Month, employees, existingMap, new List<DateTime>(),
@@ -158,7 +160,23 @@ public class ShiftsSolverTests
         var writes = solver.Solve();
 
         Assert.DoesNotContain(writes, w =>
-            w.ShiftTypeId == StidDayWork && w.EmployeeId == employees[0].EmployeeId && w.Date == blockedDate);
+            w.ShiftTypeId == StidDayWork && w.EmployeeId == employees[8].EmployeeId && w.Date == blockedDate);
+    }
+
+    [Fact]
+    public void Solve_DayWork_ExcludesCatheterizationCapableEmployees()
+    {
+        // ShiftBusiness.GetActiveEmployeesWithDayDutyClass同様、カテ可の職員は
+        // CanDayDuty=trueであっても日勤対象から除外されることを確認する。
+        var employees = BuildSymmetricEmployees();
+        employees[0].CanDayDuty = true; // カテ可(index 0)にCanDayDutyを付与しても対象外のはず
+
+        var solver = new ShiftsSolver(Month, employees, new Dictionary<(int, DateTime), int>(), new List<DateTime>(),
+            StidDuty, StidAfterDuty, StidSubOff, StidOff, StidDayWork);
+
+        var writes = solver.Solve();
+
+        Assert.DoesNotContain(writes, w => w.ShiftTypeId == StidDayWork && w.EmployeeId == employees[0].EmployeeId);
     }
 
     [Fact]
