@@ -1,4 +1,5 @@
 ﻿using System.Collections.ObjectModel;
+using System.Globalization;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Data;
@@ -60,9 +61,10 @@ namespace Shiftapp_demo.Helper
             {
                 var key = d.ToString("yyyy-MM-dd");
 
+                var youbi = d.ToString("ddd", CultureInfo.GetCultureInfo("ja-JP"));
                 var col = new DataGridTemplateColumn
                 {
-                    Header = d.Day.ToString(),
+                    Header = $"{d.Day}({youbi})",
                     Width = new DataGridLength(1, DataGridLengthUnitType.Star),
                     MinWidth = 28,
                     CellStyle = centerCell,
