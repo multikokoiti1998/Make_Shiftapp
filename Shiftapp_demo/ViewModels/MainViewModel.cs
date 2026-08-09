@@ -349,7 +349,8 @@ namespace Shiftapp_demo.ViewModels
             ShiftDataCollection = new ObservableCollection<ShiftDataLoader>(ordered);
 
             // 5) 列（ID/名前＋1..末日）
-            ShiftGridColumns = GridHelperClass.GenerateColumnsForMonth(month);
+            // baselineIsA: UpdateSaturdayShifts(GenerateOffShift)の既定"B"に合わせる
+            ShiftGridColumns = GridHelperClass.GenerateColumnsForMonth(month, baselineIsA: false);
 
             // ShiftDataCollectionを丸ごと差し替えたため、本日表示パネルにも再計算を通知する
             OnPropertyChanged(nameof(TodayDutyNames));

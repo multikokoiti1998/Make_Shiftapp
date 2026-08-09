@@ -126,6 +126,10 @@ public class ShiftsSolverTests
         var writes = solver.Solve();
         var dayWorks = writes.Where(w => w.ShiftTypeId == StidDayWork).ToList();
 
+        // 適格者がいるのに日勤が一人も割り当てられない、という回帰（目的関数に日勤の動機が
+        // 無かったため常に0件になっていたバグ）を検出するための核心のアサーション。
+        Assert.NotEmpty(dayWorks);
+
         Assert.All(dayWorks, w => Assert.True(w.Date.DayOfWeek == DayOfWeek.Sunday || holidays.Contains(w.Date)));
         Assert.All(dayWorks, w => Assert.Contains(w.EmployeeId, dayWorkEligibleIds));
 
@@ -134,6 +138,27 @@ public class ShiftsSolverTests
         {
             Assert.Single(group);
         }
+    }
+
+    [Fact]
+    public void Solve_DayWork_SkipsEmployeeAlreadyOffOnThatDay()
+    {
+        var employees = BuildSymmetricEmployees();
+        employees[0].CanDayDuty = true; // 日勤対応可能なのはこの1名のみ
+        var blockedDate = new DateTime(2026, 2, 1); // Feb 2026の最初の日曜日
+
+        var existingMap = new Dictionary<(int, DateTime), int>
+        {
+            [(employees[0].EmployeeId, blockedDate)] = StidOff, // 既に公休が入っている
+        };
+
+        var solver = new ShiftsSolver(Month, employees, existingMap, new List<DateTime>(),
+            StidDuty, StidAfterDuty, StidSubOff, StidOff, StidDayWork);
+
+        var writes = solver.Solve();
+
+        Assert.DoesNotContain(writes, w =>
+            w.ShiftTypeId == StidDayWork && w.EmployeeId == employees[0].EmployeeId && w.Date == blockedDate);
     }
 
     [Fact]

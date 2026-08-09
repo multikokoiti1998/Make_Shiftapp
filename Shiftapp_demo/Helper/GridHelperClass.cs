@@ -1,4 +1,5 @@
-﻿using System.Collections.ObjectModel;
+﻿using Shiftapp_demo.Business;
+using System.Collections.ObjectModel;
 using System.Globalization;
 using System.Windows;
 using System.Windows.Controls;
@@ -10,7 +11,8 @@ namespace Shiftapp_demo.Helper
 {
     class GridHelperClass
     {
-        public static ObservableCollection<DataGridColumn> GenerateColumnsForMonth(DateTime month)
+        // baselineIsA: UpdateSaturdayShifts(GenerateOffShift)の既定"B"に合わせる（MainViewModel.MakeNightDutyと同じ前提）
+        public static ObservableCollection<DataGridColumn> GenerateColumnsForMonth(DateTime month, bool baselineIsA = false)
         {
             var columns = new ObservableCollection<DataGridColumn>();
 
@@ -62,9 +64,12 @@ namespace Shiftapp_demo.Helper
                 var key = d.ToString("yyyy-MM-dd");
 
                 var youbi = d.ToString("ddd", CultureInfo.GetCultureInfo("ja-JP"));
+                var header = d.DayOfWeek == DayOfWeek.Saturday
+                    ? $"{d.Day}({youbi}/{ShiftBusiness.GetWorkingClass(d, baselineIsA)})"
+                    : $"{d.Day}({youbi})";
                 var col = new DataGridTemplateColumn
                 {
-                    Header = $"{d.Day}({youbi})",
+                    Header = header,
                     Width = new DataGridLength(1, DataGridLengthUnitType.Star),
                     MinWidth = 28,
                     CellStyle = centerCell,

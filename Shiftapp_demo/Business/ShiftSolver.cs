@@ -28,6 +28,14 @@ namespace Shiftapp_demo.Business
         // 公平性が同点となる解が複数あるときに限り、希望のペナルティで決着させる想定。
         private const int FairnessWeight = 100;
 
+        // 日勤(w)は目的関数に何も現れないと「割り当てなくても最適」になってしまい、
+        // 適格者がいても日勤が一人も選ばれない不具合の原因になっていた。
+        // これを防ぐため、日勤を割り当てるほど得になる支配的な報酬を与える。
+        // FairnessWeight*(最大想定日数)や希望ペナルティの合計を確実に上回る大きさにし、
+        // 「適格者がいるなら必ず割り当てる」をほぼ保証しつつ、ハード制約(==1)にはしない
+        // （本当に割当不可能な稀なケースでもINFEASIBLEにはならず、単にその日は0のまま解が返る）。
+        private const int DayWorkWeight = 10000;
+
         //コンストラクタで必要な情報を受け取る
         public ShiftsSolver(DateTime month,
             List<Employee> employees,
@@ -103,11 +111,17 @@ namespace Shiftapp_demo.Business
 
                     var currentDate = dates[d];
 
-                    // 既存が公休/代休なら当直禁止（例）
+                    // 既存シフトの有無を確認（当直・日勤どちらの禁止判定にも使う）
+                    bool hasExistingOffOrSubOff = false;
                     if (_existingMap.TryGetValue((emp.EmployeeId, currentDate), out int stid))
                     {
-                        if (stid == _stidOff || stid == _stidSubstituteOff)
-                            model.Add(x[e, d] == 0);
+                        hasExistingOffOrSubOff = stid == _stidOff || stid == _stidSubstituteOff;
+                    }
+
+                    // 既存が公休/代休なら当直禁止（例）
+                    if (hasExistingOffOrSubOff)
+                    {
+                        model.Add(x[e, d] == 0);
                     }
 
                     // 土曜班が違うなら当直禁止（例）
@@ -127,9 +141,10 @@ namespace Shiftapp_demo.Business
                         model.Add(s[e, d] == 0);
                     }
 
-                    // 日勤は日曜/祝日のみ、かつ日勤対応可能な職員のみ
+                    // 日勤は日曜/祝日のみ、かつ日勤対応可能な職員のみ。
+                    // 既に公休/代休が入っている日も対象外にする（当直と同じ既存シフト保護ルール）。
                     bool dayWorkApplicable = currentDate.DayOfWeek == DayOfWeek.Sunday || _holidays.Contains(currentDate.Date);
-                    if (!dayWorkApplicable || !emp.CanDayDuty)
+                    if (!dayWorkApplicable || !emp.CanDayDuty || hasExistingOffOrSubOff)
                     {
                         model.Add(w[e, d] == 0);
                     }
@@ -257,6 +272,14 @@ namespace Shiftapp_demo.Business
             }
 
             LinearExpr objective = FairnessWeight * (maxD - minD);
+
+            // 日勤(w)を割り当てるほど得になる報酬を加える（適格でないw[e,d]はセクション2で
+            // 既に0固定されているため、対象を絞らずw全体を合計しても安全）。
+            var allDayWorkVars = new List<BoolVar>();
+            for (int e = 0; e < numEmp; e++)
+                for (int d = 0; d < daysCount; d++)
+                    allDayWorkVars.Add(w[e, d]);
+            objective -= DayWorkWeight * LinearExpr.Sum(allDayWorkVars);
 
             // 希望はハード制約にせず、必ず目的関数のペナルティ項としてのみ組み込む
             // （こうすることで希望がどれだけ厳しくてもINFEASIBLEにはならない）。
