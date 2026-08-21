@@ -118,6 +118,50 @@ namespace Shiftapp_demo.ViewModels
                 .Select(loader => loader.EmployeeName ?? string.Empty);
         }
 
+        // 名前クリック（行選択）で表示する「その職員の今月の当直/明け/代休」一覧
+        private ShiftDataLoader? _selectedEmployeeForSummary;
+        public ShiftDataLoader? SelectedEmployeeForSummary
+        {
+            get => _selectedEmployeeForSummary;
+            set
+            {
+                if (SetProperty(ref _selectedEmployeeForSummary, value))
+                {
+                    OnPropertyChanged(nameof(SelectedEmployeeSummaryHeader));
+                    OnPropertyChanged(nameof(SelectedEmployeeDutyDates));
+                    OnPropertyChanged(nameof(SelectedEmployeeAkeDates));
+                    OnPropertyChanged(nameof(SelectedEmployeeCompOffDates));
+                }
+            }
+        }
+
+        public string SelectedEmployeeSummaryHeader =>
+            SelectedEmployeeForSummary != null ? $"{SelectedEmployeeForSummary.EmployeeName} さんの今月の予定" : "職員を選択してください";
+
+        public string SelectedEmployeeDutyDates => FormatDatesForSymbol(SelectedEmployeeForSummary, "当");
+        public string SelectedEmployeeAkeDates => FormatDatesForSymbol(SelectedEmployeeForSummary, "明");
+
+        // ●は当直/日勤の代休と、日曜/祝日の通常の休みマーカーの両方に使われている記号なので、
+        // シンボル一致だけで集計すると普通の休みまで「代休」に含まれてしまう。
+        // 当直/日勤に紐づく本物の代休だけがToolTip（元の当直/日勤日）を持つため、それで絞り込む。
+        public string SelectedEmployeeCompOffDates => FormatDatesForSymbol(SelectedEmployeeForSummary, "●", requireOrigin: true);
+
+        private static string FormatDatesForSymbol(ShiftDataLoader? loader, string symbol, bool requireOrigin = false)
+        {
+            if (loader == null) return "";
+
+            var dates = loader.Shifts
+                .Where(kv => kv.Value == symbol && (!requireOrigin || loader.Tooltip[kv.Key] != null))
+                .Select(kv => DateTime.Parse(kv.Key))
+                .OrderBy(d => d)
+                .ToList();
+
+            if (dates.Count == 0) return "なし";
+
+            return string.Join("、", dates.Select(d =>
+                $"{d.Month}/{d.Day}({d.ToString("ddd", System.Globalization.CultureInfo.GetCultureInfo("ja-JP"))})"));
+        }
+
         private DateTime _displayDate = DateTime.Today;
         public DateTime DisplayDate
         {

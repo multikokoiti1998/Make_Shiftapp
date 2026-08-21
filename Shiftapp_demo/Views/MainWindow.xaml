@@ -88,6 +88,32 @@
                 Padding="10"
                 />
                 </StackPanel>
+
+                <!-- 選択中の職員の今月の当直/明け/代休一覧（グリッドで名前をクリック＝行選択すると表示） -->
+                <Border Margin="0,15,0,0" Padding="12"
+                        Background="{DynamicResource MaterialDesignPaper}"
+                        materialDesign:ElevationAssist.Elevation="Dp1">
+                    <StackPanel>
+                        <TextBlock Text="{Binding SelectedEmployeeSummaryHeader}"
+                                   FontWeight="Bold" FontSize="16" Margin="0,0,0,8"
+                                   TextWrapping="Wrap"/>
+
+                        <StackPanel Orientation="Horizontal" Margin="0,2,0,0">
+                            <TextBlock Text="当直: " FontWeight="Bold" Width="45" VerticalAlignment="Top"/>
+                            <TextBlock Text="{Binding SelectedEmployeeDutyDates}" TextWrapping="Wrap"/>
+                        </StackPanel>
+
+                        <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+                            <TextBlock Text="明け: " FontWeight="Bold" Width="45" VerticalAlignment="Top"/>
+                            <TextBlock Text="{Binding SelectedEmployeeAkeDates}" TextWrapping="Wrap"/>
+                        </StackPanel>
+
+                        <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+                            <TextBlock Text="代休: " FontWeight="Bold" Width="45" VerticalAlignment="Top"/>
+                            <TextBlock Text="{Binding SelectedEmployeeCompOffDates}" TextWrapping="Wrap"/>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
             </StackPanel>
         </Border>
 
@@ -115,6 +141,7 @@
               FontSize="13"
               AutoGenerateColumns="False"
               ItemsSource="{Binding ShiftDataCollection}"
+              SelectedItem="{Binding SelectedEmployeeForSummary, Mode=TwoWay}"
               ScrollViewer.HorizontalScrollBarVisibility="Auto"
               ScrollViewer.VerticalScrollBarVisibility="Auto"
               GridLinesVisibility="All"
