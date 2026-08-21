@@ -5,6 +5,7 @@ using Serilog;
 using Shiftapp_demo.Business; // DataGridColumn, TextBlock を参照するため
 using Shiftapp_demo.Csv;
 using Shiftapp_demo.DataAccess; // DatabaseHelperを参照するため
+using Shiftapp_demo.Excel;
 using Shiftapp_demo.FrameWork;
 using Shiftapp_demo.Helper;
 using Shiftapp_demo.Models;
@@ -38,6 +39,8 @@ namespace Shiftapp_demo.ViewModels
         public ICommand OpenAdminCommand { get; }
 
         public ICommand ExportCsvRowsCommand { get; }
+
+        public ICommand ImportExcelCommand { get; }
 
         public ICommand GenerateShiftCommand { get; }
 
@@ -150,6 +153,8 @@ namespace Shiftapp_demo.ViewModels
 
             ExportCsvRowsCommand = new RelayCommand(async p => await ExportCsvRowsAsync(p));
 
+            ImportExcelCommand = new RelayCommand(_ => ImportExcel());
+
             OpenAdminCommand = new RelayCommand(OpenAdmin);
 
             GenerateShiftCommand = new RelayCommand(p => GenerateShift(p));
@@ -165,19 +170,23 @@ namespace Shiftapp_demo.ViewModels
 
         private void GenerateShift(object? param)
         {
-            if (param is DateTime displayDate)
+            var targetMonth = param is DateTime displayDate ? displayDate : DateTime.Today;
+
+            try
             {
-                Log.Warning("シフトの自動生成を開始します。{displayDate}", displayDate);
-                MakeNightDuty(displayDate);
-                GenerateOffShift(displayDate);
-                LoadShiftDataForMonth(displayDate);
+                Log.Warning("シフトの自動生成を開始します。{targetMonth}", targetMonth);
+                MakeNightDuty(targetMonth);
+                GenerateOffShift(targetMonth);
+                _business.UpdateShortTimeShifts(targetMonth);
+                LoadShiftDataForMonth(targetMonth);
             }
-            else
+            catch (InvalidOperationException ex)
             {
-                // パラメータが null の場合のフォールバック（例: 今日の月）
-                MakeNightDuty(DateTime.Today);
-                GenerateOffShift(DateTime.Today);
-                LoadShiftDataForMonth(DateTime.Today);
+                // ソルバーが条件を満たせなかった場合（例: シフト生成不可）。
+                // アプリ全体の汎用エラーダイアログに落とさず、具体的な理由を表示する。
+                Log.Warning(ex, "シフト自動生成に失敗しました。{targetMonth}", targetMonth);
+                MessageBox.Show($"シフトの自動生成に失敗しました:\n{ex.Message}",
+                    "エラー", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
@@ -230,6 +239,95 @@ namespace Shiftapp_demo.ViewModels
             {
                 await _csvBiz.ExportMonthAsRowsAsync(year, month, sfd.FileName);
             }
+        }
+
+        private void ImportExcel()
+        {
+            var ofd = new OpenFileDialog
+            {
+                Filter = "Excelファイル (*.xlsx)|*.xlsx",
+                Title = "完成した勤務表(Excel)を選択してください"
+            };
+
+            if (ofd.ShowDialog() != true) return;
+
+            ShiftExcelImportResult result;
+            try
+            {
+                result = ShiftExcelReader.Read(ofd.FileName);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Excel読込中にエラーが発生しました:\n{ex.Message}",
+                    "エラー", MessageBoxButton.OK, MessageBoxImage.Error);
+                return;
+            }
+
+            // 1) ExcelにいるがDB未登録の職員を追加登録する
+            //    （個人コード＝employee_idのため、そのままemployee_idとして使う。
+            //      カテーテル対応など詳細は不明なため不可(false)で登録し、管理者画面で後から設定してもらう）
+            var existingIds = new HashSet<int>(db.GetAllEmployees().Select(e => e.EmployeeId));
+            var newlyRegistered = new List<int>();
+
+            foreach (var g in result.Entries.GroupBy(e => e.EmployeeId))
+            {
+                if (existingIds.Contains(g.Key)) continue;
+
+                db.InsertEmployeeIfMissing(g.Key, g.First().EmployeeName);
+                newlyRegistered.Add(g.Key);
+            }
+
+            // 2) 実績の土曜日出勤/休みのパターンから、各職員の土曜日班(A/B)を判定ロジックの逆算で更新する
+            //    （baselineIsA: false は UpdateSaturdayShifts(GenerateOffShift) の既定"B"に合わせる）
+            var updatedClassCount = 0;
+            foreach (var g in result.Entries.Where(e => e.Date.DayOfWeek == DayOfWeek.Saturday).GroupBy(e => e.EmployeeId))
+            {
+                var inferred = ShiftBusiness.InferSaturdayClass(
+                    g.Select(e => (e.Date, e.Symbol)), baselineIsA: false);
+
+                if (inferred != null)
+                {
+                    db.UpdateSaturdayClass(g.Key, inferred);
+                    updatedClassCount++;
+                }
+            }
+
+            // 対象月を表示（グリッドがDBの現状で作り直される。新規登録した職員もここで反映される）
+            DisplayDate = new DateTime(result.Year, result.Month, 1);
+
+            var loaderById = ShiftDataCollection.ToDictionary(l => l.EmployeeId);
+            var unmatchedIds = new List<int>();
+
+            foreach (var entry in result.Entries)
+            {
+                if (!loaderById.TryGetValue(entry.EmployeeId, out var loader))
+                {
+                    if (!unmatchedIds.Contains(entry.EmployeeId))
+                        unmatchedIds.Add(entry.EmployeeId);
+                    continue;
+                }
+
+                // シフト種別マスタに無い記号（例:「短」）は自動登録して取り込めるようにする
+                if (!string.IsNullOrEmpty(entry.Symbol) && !_symbolToId.ContainsKey(entry.Symbol))
+                {
+                    db.EnsureShiftType(entry.Symbol, entry.Symbol);
+                    LoadShiftTypes();
+                }
+
+                loader[entry.Date.ToString("yyyy-MM-dd")] = entry.Symbol;
+            }
+
+            var dirtyCount = ShiftDataCollection.Count(l => l.IsDirty);
+            var msg = $"{result.Year}年{result.Month}月分を読み込みました（変更 {dirtyCount} 名）。\n" +
+                       "内容を確認のうえ「シフト修正」で保存してください。";
+            if (newlyRegistered.Count > 0)
+                msg += $"\n新規登録した職員コード（カテーテル不可で登録。詳細は管理者画面で設定してください）: {string.Join(", ", newlyRegistered)}";
+            if (updatedClassCount > 0)
+                msg += $"\n実績から土曜日班(A/B)を再判定して更新した職員数: {updatedClassCount}";
+            if (unmatchedIds.Count > 0)
+                msg += $"\n未登録の職員コードのため取り込めなかった行: {string.Join(", ", unmatchedIds)}";
+
+            MessageBox.Show(msg, "Excel読込", MessageBoxButton.OK, MessageBoxImage.Information);
         }
 
         private void LoadShiftTypes()

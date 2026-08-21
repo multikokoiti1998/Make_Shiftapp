@@ -26,51 +26,70 @@
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
-        <StackPanel Grid.Column="0" Grid.Row="0" Grid.RowSpan="2" Margin="10">
-            <Calendar x:Name="ShiftCalendar"
-                      FontSize="24"
-                      Style="{DynamicResource MaterialDesignCalendarPortrait}"
-                      CalendarDayButtonStyle="{DynamicResource MaterialDesignFlatButton}"
-                      DisplayDateChanged="ShiftCalendar_DisplayDateChanged"
-                      SelectionMode="MultipleRange"
-                      SelectedDate="{Binding SelectedDate, Mode=TwoWay}"
-                      DisplayDate="{Binding DisplayDate, Mode=TwoWay}"
-                      DisplayDateStart="2020-01-01">
-            </Calendar>
+        <Border Grid.Column="0" Grid.Row="0" Grid.RowSpan="2" Margin="10"
+                Background="{DynamicResource MaterialDesignPaper}"
+                materialDesign:ElevationAssist.Elevation="Dp1"
+                Padding="12">
+            <StackPanel>
+                <Calendar x:Name="ShiftCalendar"
+                          FontSize="24"
+                          Style="{DynamicResource MaterialDesignCalendarPortrait}"
+                          CalendarDayButtonStyle="{DynamicResource MaterialDesignFlatButton}"
+                          DisplayDateChanged="ShiftCalendar_DisplayDateChanged"
+                          SelectionMode="MultipleRange"
+                          SelectedDate="{Binding SelectedDate, Mode=TwoWay}"
+                          DisplayDate="{Binding DisplayDate, Mode=TwoWay}"
+                          DisplayDateStart="2020-01-01">
+                </Calendar>
 
-            <Button Content="シフト作成" Height="70" FontSize="20" 
-                    Margin="0,15,0,0" Command="{Binding GenerateShiftCommand}"
-                    CommandParameter="{Binding ElementName=ShiftCalendar, Path=DisplayDate}"/>
+                <Button Content="シフト作成" Height="70" FontSize="20"
+                        Style="{StaticResource MaterialDesignRaisedButton}"
+                        Margin="0,15,0,0" Command="{Binding GenerateShiftCommand}"
+                        CommandParameter="{Binding ElementName=ShiftCalendar, Path=DisplayDate}"/>
 
-            <Button Content="管理者画面"  Command="{Binding OpenAdminCommand}" Height="70" FontSize="20" Margin="0,15,0,0"/>
+                <Button Content="管理者画面"
+                        Style="{StaticResource MaterialDesignOutlinedButton}"
+                        Command="{Binding OpenAdminCommand}" Height="70" FontSize="20" Margin="0,15,0,0"/>
 
-            <StackPanel Grid.Column="0" Grid.Row="0" Grid.RowSpan="2" 
-            Orientation="Horizontal"
-            Margin="10,0,0,0"
-            HorizontalAlignment="Left"
-            VerticalAlignment="Top"
-            >
+                <StackPanel Orientation="Horizontal"
+                Margin="0,0,0,0"
+                HorizontalAlignment="Left"
+                VerticalAlignment="Top"
+                >
 
-                <!-- CSV出力ボタン -->
-                <Button Content="CSV出力"
-            Command="{Binding ExportCsvRowsCommand}"
-            CommandParameter="{Binding ElementName=ShiftCalendar, Path=DisplayDate}"
-            Width="150" Height="70"
-            FontSize="18"
-            Margin="0,15,15,0"
-            Padding="10"
-            />
+                    <!-- CSV出力ボタン -->
+                    <Button Content="CSV出力"
+                Style="{StaticResource MaterialDesignOutlinedButton}"
+                Command="{Binding ExportCsvRowsCommand}"
+                CommandParameter="{Binding ElementName=ShiftCalendar, Path=DisplayDate}"
+                Width="150" Height="70"
+                FontSize="18"
+                Margin="0,15,15,0"
+                Padding="10"
+                />
 
-                <!-- シフト修正ボタン -->
-                <Button Content="シフト修正"
-            Command="{Binding  UpdateShiftCommand}"
-            Width="150" Height="70"
-            FontSize="18"
-            Margin="0,15,0,0"
-            Padding="10"
-            />
+                    <!-- Excel読込ボタン -->
+                    <Button Content="Excel読込"
+                Style="{StaticResource MaterialDesignOutlinedButton}"
+                Command="{Binding ImportExcelCommand}"
+                Width="150" Height="70"
+                FontSize="18"
+                Margin="0,15,15,0"
+                Padding="10"
+                />
+
+                    <!-- シフト修正ボタン -->
+                    <Button Content="シフト修正"
+                Style="{StaticResource MaterialDesignRaisedButton}"
+                Command="{Binding  UpdateShiftCommand}"
+                Width="150" Height="70"
+                FontSize="18"
+                Margin="0,15,0,0"
+                Padding="10"
+                />
+                </StackPanel>
             </StackPanel>
-        </StackPanel>
+        </Border>
 
         <Grid Grid.Column="1" Grid.Row="0" Grid.RowSpan="2">
             <Grid.RowDefinitions>
@@ -92,7 +111,7 @@
 
             <DataGrid x:Name="ShiftDataGrid"
               Grid.Row="1"
-              Margin="0,6,0,0" 
+              Margin="0,6,0,0"
               FontSize="13"
               AutoGenerateColumns="False"
               ItemsSource="{Binding ShiftDataCollection}"
@@ -105,7 +124,10 @@
               RowHeight="40"
               ColumnHeaderHeight="40"
               EnableRowVirtualization="True"
-              EnableColumnVirtualization="True">
+              EnableColumnVirtualization="True"
+              CanUserDeleteRows="False"
+              PreviewKeyDown="ShiftDataGrid_PreviewKeyDown"
+              Style="{StaticResource MaterialDesignDataGrid}">
 
                 <DataGrid.ColumnHeaderStyle>
                     <Style TargetType="DataGridColumnHeader">
@@ -148,6 +170,7 @@
 
             <Border Grid.Row="2"
                Background="{DynamicResource MaterialDesignPaper}"
+               materialDesign:ElevationAssist.Elevation="Dp1"
                Padding="12,8"
                Margin="0,6,0,0">
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">

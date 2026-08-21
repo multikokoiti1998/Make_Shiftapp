@@ -40,6 +40,26 @@ namespace Shiftapp_demo.DataAccess
                 FOREIGN KEY (employee_id) REFERENCES employee(employee_id)
             );";
             cmd.ExecuteNonQuery();
+
+            // 配布済みDBには無い列を冪等に追加する（既に列があれば何もしない）
+            EnsureColumn(connection, "employee", "IsShortTime", "INTEGER NOT NULL DEFAULT 0");
+        }
+
+        // "ALTER TABLE ... ADD COLUMN" は列が既に存在するとエラーになるため、
+        // PRAGMA table_info で存在確認してから冪等に追加する。
+        private static void EnsureColumn(SqliteConnection connection, string table, string column, string columnDefinition)
+        {
+            using (var check = connection.CreateCommand())
+            {
+                check.CommandText = $"SELECT COUNT(*) FROM pragma_table_info('{table}') WHERE name = @col;";
+                check.Parameters.AddWithValue("@col", column);
+                var count = Convert.ToInt32(check.ExecuteScalar());
+                if (count > 0) return;
+            }
+
+            using var alter = connection.CreateCommand();
+            alter.CommandText = $"ALTER TABLE {table} ADD COLUMN {column} {columnDefinition};";
+            alter.ExecuteNonQuery();
         }
 
         /// <summary>
@@ -100,8 +120,8 @@ namespace Shiftapp_demo.DataAccess
 
             var cmd = connection.CreateCommand();
             cmd.CommandText = @"
-            SELECT employee_id, Shift_id,employee_name,CanDoCatheterization,saturday_class, 
-            MonthlyDutyLimit,CanDoNightDuty,Role, CanDoDayduty
+            SELECT employee_id, Shift_id,employee_name,CanDoCatheterization,saturday_class,
+            MonthlyDutyLimit,CanDoNightDuty,Role, CanDoDayduty, IsShortTime
             FROM employee
             ORDER BY Role";
 
@@ -119,6 +139,7 @@ namespace Shiftapp_demo.DataAccess
                     CanDoNightDuty = reader.GetInt32(6) == 1,
                     Role = reader.GetInt32(7),
                     CanDayDuty = reader.GetInt32(8) == 1,
+                    IsShortTime = reader.GetInt32(9) == 1,
                 });
             }
             return employees;

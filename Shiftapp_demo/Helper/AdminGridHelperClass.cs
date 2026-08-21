@@ -135,6 +135,18 @@ namespace Shiftapp_demo.Helper
                 IsReadOnly = false
             });
 
+            columns.Add(new DataGridCheckBoxColumn
+            {
+                Header = "時短勤務",
+                Binding = b("IsShortTime"),
+                Width = 180,
+                MinWidth = 120,
+                ElementStyle = centerCheck,
+                EditingElementStyle = centerCheck,
+                CellStyle = centerCell,
+                IsReadOnly = false
+            });
+
             columns.Add(new DataGridComboBoxColumn
             {
                 Header = "役職",

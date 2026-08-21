@@ -28,14 +28,6 @@ namespace Shiftapp_demo.Business
         // 公平性が同点となる解が複数あるときに限り、希望のペナルティで決着させる想定。
         private const int FairnessWeight = 100;
 
-        // 日勤(w)は目的関数に何も現れないと「割り当てなくても最適」になってしまい、
-        // 適格者がいても日勤が一人も選ばれない不具合の原因になっていた。
-        // これを防ぐため、日勤を割り当てるほど得になる支配的な報酬を与える。
-        // FairnessWeight*(最大想定日数)や希望ペナルティの合計を確実に上回る大きさにし、
-        // 「適格者がいるなら必ず割り当てる」をほぼ保証しつつ、ハード制約(==1)にはしない
-        // （本当に割当不可能な稀なケースでもINFEASIBLEにはならず、単にその日は0のまま解が返る）。
-        private const int DayWorkWeight = 10000;
-
         //コンストラクタで必要な情報を受け取る
         public ShiftsSolver(DateTime month,
             List<Employee> employees,
@@ -124,12 +116,25 @@ namespace Shiftapp_demo.Business
                         model.Add(x[e, d] == 0);
                     }
 
-                    // 土曜班が違うなら当直禁止（例）
+                    // 土曜当直は必ず「その週の土曜出勤班」から選ぶ（出勤班でないなら当直禁止）
                     if (currentDate.DayOfWeek == DayOfWeek.Saturday)
                     {
                         string wkClass = ShiftBusiness.GetWorkingClass(currentDate, _baselineIsA);
                         if (!string.IsNullOrEmpty(emp.SaturdayClass) &&
                             !emp.SaturdayClass.Equals(wkClass, StringComparison.OrdinalIgnoreCase))
+                        {
+                            model.Add(x[e, d] == 0);
+                        }
+                    }
+
+                    // 金曜当直は必ず「翌日の土曜が休みの班」から選ぶ（出勤班なら当直禁止）。
+                    // 明け(土曜)がその職員にとって元々休みの日と一致するようにするための制約。
+                    if (currentDate.DayOfWeek == DayOfWeek.Friday)
+                    {
+                        var followingSaturday = currentDate.AddDays(1);
+                        string wkClassNextSat = ShiftBusiness.GetWorkingClass(followingSaturday, _baselineIsA);
+                        if (!string.IsNullOrEmpty(emp.SaturdayClass) &&
+                            emp.SaturdayClass.Equals(wkClassNextSat, StringComparison.OrdinalIgnoreCase))
                         {
                             model.Add(x[e, d] == 0);
                         }
@@ -232,6 +237,18 @@ namespace Shiftapp_demo.Business
                 }
             }
 
+            // ========= 6b) 日勤は同一職員につき月1回までとする =========
+            // 日勤対応可能な職員が少ないと同じ人物に偏りがちなため（連続日はもちろん、
+            // 月内で離れた日でも複数回になるのは避けたいという運用要望）、
+            // 職員ごとに月内の日勤回数の合計を1回までに制限する。
+            // ハード制約だが日勤自体はsum<=1の任意割当（section 3）なので、
+            // 該当者が足りない日は単に日勤なしになるだけでINFEASIBLEにはならない。
+            for (int e = 0; e < numEmp; e++)
+            {
+                var monthlyDayWorkVars = Enumerable.Range(0, daysCount).Select(d => w[e, d]).ToArray();
+                model.Add(LinearExpr.Sum(monthlyDayWorkVars) <= 1);
+            }
+
             // ========= 7) 代休を ShiftBusiness.GetCompWorkOff と同一ルールで固定 =========
             // 代休先の日付計算は ConvertToShiftWrites 側とまったく同じ ShiftBusiness.GetCompWorkOff を使う。
             // こうすることでモデルが確保する日と実際にDBへ書き込む代休日が食い違わないようにする
@@ -242,21 +259,39 @@ namespace Shiftapp_demo.Business
             for (int d = 0; d < daysCount; d++)
             {
                 var compDate = ShiftBusiness.GetCompWorkOff(dates[d], _holidays);
-                if (compDate is null) continue;
+                var t1 = compDate.HasValue ? ToIndex(compDate.Value) : null;
 
-                var t1 = ToIndex(compDate.Value);
-                if (t1 is null) continue;
+                // 二重代休（明けも祝日で本来の祝日を1日つぶしてしまうケース）の対象日は
+                // 職員に依存しない純粋なカレンダー判定のため、ループの外で1回だけ計算する。
+                // ShiftBusiness.AkeAlsoLandsOnHoliday/GetExtraCompWorkOffForRestfulAkeは
+                // ConvertToShiftWrites側の実際のDB書き込みと同一関数（単一の真実源）。
+                // 金曜当直は「翌土曜が休みの班」から選ぶよう既に固定しているため、金曜自体が祝日でも
+                // 二重代休の対象外とする（金曜ルールの通常の代休＝次の水曜1日で足りるため）。
+                int? t2 = null;
+                if (dates[d].DayOfWeek != DayOfWeek.Friday && ShiftBusiness.AkeAlsoLandsOnHoliday(dates[d], _holidays))
+                {
+                    var extraCompDate = ShiftBusiness.GetExtraCompWorkOffForRestfulAke(dates[d], compDate, _holidays);
+                    t2 = extraCompDate.HasValue ? ToIndex(extraCompDate.Value) : null;
+                }
 
                 for (int e = 0; e < numEmp; e++)
                 {
-                    // 当直(d)があれば代休(t1)を確保する（片方向の含意のみ）。
-                    // 双方向の等式 s[e,t1]==x[e,d] にすると、別々の当直日dが同じ代休先t1に
-                    // 集約されるケース（例: 土曜当直と平日祝日当直がどちらも同じ月曜に代休となる場合）で
-                    // 「その2つの当直日は同一人物でなければならない」という誤った制約になり、
-                    // 間隔制約(セクション6)と矛盾してINFEASIBLEになることがあったため、
-                    // 片方向の含意にとどめる。他シフトとの排他はセクション5のsum<=1に委ねるため、
-                    // x[e,t1]/a[e,t1]を個別に0固定する必要もない。
-                    model.Add(s[e, t1.Value] == 1).OnlyEnforceIf(x[e, d]);
+                    if (t1 is not null)
+                    {
+                        // 当直(d)があれば代休(t1)を確保する（片方向の含意のみ）。
+                        // 双方向の等式 s[e,t1]==x[e,d] にすると、別々の当直日dが同じ代休先t1に
+                        // 集約されるケース（例: 土曜当直と平日祝日当直がどちらも同じ月曜に代休となる場合）で
+                        // 「その2つの当直日は同一人物でなければならない」という誤った制約になり、
+                        // 間隔制約(セクション6)と矛盾してINFEASIBLEになることがあったため、
+                        // 片方向の含意にとどめる。他シフトとの排他はセクション5のsum<=1に委ねるため、
+                        // x[e,t1]/a[e,t1]を個別に0固定する必要もない。
+                        model.Add(s[e, t1.Value] == 1).OnlyEnforceIf(x[e, d]);
+                    }
+
+                    if (t2 is not null)
+                    {
+                        model.Add(s[e, t2.Value] == 1).OnlyEnforceIf(x[e, d]);
+                    }
                 }
             }
 
@@ -275,22 +310,18 @@ namespace Shiftapp_demo.Business
 
             LinearExpr objective = FairnessWeight * (maxD - minD);
 
-            // 日勤(w)を割り当てるほど得になる報酬を加える（適格でないw[e,d]はセクション2で
-            // 既に0固定されているため、対象を絞らずw全体を合計しても安全）。
-            var allDayWorkVars = new List<BoolVar>();
-            for (int e = 0; e < numEmp; e++)
-                for (int d = 0; d < daysCount; d++)
-                    allDayWorkVars.Add(w[e, d]);
-            objective -= DayWorkWeight * LinearExpr.Sum(allDayWorkVars);
-
+            // 希望のペナルティ項を先に構築する。日勤(w)の優先度は「公平性・希望のペナルティが
+            // どれだけ積み上がっても絶対に上回らない」重みにする必要があるため、先に希望側の
+            // 実際の最大想定合計を知っておく（ユーザーが希望の重みを大きく設定しても優先度が
+            // 逆転しないようにするため、固定値ではなく実行時に動的計算する）。
             // 希望はハード制約にせず、必ず目的関数のペナルティ項としてのみ組み込む
             // （こうすることで希望がどれだけ厳しくてもINFEASIBLEにはならない）。
             // Avoid: 割当自体(x[e,d])がそのままペナルティ。Prefer: 割当にマイナスの重み＝ボーナス。
+            var prefLiterals = new List<BoolVar>();
+            var prefWeights = new List<int>();
+
             if (_preferencesByEmployee != null)
             {
-                var literals = new List<BoolVar>();
-                var weights = new List<int>();
-
                 for (int e = 0; e < numEmp; e++)
                 {
                     if (!_preferencesByEmployee.TryGetValue(_employees[e].EmployeeId, out var prefs) || prefs.Count == 0)
@@ -307,16 +338,29 @@ namespace Shiftapp_demo.Business
                             if (!matches) continue;
 
                             int sign = p.Polarity == PreferencePolarity.Avoid ? 1 : -1;
-                            literals.Add(x[e, d]);
-                            weights.Add(sign * p.Weight);
+                            prefLiterals.Add(x[e, d]);
+                            prefWeights.Add(sign * p.Weight);
                         }
                     }
                 }
+            }
 
-                if (literals.Count > 0)
-                {
-                    objective += LinearExpr.WeightedSum(literals, weights);
-                }
+            // 日勤(w)は目的関数に何も現れないと「割り当てなくても最適」になってしまい、
+            // 適格者がいても日勤が一人も選ばれない不具合の原因になっていた。
+            // これを防ぐため、日勤を割り当てるほど得になる支配的な報酬を与える。
+            int dayWorkWeight = ComputeDayWorkWeight(FairnessWeight, daysCount, prefWeights);
+
+            // 日勤(w)を割り当てるほど得になる報酬を加える（適格でないw[e,d]はセクション2で
+            // 既に0固定されているため、対象を絞らずw全体を合計しても安全）。
+            var allDayWorkVars = new List<BoolVar>();
+            for (int e = 0; e < numEmp; e++)
+                for (int d = 0; d < daysCount; d++)
+                    allDayWorkVars.Add(w[e, d]);
+            objective -= dayWorkWeight * LinearExpr.Sum(allDayWorkVars);
+
+            if (prefLiterals.Count > 0)
+            {
+                objective += LinearExpr.WeightedSum(prefLiterals, prefWeights);
             }
 
             model.Minimize(objective);
@@ -357,22 +401,24 @@ namespace Shiftapp_demo.Business
                 AddShift(tempMap, upserts, eid, dutyDate, _stidDuty);
 
                 // 2. 明け
-                AddShift(tempMap, upserts, eid, dutyDate.AddDays(1), _stidAfterDuty);
+                var akeDate = dutyDate.AddDays(1);
+                AddShift(tempMap, upserts, eid, akeDate, _stidAfterDuty);
 
                 // 3. 代休（モデルのセクション7と同じ ShiftBusiness.GetCompWorkOff を使用。単一の真実源）
                 var compDate = ShiftBusiness.GetCompWorkOff(dutyDate, _holidays);
                 if (compDate.HasValue)
                 {
-                    var key = (eid, compDate.Value);
+                    AddCompOffIfFree(tempMap, upserts, eid, compDate.Value, dutyDate);
+                }
 
-                    // 重複チェック（既に当直などが入っていないか簡易チェック）
-                    if (!tempMap.TryGetValue(key, out int current) || current != _stidDuty)
+                // 3b. 当直日が日曜/祝日で、明けも祝日の場合（祝日が連続するケース）は、
+                // 通常の代休とは別にもう1日代休を確保する。金曜当直は対象外（モデルのセクション7と同じ判定。単一の真実源）。
+                if (dutyDate.DayOfWeek != DayOfWeek.Friday && ShiftBusiness.AkeAlsoLandsOnHoliday(dutyDate, _holidays))
+                {
+                    var extraCompDate = ShiftBusiness.GetExtraCompWorkOffForRestfulAke(dutyDate, compDate, _holidays);
+                    if (extraCompDate.HasValue)
                     {
-                        tempMap[key] = _stidSubstituteOff;
-                        upserts.Add(new ShiftWrite(eid, compDate.Value, _stidSubstituteOff)
-                        {
-                            originDutyDate = dutyDate
-                        });
+                        AddCompOffIfFree(tempMap, upserts, eid, extraCompDate.Value, dutyDate);
                     }
                 }
             }
@@ -388,11 +434,40 @@ namespace Shiftapp_demo.Business
 
         // --- Helper Methods (内部利用) ---
 
+        // 日勤(w)の目的関数上の重みを計算する。公平性(fairnessWeight*daysCount)と希望ペナルティの
+        // 絶対値合計を確実に上回る大きさにすることで、「適格者がいるなら必ず割り当てる」を保証する。
+        // ハード制約(==1)にはしないため、本当に割当不可能な稀なケースでもINFEASIBLEにはならず、
+        // 単にその日は0のまま解が返る。ユーザーが希望の重みをどれだけ大きく設定しても優先度が
+        // 逆転しないよう、固定値ではなく実行時の実際の希望設定から動的に計算する
+        // （オーバーフロー対策として int.MaxValue/4 で頭打ちにする）。
+        internal static int ComputeDayWorkWeight(int fairnessWeight, int daysCount, IReadOnlyList<int> preferenceWeights)
+        {
+            long maxFairnessPenalty = (long)fairnessWeight * daysCount;
+            long maxPreferencePenalty = preferenceWeights.Aggregate(0L, (acc, wgt) => acc + Math.Abs((long)wgt));
+            long dayWorkWeightLong = maxFairnessPenalty + maxPreferencePenalty + 1;
+            return dayWorkWeightLong > int.MaxValue / 4 ? int.MaxValue / 4 : (int)dayWorkWeightLong;
+        }
+
         private void AddShift(Dictionary<(int, DateTime), int> map, List<ShiftWrite> upserts, int eid, DateTime date, int stid)
         {
             var key = (eid, date);
             map[key] = stid;
             upserts.Add(new ShiftWrite(eid, date, stid));
+        }
+
+        private void AddCompOffIfFree(Dictionary<(int, DateTime), int> map, List<ShiftWrite> upserts, int eid, DateTime date, DateTime originDutyDate)
+        {
+            var key = (eid, date);
+
+            // 重複チェック（既に当直などが入っていないか簡易チェック）
+            if (!map.TryGetValue(key, out int current) || current != _stidDuty)
+            {
+                map[key] = _stidSubstituteOff;
+                upserts.Add(new ShiftWrite(eid, date, _stidSubstituteOff)
+                {
+                    originDutyDate = originDutyDate
+                });
+            }
         }
     }
 }

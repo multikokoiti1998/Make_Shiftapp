@@ -4,7 +4,8 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:Shiftapp_demo"
-        xmlns:vm="clr-namespace:Shiftapp_demo.ViewModels" 
+        xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
+        xmlns:vm="clr-namespace:Shiftapp_demo.ViewModels"
         d:DataContext="{d:DesignInstance Type=vm:AdminViewModel}"
         mc:Ignorable="d"
         Title="管理者ウィンドウ"
@@ -51,11 +52,15 @@
         </Grid.RowDefinitions>
 
         <!-- 見出し：技師 -->
-        <TextBlock Grid.Row="0" Text="技師情報管理" FontSize="20" FontWeight="Bold" />
+        <StackPanel Grid.Row="0">
+            <TextBlock Text="技師情報管理" FontSize="20" FontWeight="Bold" />
+            <Border Height="1" Background="{DynamicResource MaterialDesignDivider}" Margin="0,4,0,0"/>
+        </StackPanel>
 
         <!-- 技師一覧 -->
         <DataGrid Grid.Row="1"
           x:Name="TechniciansDataGrid"
+          Style="{StaticResource MaterialDesignDataGrid}"
           AutoGenerateColumns="False"
           ItemsSource="{Binding Employees}"
           SelectedItem="{Binding SelectedEmployee, Mode=TwoWay}"
@@ -108,13 +113,16 @@
 
         <!-- 技師操作ボタン -->
         <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" >
-            <Button Content="新規技師追加" Padding="12,6" Margin="4" Command="{Binding AddEmployeeCommand}"/>
-            <Button Content="選択技師削除" Padding="12,6" Margin="4" Command="{Binding DeleteEmployeeCommand}"/>
-            <Button Content="保存（一覧の変更をDBへ）" Padding="12,6" Margin="4" Command="{Binding SaveEmployeeCommand}"/>
+            <Button Content="新規技師追加" Style="{StaticResource MaterialDesignOutlinedButton}" Padding="12,6" Margin="4" Command="{Binding AddEmployeeCommand}"/>
+            <Button Content="選択技師削除" Padding="12,6" Margin="4" Command="{Binding DeleteEmployeeCommand}"
+                    Style="{StaticResource MaterialDesignOutlinedButton}"
+                    Foreground="{DynamicResource MaterialDesignValidationErrorBrush}"
+                    BorderBrush="{DynamicResource MaterialDesignValidationErrorBrush}"/>
+            <Button Content="保存（一覧の変更をDBへ）" Style="{StaticResource MaterialDesignRaisedButton}" Padding="12,6" Margin="4" Command="{Binding SaveEmployeeCommand}"/>
         </StackPanel>
 
         <!-- 選択技師の勤務希望 -->
-        <Border Grid.Row="3" BorderBrush="Gray" BorderThickness="1" Padding="8" Margin="0,0,0,8">
+        <Border Grid.Row="3" BorderBrush="{DynamicResource MaterialDesignDivider}" BorderThickness="1" Padding="8" Margin="0,0,0,8">
             <StackPanel>
                 <TextBlock FontWeight="Bold" Margin="0,0,0,4">
                     <Run Text="勤務希望"/>
@@ -130,11 +138,15 @@
                     </ItemsControl.ItemsPanel>
                     <ItemsControl.ItemTemplate>
                         <DataTemplate>
-                            <Border BorderBrush="LightGray" BorderThickness="1" CornerRadius="4" Padding="6,2" Margin="0,0,6,6">
+                            <Border BorderBrush="{DynamicResource MaterialDesignDivider}" Background="{DynamicResource MaterialDesignPaper}"
+                                    materialDesign:ElevationAssist.Elevation="Dp1"
+                                    BorderThickness="1" CornerRadius="4" Padding="6,2" Margin="0,0,6,6">
                                 <StackPanel Orientation="Horizontal">
                                     <TextBlock Text="{Binding DisplayLabel}" Margin="0,0,4,0"/>
                                     <TextBlock Text="{Binding Polarity}" Margin="0,0,4,0"/>
                                     <Button Content="削除" Padding="4,0"
+                                            Style="{StaticResource MaterialDesignFlatButton}"
+                                            Foreground="{DynamicResource MaterialDesignValidationErrorBrush}"
                                             Command="{Binding DataContext.RemovePreferenceCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                                             CommandParameter="{Binding}"/>
                                 </StackPanel>
@@ -152,13 +164,16 @@
                               ItemsSource="{Binding PreferencePolarityOptions}"
                               DisplayMemberPath="Label"
                               SelectedItem="{Binding NewPreferencePolarity}"/>
-                    <Button Content="希望を追加" Padding="12,4" Command="{Binding AddPreferenceCommand}"/>
+                    <Button Content="希望を追加" Style="{StaticResource MaterialDesignRaisedButton}" Padding="12,4" Command="{Binding AddPreferenceCommand}"/>
                 </StackPanel>
             </StackPanel>
         </Border>
 
         <!-- 見出し：祝日 -->
-        <TextBlock Grid.Row="5" Text="祝日設定" FontSize="20" FontWeight="Bold" />
+        <StackPanel Grid.Row="5">
+            <TextBlock Text="祝日設定" FontSize="20" FontWeight="Bold" />
+            <Border Height="1" Background="{DynamicResource MaterialDesignDivider}" Margin="0,4,0,0"/>
+        </StackPanel>
 
         <!-- 祝日操作バー -->
         <StackPanel Grid.Row="6" Orientation="Horizontal" Margin="0,8,0,8">
@@ -178,12 +193,16 @@
 
             <Button
             Content="追加"
+            Style="{StaticResource MaterialDesignRaisedButton}"
             Padding="12,6"
             Margin="0,0,8,0"
             Command="{Binding AddHolidaysCommand}" />
 
             <Button
             Content="選択削除"
+            Style="{StaticResource MaterialDesignOutlinedButton}"
+            Foreground="{DynamicResource MaterialDesignValidationErrorBrush}"
+            BorderBrush="{DynamicResource MaterialDesignValidationErrorBrush}"
             Padding="12,6"
             Margin="0,0,8,0"
             Command="{Binding DeleteHolidayCommand}"  />
@@ -202,6 +221,7 @@
             <!-- 左：祝日一覧 -->
             <DataGrid Grid.Column="0"
               x:Name="HolidaysDataGrid"
+              Style="{StaticResource MaterialDesignDataGrid}"
               ItemsSource="{Binding Holidays}"
               SelectedItem="{Binding SelectedHoliday, Mode=TwoWay}"
               AutoGenerateColumns="False"

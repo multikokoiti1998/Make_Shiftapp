@@ -330,4 +330,103 @@ public class ShiftBusinessTests
         Assert.All(result, d => Assert.Equal(DayOfWeek.Sunday, d.DayOfWeek));
         Assert.Equal(new[] { 7, 14, 21, 28 }, result.Select(d => d.Day));
     }
+
+    // ===== AkeAlsoLandsOnHoliday（二重代休の対象判定：当直日が日曜/祝日で明けも祝日のときだけ） =====
+
+    [Fact]
+    public void AkeAlsoLandsOnHoliday_SundayDuty_NextDayIsHoliday_True()
+    {
+        var sunday = ShiftBusiness._baselineSaturday.AddDays(1);
+        var monday = sunday.AddDays(1);
+        var holidays = new List<DateTime> { monday };
+
+        Assert.True(ShiftBusiness.AkeAlsoLandsOnHoliday(sunday, holidays));
+    }
+
+    [Fact]
+    public void AkeAlsoLandsOnHoliday_SundayDuty_NextDayIsNotHoliday_False()
+    {
+        var sunday = ShiftBusiness._baselineSaturday.AddDays(1);
+
+        Assert.False(ShiftBusiness.AkeAlsoLandsOnHoliday(sunday, new List<DateTime>()));
+    }
+
+    [Fact]
+    public void AkeAlsoLandsOnHoliday_ConsecutiveHolidays_LikeSilverWeek_True()
+    {
+        // 当直日自体が祝日(月)で、明け(火)も祝日というシルバーウィーク型の連続祝日パターン
+        var monday = ShiftBusiness._baselineSaturday.AddDays(2);
+        var tuesday = monday.AddDays(1);
+        var holidays = new List<DateTime> { monday, tuesday };
+
+        Assert.True(ShiftBusiness.AkeAlsoLandsOnHoliday(monday, holidays));
+    }
+
+    [Fact]
+    public void AkeAlsoLandsOnHoliday_HolidayDuty_NextDayNotHoliday_False()
+    {
+        var monday = ShiftBusiness._baselineSaturday.AddDays(2);
+        var holidays = new List<DateTime> { monday }; // 翌日(火)は祝日でない
+
+        Assert.False(ShiftBusiness.AkeAlsoLandsOnHoliday(monday, holidays));
+    }
+
+    [Fact]
+    public void AkeAlsoLandsOnHoliday_RegularWeekdayDuty_EvenIfNextDayIsHoliday_False()
+    {
+        // 当直日自体が日曜でも祝日でもない場合、明けが祝日でも対象外
+        var tuesday = ShiftBusiness._baselineSaturday.AddDays(3);
+        var wednesday = tuesday.AddDays(1);
+        var holidays = new List<DateTime> { wednesday };
+
+        Assert.False(ShiftBusiness.AkeAlsoLandsOnHoliday(tuesday, holidays));
+    }
+
+    [Fact]
+    public void AkeAlsoLandsOnHoliday_SaturdayDuty_NeverTrue_EvenIfSundayIsHoliday()
+    {
+        // 土曜当直（明けは常に日曜）はそもそも当直日側の条件(日曜/祝日)を満たさないため対象外
+        var saturday = ShiftBusiness._baselineSaturday;
+        var sunday = saturday.AddDays(1);
+        var holidays = new List<DateTime> { sunday };
+
+        Assert.False(ShiftBusiness.AkeAlsoLandsOnHoliday(saturday, holidays));
+    }
+
+    // ===== GetExtraCompWorkOffForRestfulAke（明けが休みの日の追加代休の対象日） =====
+
+    [Fact]
+    public void GetExtraCompWorkOffForRestfulAke_SaturdayDuty_ReturnsDistinctDateAfterPrimary()
+    {
+        var saturday = ShiftBusiness._baselineSaturday;
+        var holidays = new List<DateTime>();
+        var primary = ShiftBusiness.GetCompWorkOff(saturday, holidays);
+
+        var extra = ShiftBusiness.GetExtraCompWorkOffForRestfulAke(saturday, primary, holidays);
+
+        Assert.NotNull(extra);
+        Assert.NotEqual(primary, extra);
+        Assert.True(extra > saturday);
+        Assert.True(ShiftBusiness.IsBusinessDay(extra!.Value, holidays));
+    }
+
+    [Fact]
+    public void GetExtraCompWorkOffForRestfulAke_WeekdayDutyWithHolidayAke_GrantsExtraEvenWithoutPrimary()
+    {
+        // 当直日自体は祝日ではない平日(火曜)だが、明け(水曜)が祝日というケース。
+        // GetCompWorkOffは当直日自身の曜日/祝日区分しか見ないためprimaryはnullになるが、
+        // 明けが休みという事実は別途拾って代休を確保する必要がある。
+        var duty = ShiftBusiness._baselineSaturday.AddDays(-4); // 火曜日
+        var ake = duty.AddDays(1); // 水曜日
+        var holidays = new List<DateTime> { ake };
+
+        var primary = ShiftBusiness.GetCompWorkOff(duty, holidays);
+        Assert.Null(primary);
+
+        var extra = ShiftBusiness.GetExtraCompWorkOffForRestfulAke(duty, primary, holidays);
+
+        Assert.NotNull(extra);
+        Assert.True(extra > duty);
+        Assert.True(ShiftBusiness.IsBusinessDay(extra!.Value, holidays));
+    }
 }

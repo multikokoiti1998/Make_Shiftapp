@@ -34,6 +34,9 @@ namespace Shiftapp_demo.Models
         private bool _canDayDuty;
         public bool CanDayDuty { get => _canDayDuty; set { if (_canDayDuty != value) { _canDayDuty = value; Raise(nameof(CanDayDuty)); IsDirty = true; } } }
 
+        private bool _isShortTime;
+        public bool IsShortTime { get => _isShortTime; set { if (_isShortTime != value) { _isShortTime = value; Raise(nameof(IsShortTime)); IsDirty = true; } } }
+
         public int is_active { get; set; }
 
         // --- シフト状況の辞書（動的データ） ---

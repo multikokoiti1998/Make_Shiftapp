@@ -164,7 +164,33 @@ namespace Shiftapp_demo.DataAccess
             return Convert.ToInt32(obj);
         }
 
-        // シフト種別IDマップ取得 
+        // シンボルに対応するシフト種別が無ければ登録する（Excel取込で未知の記号が出てきた場合用）
+        public int EnsureShiftType(string symbol, string typeName, int priority = 0)
+        {
+            using var con = new SqliteConnection(_connectionString);
+            con.Open();
+
+            using (var check = con.CreateCommand())
+            {
+                check.CommandText = "SELECT shift_type_id FROM shift_types WHERE symbol = @sym;";
+                check.Parameters.AddWithValue("@sym", symbol);
+                var existing = check.ExecuteScalar();
+                if (existing != null && existing != DBNull.Value)
+                    return Convert.ToInt32(existing);
+            }
+
+            using var cmd = con.CreateCommand();
+            cmd.CommandText = @"
+            INSERT INTO shift_types (symbol, type_name, priority)
+            VALUES (@sym, @name, @prio);
+            SELECT last_insert_rowid();";
+            cmd.Parameters.AddWithValue("@sym", symbol);
+            cmd.Parameters.AddWithValue("@name", typeName);
+            cmd.Parameters.AddWithValue("@prio", priority);
+            return Convert.ToInt32(cmd.ExecuteScalar());
+        }
+
+        // シフト種別IDマップ取得
         public Dictionary<(int EmployeeId, DateTime Date), int> GetShiftMap(DateTime start, DateTime end)
         {
             var map = new Dictionary<(int, DateTime), int>();
@@ -229,6 +255,7 @@ namespace Shiftapp_demo.DataAccess
             cmd.Parameters.AddWithValue("@stidoff", 3);
             cmd.Parameters.AddWithValue("@stidSun", GetShiftTypeIdBySymbol("○"));
             cmd.Parameters.AddWithValue("@stidSatWork", GetShiftTypeIdBySymbol("/"));
+            cmd.Parameters.AddWithValue("@stidSubOff", GetShiftTypeIdBySymbol("●"));
 
             // 1) 親のシンプル削除：origin_shifts_id IS NULL AND type IN (当/日)
             cmd.CommandText = @"
@@ -247,14 +274,16 @@ namespace Shiftapp_demo.DataAccess
               AND c.shift_type_id IN (@stidake, @sidDay);";
             cmd.ExecuteNonQuery();
 
-            // 3) 土日祝の自動割当（○/出勤"/"）も当直・日勤と合わせて作り直す。
+            // 3) 土日祝の自動割当（○/出勤"/"、および日・祝日休みの●）も当直・日勤と合わせて作り直す。
             // これらは常にGenerateOffShift側で全職員分を無条件に再計算する値のため、
-            // ここで消さずに残すと、以前の生成時に付いた○が当直・日勤の候補者を
+            // ここで消さずに残すと、以前の生成時に付いた○・●が当直・日勤の候補者を
             // ブロックしたまま次回の再生成に持ち越されてしまう（INFEASIBLEや日勤0件の原因）。
+            // ●は当直に紐づく代休(origin_shifts_idあり)と記号を共有しているため、
+            // 単独マーカー(origin_shifts_id IS NULL)だけを対象にし、本物の代休は消さない。
             cmd.CommandText = @"
             DELETE FROM daily_employee_shifts
             WHERE origin_shifts_id IS NULL
-              AND shift_type_id IN (@stidSun, @stidSatWork)
+              AND shift_type_id IN (@stidSun, @stidSatWork, @stidSubOff)
               AND shift_date >= @first
               AND shift_date <  @next;";
             cmd.ExecuteNonQuery();
@@ -311,6 +340,7 @@ namespace Shiftapp_demo.DataAccess
                 DELETE FROM daily_employee_shifts AS c
                 WHERE c.shift_date >= @start AND c.shift_date <= @end
                   AND c.shift_type_id IN (@stidAke, @stidSubOff)
+                  AND c.origin_shifts_id IS NOT NULL
                   AND NOT EXISTS (
                         SELECT 1
                         FROM daily_employee_shifts AS p
@@ -601,6 +631,71 @@ namespace Shiftapp_demo.DataAccess
                 });
             }
             return result;
+        }
+
+        // 時短勤務者一覧を取得
+        public List<Employee> GetActiveEmployeesWithShortTime()
+        {
+            var result = new List<Employee>();
+            using var connection = new SqliteConnection(_connectionString);
+            connection.Open();
+
+            var cmd = connection.CreateCommand();
+            cmd.CommandText = @"
+            SELECT employee_id
+            FROM employee
+            WHERE IsShortTime = 1 AND is_active = 1";
+
+            using var reader = cmd.ExecuteReader();
+            while (reader.Read())
+            {
+                result.Add(new Employee
+                {
+                    EmployeeId = reader.GetInt32(0),
+                });
+            }
+            return result;
+        }
+
+        // Excel取込で見つかった未登録の職員をDBへ追加する（既に存在する場合は何もしない）
+        // カテーテル対応や当直・日勤対応は不明のため、いずれも不可（false）として登録し、
+        // 詳細は管理者画面で後から設定してもらう想定。
+        public void InsertEmployeeIfMissing(int employeeId, string employeeName)
+        {
+            using var con = new SqliteConnection(_connectionString);
+            con.Open();
+
+            using (var check = con.CreateCommand())
+            {
+                check.CommandText = "SELECT 1 FROM employee WHERE employee_id = @id;";
+                check.Parameters.AddWithValue("@id", employeeId);
+                if (check.ExecuteScalar() != null) return;
+            }
+
+            using var cmd = con.CreateCommand();
+            cmd.CommandText = @"
+            INSERT INTO employee (
+              employee_id, Shift_id, employee_name, CanDoCatheterization,
+              saturday_class, MonthlyDutyLimit, CanDoNightDuty, Role, CanDoDayduty, IsShortTime, is_active
+            ) VALUES (
+              @id, 0, @name, 0, 'A', 0, 0, 0, 0, 0, 1
+            );";
+            cmd.Parameters.AddWithValue("@id", employeeId);
+            cmd.Parameters.AddWithValue("@name", employeeName);
+            cmd.ExecuteNonQuery();
+        }
+
+        // Excel取込データから逆算した土曜日班をまとめて反映する
+        public void UpdateSaturdayClass(int employeeId, string saturdayClass)
+        {
+            using var con = new SqliteConnection(_connectionString);
+            con.Open();
+
+            using var cmd = con.CreateCommand();
+            cmd.CommandText = "UPDATE employee SET saturday_class = @cls WHERE employee_id = @id;";
+            cmd.Parameters.AddWithValue("@cls", saturdayClass);
+            cmd.Parameters.AddWithValue("@id", employeeId);
+            cmd.ExecuteNonQuery();
         }
 
         public List<Employee> GetActiveEmployeesWithDayDutyClass()

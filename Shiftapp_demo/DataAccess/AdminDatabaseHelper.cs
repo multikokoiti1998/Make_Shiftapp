@@ -33,6 +33,7 @@ namespace Shiftapp_demo.DataAccess
               CanDoNightDuty,
               Role,
               CanDoDayduty,
+              IsShortTime,
               is_active
             )
                 VALUES (
@@ -44,6 +45,7 @@ namespace Shiftapp_demo.DataAccess
                   0,
                   0,
                   0,
+                  0,           -- 時短勤務ではない
                   1
                 );
             ";
@@ -81,7 +83,8 @@ namespace Shiftapp_demo.DataAccess
             MonthlyDutyLimit    = @monthlyLimit,
             CanDoNightDuty      = @canNight,
             Role                = @role,
-            CanDoDayduty        = @canDay
+            CanDoDayduty        = @canDay,
+            IsShortTime         = @isShortTime
             WHERE employee_id = @id;
             ";
 
@@ -93,6 +96,7 @@ namespace Shiftapp_demo.DataAccess
             cmd.Parameters.AddWithValue("@canNight", e.CanDoNightDuty ? 1 : 0);
             cmd.Parameters.AddWithValue("@role", e.Role);
             cmd.Parameters.AddWithValue("@canDay", e.CanDayDuty ? 1 : 0);
+            cmd.Parameters.AddWithValue("@isShortTime", e.IsShortTime ? 1 : 0);
 
             cmd.Parameters.AddWithValue("@id", e.EmployeeId);
 

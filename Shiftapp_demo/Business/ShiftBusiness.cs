@@ -20,6 +20,7 @@ namespace Shiftapp_demo.Business
         private readonly int stidSubstituteOff;
         private readonly int stidAfterDuty;
         private readonly int stidDayWork;
+        private readonly int stidShortTime;
         public static int MinDutyGapDays = 3;
         public static readonly DateTime _baselineSaturday = new DateTime(2025, 8, 16);
 
@@ -27,11 +28,13 @@ namespace Shiftapp_demo.Business
         {
             _db = db;
             stidWork = _db.GetShiftTypeIdBySymbol("/");   // 土曜出勤
-            stidOff = _db.GetShiftTypeIdBySymbol("○");   // 日・祭日休み
+            stidOff = _db.GetShiftTypeIdBySymbol("○");   // 土曜休み
             stidDuty = _db.GetShiftTypeIdBySymbol("当");  // 当直
-            stidSubstituteOff = _db.GetShiftTypeIdBySymbol("●");  // 代休
+            stidSubstituteOff = _db.GetShiftTypeIdBySymbol("●");  // 代休・日祝休み
             stidAfterDuty = _db.GetShiftTypeIdBySymbol("明");  // 明け
             stidDayWork = _db.GetShiftTypeIdBySymbol("日");  // 日勤
+            // 完成形の勤務表(xlsx)で使われる記号だが初期マスタには無いため、無ければ自動登録する
+            stidShortTime = _db.EnsureShiftType("短", "時短勤務");
         }
 
         //START---------------------------基本関数-----------------
@@ -164,6 +167,58 @@ namespace Shiftapp_demo.Business
             return candidate;
         }
 
+        // 二重代休（通常の代休とは別にもう1日確保する）の対象かどうかを判定する。
+        // 対象は「当直日が日曜または祝日で、かつ明け(当直日+1)も祝日」の場合のみ
+        // （例: シルバーウィークのように祝日が連続し、明けが本来の祝日を1日つぶしてしまうケース）。
+        // 土曜当直（明けは常に日曜）や、明けがただの平日・土曜になるケースはここでは対象外。
+        // 明け自体を「日曜」ではなく「祝日」に限定しているのは、当直日側の条件で既に
+        // 日曜/祝日当直に絞っているため、明けが日曜になり得るのは土曜当直のときだけであり、
+        // 土曜当直はそもそも当直日側の条件を満たさず対象外になるため。
+        internal static bool AkeAlsoLandsOnHoliday(DateTime dutyDay, List<DateTime> holidays)
+        {
+            var day = dutyDay.Date;
+            var hset = new HashSet<DateTime>(holidays.Select(h => h.Date));
+
+            bool dutyIsSundayOrHoliday = day.DayOfWeek == DayOfWeek.Sunday || hset.Contains(day);
+            if (!dutyIsSundayOrHoliday) return false;
+
+            return hset.Contains(day.AddDays(1));
+        }
+
+        // 明けの日(dutyDay+1)がその職員にとって休みだった場合に追加でもう1日確保する代休の対象日を計算する。
+        // 明け自体は既に埋まっているため dutyDay+2 を起点に次の営業日を探し、通常の代休(primaryCompOff)と
+        // 重ならないよう衝突時は1日ずつ後ろにずらす。同月内に確保できない場合は付与しない（nullを返す）。
+        internal static DateTime? GetExtraCompWorkOffForRestfulAke(DateTime dutyDay, DateTime? primaryCompOff, List<DateTime> holidays)
+        {
+            var day = dutyDay.Date;
+            var anchor = day.AddDays(2);
+
+            for (int guard = 0; guard < 14; guard++)
+            {
+                var candidate = BumpToNextBusinessDay(anchor, holidays);
+
+                if (primaryCompOff.HasValue && candidate == primaryCompOff.Value.Date)
+                {
+                    anchor = candidate.AddDays(1);
+                    continue;
+                }
+
+                if (candidate.Month != day.Month)
+                {
+                    var fallback = PickPrevBusinessDayWithin(candidate, 7, holidays, day.Month);
+                    if (fallback.HasValue && fallback.Value > day &&
+                        !(primaryCompOff.HasValue && fallback.Value.Date == primaryCompOff.Value.Date))
+                    {
+                        return fallback;
+                    }
+                    return null;
+                }
+
+                return candidate;
+            }
+
+            return null;
+        }
 
         // 直前の営業日を最大 daysBack 日さかのぼって探す（同一 monthOnly に限定）
         internal static DateTime? PickPrevBusinessDayWithin(DateTime anchor, int daysBack, List<DateTime> holidays, int monthOnly)
@@ -331,7 +386,7 @@ namespace Shiftapp_demo.Business
             foreach (var day in days)
             {
                 foreach (var emp in employees)
-                    assigns.Add((emp.EmployeeId, day, stidOff));
+                    assigns.Add((emp.EmployeeId, day, stidSubstituteOff)); // 完成形の勤務表(xlsx)に合わせ、日・祝日休みは●で表す
             }
 
             // 4) 一括Upsert
@@ -356,6 +411,70 @@ namespace Shiftapp_demo.Business
                 _db.BulkUpsertShifts(triples, month);
             }
 
+        }
+
+        // 時短勤務者の出勤日(平日・祝日以外)に「短」を登録する
+        public void UpdateShortTimeShifts(DateTime month)
+        {
+            var employees = _db.GetActiveEmployeesWithShortTime();
+            if (employees.Count == 0) return;
+
+            var (first, last) = GetMonthRange(month);
+            var holidays = _db.GetHolidays(first, last).Select(h => h.date.Date).ToHashSet();
+            var existing = _db.GetShiftMap(first, last);
+
+            var assigns = new List<(int eid, DateTime date, int stid)>();
+            for (var d = first; d <= last; d = d.AddDays(1))
+            {
+                if (d.DayOfWeek == DayOfWeek.Saturday || d.DayOfWeek == DayOfWeek.Sunday) continue;
+                if (holidays.Contains(d.Date)) continue;
+
+                foreach (var emp in employees)
+                    assigns.Add((emp.EmployeeId, d.Date, stidShortTime));
+            }
+
+            var map = new Dictionary<(int, DateTime), int>(existing);
+            var upserts = new List<ShiftWrite>();
+
+            // 当直・明け・代休など既存の割当や、既に短が入っている日は上書きしない
+            foreach (var (eid, date, stid) in assigns)
+            {
+                TrySetWithPriority(map, upserts, eid, date, stid, cur => IsNightChild(cur) || cur == stidShortTime);
+            }
+
+            if (upserts.Count > 0)
+            {
+                var triples = upserts
+                    .Select(x => (x.EmployeeId, x.Date, x.ShiftTypeId))
+                    .ToList();
+
+                _db.BulkUpsertShifts(triples, month);
+            }
+        }
+
+        // 実績の勤務表(xlsx)の土曜日の記号(／=出勤, ○=休み)から、その職員が属する班("A"/"B")を
+        // GetWorkingClassの判定ロジックを逆算して推定する。判定材料が無ければnullを返す。
+        internal static string? InferSaturdayClass(IEnumerable<(DateTime Date, string Symbol)> saturdayCells, bool baselineIsA)
+        {
+            int aVotes = 0, bVotes = 0;
+
+            foreach (var (date, symbol) in saturdayCells)
+            {
+                var workingClass = GetWorkingClass(date, baselineIsA);
+
+                string? impliedClass = symbol switch
+                {
+                    "/" => workingClass,                                             // 出勤 → その週の出勤班
+                    "○" => workingClass == ClassA ? ClassB : ClassA,                  // 休み → 出勤班の逆
+                    _ => null                                                          // 当直等は判定材料にしない
+                };
+
+                if (impliedClass == ClassA) aVotes++;
+                else if (impliedClass == ClassB) bVotes++;
+            }
+
+            if (aVotes == 0 && bVotes == 0) return null;
+            return aVotes >= bVotes ? ClassA : ClassB;
         }
 
         //シフト作成の状態保持クラス
