@@ -85,6 +85,12 @@ namespace Shiftapp_demo.Helper
                     tbFactory.SetBinding(TextBlock.TextProperty, b);
                     tbFactory.SetValue(TextBlock.HorizontalAlignmentProperty, HorizontalAlignment.Center);
                     tbFactory.SetValue(TextBlock.VerticalAlignmentProperty, VerticalAlignment.Center);
+
+                    // 代休/明けなど、元になった当直/日勤の日付をツールチップで表示する
+                    // （値が無いセルはToolTipがnullのままなのでツールチップ自体が出ない）
+                    var tooltipBinding = new Binding($"Tooltip[{key}]") { Mode = BindingMode.OneWay };
+                    tbFactory.SetBinding(FrameworkElement.ToolTipProperty, tooltipBinding);
+
                     col.CellTemplate = new DataTemplate { VisualTree = tbFactory };
                 }
 

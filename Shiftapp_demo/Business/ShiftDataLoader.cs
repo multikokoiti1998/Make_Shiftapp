@@ -4,6 +4,11 @@ namespace Shiftapp_demo.Business
 {
     public class ShiftDataLoader : INotifyPropertyChanged
     {
+        public ShiftDataLoader()
+        {
+            Tooltip = new CellTooltipLookup(_tooltips);
+        }
+
         private int _employeeId { get; set; }
 
         public int EmployeeId { get => _employeeId; set { if (_shiftId != value) { _employeeId = value; Raise(nameof(EmployeeId)); IsDirty = true; } } }
@@ -39,6 +44,12 @@ namespace Shiftapp_demo.Business
             }
         }
 
+        // セルのツールチップ用テキスト（代休/明けの元になった当直/日勤の日付を表示する）
+        private readonly Dictionary<string, string?> _tooltips = new();
+        public CellTooltipLookup Tooltip { get; }
+
+        internal void SetTooltip(string key, string? text) => _tooltips[key] = text;
+
         //UI更新フラグ
         private bool _isDirty;
         public bool IsDirty
@@ -58,5 +69,15 @@ namespace Shiftapp_demo.Business
         }
 
         void Raise(string n) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(n));
+    }
+
+    // DataGridセルのToolTipバインディング用（"Tooltip[yyyy-MM-dd]"の形でXAMLから参照する）。
+    // Dictionaryを直接バインドするとキー無し時にKeyNotFoundExceptionでバインディングエラーになるため、
+    // null安全な専用のルックアップを用意している。
+    public sealed class CellTooltipLookup
+    {
+        private readonly Dictionary<string, string?> _map;
+        internal CellTooltipLookup(Dictionary<string, string?> map) => _map = map;
+        public string? this[string key] => _map.TryGetValue(key, out var v) ? v : null;
     }
 }

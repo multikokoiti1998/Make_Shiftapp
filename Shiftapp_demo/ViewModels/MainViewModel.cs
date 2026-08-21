@@ -385,6 +385,24 @@ namespace Shiftapp_demo.ViewModels
             LoadShiftDataForMonth(month);
         }
 
+        // 代休/明けセルのツールチップ用テキストを組み立てる（例: "9/18(金)の当直の代休"）
+        private static string? BuildOriginTooltip(DateTime? originDate, string? originSymbol)
+        {
+            if (!originDate.HasValue) return null;
+
+            var kind = originSymbol switch
+            {
+                "当" => "当直",
+                "日" => "日勤",
+                _ => null
+            };
+
+            var youbi = originDate.Value.ToString("ddd", System.Globalization.CultureInfo.GetCultureInfo("ja-JP"));
+            var dateText = $"{originDate.Value.Month}/{originDate.Value.Day}({youbi})";
+
+            return kind != null ? $"{dateText}の{kind}の代休" : dateText;
+        }
+
         public void LoadShiftDataForMonth(DateTime month)
         {
             var db = new MainDatabaseHelper();
@@ -431,7 +449,9 @@ namespace Shiftapp_demo.ViewModels
                 // 3-2) 実シフトを上書き
                 foreach (var s in shifts.Where(s => s.EmployeeId == e.EmployeeId))
                 {
-                    loader[s.ShiftDate.ToString("yyyy-MM-dd")] = s.Symbol ?? string.Empty;
+                    var key = s.ShiftDate.ToString("yyyy-MM-dd");
+                    loader[key] = s.Symbol ?? string.Empty;
+                    loader.SetTooltip(key, BuildOriginTooltip(s.OriginDate, s.OriginSymbol));
                 }
 
                 loaders.Add(loader);

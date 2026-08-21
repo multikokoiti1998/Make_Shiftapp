@@ -89,13 +89,19 @@ namespace Shiftapp_demo.DataAccess
             SELECT
               b.employee_id,
               b.shift_date,
-              COALESCE(t.symbol, '') AS symbol,       
-              b.shift_type_id         AS final_shift_type_id
+              COALESCE(t.symbol, '') AS symbol,
+              b.shift_type_id         AS final_shift_type_id,
+              p.shift_date            AS origin_date,
+              COALESCE(pt.symbol, '') AS origin_symbol
             FROM daily_employee_shifts b
             JOIN employee e
               ON e.employee_id = b.employee_id AND e.is_active = 1
             LEFT JOIN shift_types t
               ON t.shift_type_id = b.shift_type_id
+            LEFT JOIN daily_employee_shifts p
+              ON p.shifts_id = b.origin_shifts_id
+            LEFT JOIN shift_types pt
+              ON pt.shift_type_id = p.shift_type_id
             WHERE DATE(b.shift_date) >= DATE(@start)
               AND DATE(b.shift_date) <  DATE(@next)
             ORDER BY b.employee_id, b.shift_date;";
@@ -118,7 +124,11 @@ namespace Shiftapp_demo.DataAccess
 
                     ShiftDate = DateTime.Parse(reader.GetString(1)).Date,
 
-                    Symbol = reader.IsDBNull(2) ? "" : reader.GetString(2)
+                    Symbol = reader.IsDBNull(2) ? "" : reader.GetString(2),
+
+                    OriginDate = reader.IsDBNull(4) ? null : DateTime.Parse(reader.GetString(4)).Date,
+
+                    OriginSymbol = reader.IsDBNull(5) ? "" : reader.GetString(5)
                 });
             }
             return result;
