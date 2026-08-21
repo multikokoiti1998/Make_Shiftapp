@@ -24,6 +24,10 @@ namespace Shiftapp_demo.Business
 
         private const int MinDutyGapDays = 3;
 
+        // 1日に集中する代休の上限人数。超えた分は近くの空いている平日にずらす
+        // （連休明けなど、複数の当直日/日勤日の代休が同じ日に重なって出勤者が極端に減るのを防ぐ）。
+        private const int MaxCompOffPerDay = 3;
+
         // 公平性（当直回数の平準化）を希望充足より優先させるための重み。
         // 公平性が同点となる解が複数あるときに限り、希望のペナルティで決着させる想定。
         private const int FairnessWeight = 100;
@@ -112,6 +116,14 @@ namespace Shiftapp_demo.Business
 
                     // 既存が公休/代休なら当直禁止（例）
                     if (hasExistingOffOrSubOff)
+                    {
+                        model.Add(x[e, d] == 0);
+                    }
+
+                    // 当直対応不可の職員は当直そのものを禁止する。
+                    // これが無いと、セクション3のカテ可/不可グルーピングがCanDoCatheterizationのみで
+                    // 行われているため、日勤専任(CanDoNightDuty=false)の職員が誤って当直に選ばれ得た。
+                    if (!emp.CanDoNightDuty)
                     {
                         model.Add(x[e, d] == 0);
                     }
@@ -292,6 +304,16 @@ namespace Shiftapp_demo.Business
                     {
                         model.Add(s[e, t2.Value] == 1).OnlyEnforceIf(x[e, d]);
                     }
+
+                    // 日勤(d)も当直と同様に代休(t1)を確保する（片方向の含意のみ、理由は上と同じ）。
+                    // これが無いと、ConvertToShiftWrites側で日勤者に代休(t1)を書き込む一方で
+                    // モデルはt1を空いている日として扱ってしまい、同じ職員がt1に当直で
+                    // 選ばれてしまう（代休が実際には付与されない）事態になり得る。
+                    // 日勤は二重代休(t2)の対象外（当直の明けに相当する概念が無いため）。
+                    if (t1 is not null)
+                    {
+                        model.Add(s[e, t1.Value] == 1).OnlyEnforceIf(w[e, d]);
+                    }
                 }
             }
 
@@ -300,8 +322,16 @@ namespace Shiftapp_demo.Business
             var minD = model.NewIntVar(0, upper, "minDuty");
             var maxD = model.NewIntVar(0, upper, "maxDuty");
 
+            // 当直対応不可の職員（セクション2でx[e,d]==0固定済み）を含めてしまうと、
+            // その職員の当直回数(常に0)にminDが引っ張られてminD=0で固定されてしまい、
+            // 「当直対応可能な人達の間での公平性」が実質働かなくなる
+            // （max-minのペナルティがmaxDのみを下げようとする動機になり、特定の少人数に
+            // 偏っても他の対応可能者が0回のままで許容されてしまう＝個人単位でばらつかない原因）。
+            // 平準化の対象は当直対応可能な職員のみに絞る。
             for (int e = 0; e < numEmp; e++)
             {
+                if (!_employees[e].CanDoNightDuty) continue;
+
                 var dutyVars = Enumerable.Range(0, daysCount).Select(d => x[e, d]).ToArray();
                 var dutySum = LinearExpr.Sum(dutyVars);
                 model.Add(dutySum >= minD);
@@ -423,16 +453,101 @@ namespace Shiftapp_demo.Business
                 }
             }
 
-            // 4. 日勤（明け・代休の子は付与しない）
+            // 4. 日勤（明けは付与しないが、当直と同様に代休は付与する。
+            //    日勤は必ず本来休みの日曜/祝日に割り当てられるため、出勤した分の代休が必要）
             foreach (var (eid, date) in assignments.DayWorks)
             {
                 AddShift(tempMap, upserts, eid, date, _stidDayWork);
+
+                var compDate = ShiftBusiness.GetCompWorkOff(date, _holidays);
+                if (compDate.HasValue)
+                {
+                    AddCompOffIfFree(tempMap, upserts, eid, compDate.Value, date);
+                }
             }
+
+            // 5. 代休の集中を緩和する（連休明けなど、複数の当直日/日勤日の代休が
+            //    同じ日に集まりすぎた場合、超過分だけ近くの空いている平日にずらす）
+            RedistributeCrowdedCompOffs(tempMap, upserts, _stidSubstituteOff, _holidays, MaxCompOffPerDay);
 
             return upserts;
         }
 
         // --- Helper Methods (内部利用) ---
+
+        // 同じ日に集中しすぎた代休(_stidSubstituteOff)を、近くの空いている平日にずらす。
+        // 上限を超えた分だけを対象にし、職員ID順で先頭maxPerDay件は元の日のまま据え置く
+        // （どの職員をずらすかは任意で構わないため、決定的な結果になるようEmployeeId順にしている）。
+        // 移動先が見つからない場合（近隣に空いている平日が無い）は、諦めて元の日のまま残す
+        // （GetCompWorkOff等と同じく、無理に押し込んでINFEASIBLE相当の状態を作らない方針）。
+        internal static void RedistributeCrowdedCompOffs(
+            Dictionary<(int EmployeeId, DateTime Date), int> map,
+            List<ShiftWrite> upserts,
+            int stidSubOff,
+            List<DateTime> holidays,
+            int maxPerDay)
+        {
+            var compOffIndexes = new List<int>();
+            for (int i = 0; i < upserts.Count; i++)
+            {
+                if (upserts[i].ShiftTypeId == stidSubOff) compOffIndexes.Add(i);
+            }
+
+            var countByDate = compOffIndexes
+                .GroupBy(i => upserts[i].Date)
+                .ToDictionary(g => g.Key, g => g.Count());
+
+            var crowdedGroups = compOffIndexes
+                .GroupBy(i => upserts[i].Date)
+                .Where(g => g.Count() > maxPerDay)
+                .ToList();
+
+            foreach (var group in crowdedGroups)
+            {
+                var overflowIndexes = group.OrderBy(i => upserts[i].EmployeeId).Skip(maxPerDay);
+
+                foreach (var idx in overflowIndexes)
+                {
+                    var entry = upserts[idx];
+                    var newDate = FindNearbyBusinessDayBelowCap(entry.EmployeeId, entry.Date, map, countByDate, maxPerDay, holidays);
+                    if (newDate is null) continue;
+
+                    map.Remove((entry.EmployeeId, entry.Date));
+                    map[(entry.EmployeeId, newDate.Value)] = stidSubOff;
+
+                    countByDate[entry.Date]--;
+                    countByDate[newDate.Value] = countByDate.GetValueOrDefault(newDate.Value) + 1;
+
+                    upserts[idx] = entry with { Date = newDate.Value };
+                }
+            }
+        }
+
+        // 元の代休日から近い順（前後交互）に、その職員が空いていて、かつその日の代休人数が
+        // まだ上限未満の平日を探す。maxSearchDays日以内に見つからなければnullを返す。
+        internal static DateTime? FindNearbyBusinessDayBelowCap(
+            int employeeId,
+            DateTime original,
+            Dictionary<(int EmployeeId, DateTime Date), int> map,
+            Dictionary<DateTime, int> countByDate,
+            int maxPerDay,
+            List<DateTime> holidays,
+            int maxSearchDays = 10)
+        {
+            for (int offset = 1; offset <= maxSearchDays; offset++)
+            {
+                foreach (var candidate in new[] { original.AddDays(offset).Date, original.AddDays(-offset).Date })
+                {
+                    if (!ShiftBusiness.IsBusinessDay(candidate, holidays)) continue;
+                    if (map.ContainsKey((employeeId, candidate))) continue;
+                    if (countByDate.GetValueOrDefault(candidate) >= maxPerDay) continue;
+
+                    return candidate;
+                }
+            }
+
+            return null;
+        }
 
         // 日勤(w)の目的関数上の重みを計算する。公平性(fairnessWeight*daysCount)と希望ペナルティの
         // 絶対値合計を確実に上回る大きさにすることで、「適格者がいるなら必ず割り当てる」を保証する。

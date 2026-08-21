@@ -321,7 +321,7 @@ namespace Shiftapp_demo.DataAccess
             return list;
         }
 
-        public void DeleteOrphanNightChildren(DateTime start, DateTime end, int stidDuty, int stidAke, int stidSubOff)
+        public void DeleteOrphanNightChildren(DateTime start, DateTime end, int stidDuty, int stidAke, int stidSubOff, int stidDayWork)
         {
             using var con = new SqliteConnection(_connectionString);
             con.Open();
@@ -336,22 +336,30 @@ namespace Shiftapp_demo.DataAccess
             using (var cmd = con.CreateCommand())
             {
                 cmd.Transaction = tx;
+                // 明(●)は当直の子にしかなり得ないが、代休(●)は当直・日勤どちらの子にもなり得るため、
+                // 親の判定基準をシンボルごとに分ける（●を一律「当直の子」でしか判定しないと、
+                // 日勤者の代休が「親が見つからない孤児」と誤判定されて消えてしまう）。
                 cmd.CommandText = @"
                 DELETE FROM daily_employee_shifts AS c
                 WHERE c.shift_date >= @start AND c.shift_date <= @end
-                  AND c.shift_type_id IN (@stidAke, @stidSubOff)
                   AND c.origin_shifts_id IS NOT NULL
-                  AND NOT EXISTS (
-                        SELECT 1
-                        FROM daily_employee_shifts AS p
-                        WHERE p.shifts_id     = c.origin_shifts_id
-                          AND p.shift_type_id = @stidDuty
+                  AND (
+                        (c.shift_type_id = @stidAke AND NOT EXISTS (
+                            SELECT 1 FROM daily_employee_shifts AS p
+                            WHERE p.shifts_id = c.origin_shifts_id AND p.shift_type_id = @stidDuty
+                        ))
+                        OR
+                        (c.shift_type_id = @stidSubOff AND NOT EXISTS (
+                            SELECT 1 FROM daily_employee_shifts AS p
+                            WHERE p.shifts_id = c.origin_shifts_id AND p.shift_type_id IN (@stidDuty, @stidDayWork)
+                        ))
                 );";
                 cmd.Parameters.AddWithValue("@start", start.ToString("yyyy-MM-dd"));
                 cmd.Parameters.AddWithValue("@end", end.ToString("yyyy-MM-dd"));
                 cmd.Parameters.AddWithValue("@stidAke", stidAke);
                 cmd.Parameters.AddWithValue("@stidSubOff", stidSubOff);
                 cmd.Parameters.AddWithValue("@stidDuty", stidDuty);
+                cmd.Parameters.AddWithValue("@stidDayWork", stidDayWork);
                 cmd.ExecuteNonQuery();
             }
             tx.Commit();

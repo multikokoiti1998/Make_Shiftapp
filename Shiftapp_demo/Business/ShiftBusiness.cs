@@ -284,7 +284,8 @@ namespace Shiftapp_demo.Business
                 end: end,
                 stidDuty: stidDuty,
                 stidAke: stidAfterDuty,
-                stidSubOff: stidSubstituteOff
+                stidSubOff: stidSubstituteOff,
+                stidDayWork: stidDayWork
             );
         }
 

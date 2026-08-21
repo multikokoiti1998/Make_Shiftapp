@@ -1,6 +1,7 @@
 using Shiftapp_demo.Business;
 using Shiftapp_demo.Models;
 using Xunit;
+using static Shiftapp_demo.DataAccess.MainDatabaseHelper;
 
 namespace Shiftapp_demo.Tests;
 
@@ -194,6 +195,32 @@ public class ShiftsSolverTests
 
         Assert.DoesNotContain(writes, w =>
             w.ShiftTypeId == StidDayWork && w.EmployeeId == employees[8].EmployeeId && w.Date == blockedDate);
+    }
+
+    [Fact]
+    public void Solve_DayWork_GrantsCompOff_LikeDuty()
+    {
+        // 日勤(w)も当直(x)と同じく、出勤した分の代休がShiftBusiness.GetCompWorkOffと同じ日に
+        // 付与されることを確認する（以前は日勤に代休が一切付与されないバグがあった）。
+        var employees = BuildSymmetricEmployees();
+        employees[8].CanDayDuty = true; // 日勤対応可能なのはこの1名のみ（非カテ班）
+        var dayWorkEligibleId = employees[8].EmployeeId;
+        var holidays = new List<DateTime> { new DateTime(2026, 2, 11) }; // 水曜日を祝日にする
+
+        var solver = new ShiftsSolver(Month, employees, new Dictionary<(int, DateTime), int>(), holidays,
+            StidDuty, StidAfterDuty, StidSubOff, StidOff, StidDayWork);
+
+        var writes = solver.Solve();
+        var dayWorks = writes.Where(w => w.ShiftTypeId == StidDayWork).ToList();
+        Assert.NotEmpty(dayWorks);
+
+        foreach (var dayWork in dayWorks)
+        {
+            var expectedCompDate = ShiftBusiness.GetCompWorkOff(dayWork.Date, holidays);
+            Assert.NotNull(expectedCompDate);
+            Assert.Contains(writes, w =>
+                w.ShiftTypeId == StidSubOff && w.EmployeeId == dayWorkEligibleId && w.Date == expectedCompDate.Value);
+        }
     }
 
     [Fact]
@@ -484,5 +511,227 @@ public class ShiftsSolverTests
             Assert.Equal(2, compOffs.Count);
             Assert.Contains(compOffs, c => c.Date == extra!.Value);
         }
+    }
+
+    [Fact]
+    public void Solve_NightDutyIneligibleEmployee_NeverAssignedDuty()
+    {
+        // カテ不可(CanDoCatheterization=false)かつ当直不可(CanDoNightDuty=false)の職員は、
+        // 以前はセクション3のグルーピングがCanDoCatheterizationのみに基づいていたため
+        // nonCath枠として誤って当直に選ばれ得た。
+        // 正規のnonCath候補全員に重いAvoid希望を付け、ガードが無ければ「ペナルティの無い9999を
+        // 使う方が目的関数上得」という状況を作ることで、ガードの有無を確実に検出できるようにする。
+        var employees = BuildSymmetricEmployees();
+        employees.Add(new Employee
+        {
+            EmployeeId = 9999,
+            EmployeeName = "DayOnly",
+            CanDoCatheterization = false,
+            SaturdayClass = "",
+            CanDoNightDuty = false,
+            CanDayDuty = true,
+        });
+
+        var preferences = employees
+            .Where(e => !e.CanDoCatheterization && e.EmployeeId != 9999)
+            .ToDictionary(
+                e => e.EmployeeId,
+                e => Enum.GetValues<DayOfWeek>()
+                    .Select(dow => new EmployeePreference { EmployeeId = e.EmployeeId, DayOfWeek = dow, Polarity = PreferencePolarity.Avoid, Weight = 1000 })
+                    .ToList());
+
+        var solver = new ShiftsSolver(Month, employees, new Dictionary<(int, DateTime), int>(), new List<DateTime>(),
+            StidDuty, StidAfterDuty, StidSubOff, StidOff, StidDayWork,
+            baselineIsA: false, preferencesByEmployee: preferences);
+
+        var writes = solver.Solve();
+
+        Assert.DoesNotContain(writes, w => w.ShiftTypeId == StidDuty && w.EmployeeId == 9999);
+    }
+
+    [Fact]
+    public void Solve_DutyCount_IsTightlyBalancedAmongEligibleEmployees()
+    {
+        // 当直不可の職員が多数混ざっていても、当直対応可能な職員間の当直回数の差が
+        // 1回以内に収まること（特定の少人数に偏らず、個人単位でばらつくこと）を確認する。
+        // 以前はminD/maxDの平準化対象に当直不可の職員（常に0回）も含まれていたため、
+        // minDが0に張り付いて対応可能な職員間の偏りが許容されてしまっていた。
+        var employees = BuildSymmetricEmployees(cathCount: 6, nonCathCount: 6);
+        for (int i = 0; i < 10; i++)
+        {
+            employees.Add(new Employee
+            {
+                EmployeeId = 9000 + i,
+                EmployeeName = $"DayOnly{i}",
+                CanDoCatheterization = false,
+                SaturdayClass = "",
+                CanDoNightDuty = false,
+                CanDayDuty = true,
+            });
+        }
+
+        var solver = new ShiftsSolver(Month, employees, new Dictionary<(int, DateTime), int>(), new List<DateTime>(),
+            StidDuty, StidAfterDuty, StidSubOff, StidOff, StidDayWork);
+
+        var writes = solver.Solve();
+        var duties = writes.Where(w => w.ShiftTypeId == StidDuty).ToList();
+
+        var eligibleIds = employees.Where(e => e.CanDoNightDuty).Select(e => e.EmployeeId);
+        var counts = eligibleIds.Select(id => duties.Count(d => d.EmployeeId == id)).ToList();
+
+        Assert.True(counts.Max() - counts.Min() <= 1,
+            $"duty counts not balanced: {string.Join(",", counts)}");
+    }
+
+    // ===== RedistributeCrowdedCompOffs / FindNearbyBusinessDayBelowCap（代休の集中緩和） =====
+
+    [Fact]
+    public void RedistributeCrowdedCompOffs_AtOrBelowCap_LeavesEntriesUnchanged()
+    {
+        var crowdedDate = new DateTime(2026, 9, 24);
+        var map = new Dictionary<(int EmployeeId, DateTime Date), int>();
+        var upserts = new List<ShiftWrite>();
+
+        for (int i = 1; i <= 3; i++)
+        {
+            map[(i, crowdedDate)] = StidSubOff;
+            upserts.Add(new ShiftWrite(i, crowdedDate, StidSubOff));
+        }
+
+        ShiftsSolver.RedistributeCrowdedCompOffs(map, upserts, StidSubOff, new List<DateTime>(), maxPerDay: 3);
+
+        Assert.All(upserts, w => Assert.Equal(crowdedDate, w.Date));
+    }
+
+    [Fact]
+    public void RedistributeCrowdedCompOffs_AboveCap_MovesOnlyOverflowToNearbyOpenDay()
+    {
+        // 4人が同じ日に代休集中(上限3)。職員ID順で先頭3人は据え置き、4人目だけを移動する。
+        var crowdedDate = new DateTime(2026, 9, 24);
+        var map = new Dictionary<(int EmployeeId, DateTime Date), int>();
+        var upserts = new List<ShiftWrite>();
+
+        for (int i = 1; i <= 4; i++)
+        {
+            map[(i, crowdedDate)] = StidSubOff;
+            upserts.Add(new ShiftWrite(i, crowdedDate, StidSubOff));
+        }
+
+        ShiftsSolver.RedistributeCrowdedCompOffs(map, upserts, StidSubOff, new List<DateTime>(), maxPerDay: 3);
+
+        var onCrowdedDate = upserts.Where(w => w.Date == crowdedDate).ToList();
+        var moved = upserts.Except(onCrowdedDate).ToList();
+
+        Assert.Equal(3, onCrowdedDate.Count);
+        Assert.Equal(new[] { 1, 2, 3 }, onCrowdedDate.Select(w => w.EmployeeId).OrderBy(x => x));
+
+        Assert.Single(moved);
+        Assert.Equal(4, moved[0].EmployeeId);
+        Assert.NotEqual(crowdedDate, moved[0].Date);
+
+        // mapも移動後の状態に更新されていること
+        Assert.False(map.ContainsKey((4, crowdedDate)));
+        Assert.True(map.ContainsKey((4, moved[0].Date)));
+    }
+
+    [Fact]
+    public void RedistributeCrowdedCompOffs_NoOpenDayNearby_LeavesOverflowAtOriginalDate()
+    {
+        var crowdedDate = new DateTime(2026, 9, 24);
+        var map = new Dictionary<(int EmployeeId, DateTime Date), int>();
+        var upserts = new List<ShiftWrite>();
+
+        for (int i = 1; i <= 4; i++)
+        {
+            map[(i, crowdedDate)] = StidSubOff;
+            upserts.Add(new ShiftWrite(i, crowdedDate, StidSubOff));
+        }
+
+        // 職員4は移動候補日(前後10日)を全て「既に予定あり」で埋め、移動先が見つからない状況を作る
+        for (int offset = -10; offset <= 10; offset++)
+        {
+            if (offset == 0) continue;
+            map[(4, crowdedDate.AddDays(offset))] = StidDuty;
+        }
+
+        ShiftsSolver.RedistributeCrowdedCompOffs(map, upserts, StidSubOff, new List<DateTime>(), maxPerDay: 3);
+
+        var employee4Write = upserts.Single(w => w.EmployeeId == 4);
+        Assert.Equal(crowdedDate, employee4Write.Date);
+    }
+
+    [Fact]
+    public void FindNearbyBusinessDayBelowCap_SkipsHolidaysAndReturnsNearestBusinessDay()
+    {
+        var original = new DateTime(2026, 9, 24); // 木
+        var holidays = new List<DateTime> { new DateTime(2026, 9, 25) }; // 金を祝日にする
+        var map = new Dictionary<(int EmployeeId, DateTime Date), int>();
+        var countByDate = new Dictionary<DateTime, int>();
+
+        var result = ShiftsSolver.FindNearbyBusinessDayBelowCap(1, original, map, countByDate, maxPerDay: 3, holidays: holidays);
+
+        // offset=1: +1=金(祝日でスキップ), -1=水(空いている平日) なので水が返る
+        Assert.Equal(new DateTime(2026, 9, 23), result);
+    }
+
+    [Fact]
+    public void FindNearbyBusinessDayBelowCap_SkipsDatesWhereEmployeeAlreadyBusy()
+    {
+        var original = new DateTime(2026, 9, 24); // 木
+        var map = new Dictionary<(int EmployeeId, DateTime Date), int>
+        {
+            [(1, new DateTime(2026, 9, 23))] = StidDuty,      // 前日は当直で埋まっている
+            [(1, new DateTime(2026, 9, 25))] = StidAfterDuty, // 翌日は明けで埋まっている
+        };
+        var countByDate = new Dictionary<DateTime, int>();
+
+        var result = ShiftsSolver.FindNearbyBusinessDayBelowCap(1, original, map, countByDate, maxPerDay: 3, holidays: new List<DateTime>());
+
+        // offset=1の両方がその職員の予定で埋まっているため、offset=2まで進む
+        // (+2=土は週末でスキップ、-2=火が空いている)
+        Assert.Equal(new DateTime(2026, 9, 22), result);
+    }
+
+    [Fact]
+    public void FindNearbyBusinessDayBelowCap_SkipsDatesAtOrAboveCap()
+    {
+        var original = new DateTime(2026, 9, 24); // 木
+        var map = new Dictionary<(int EmployeeId, DateTime Date), int>();
+        var countByDate = new Dictionary<DateTime, int>
+        {
+            [new DateTime(2026, 9, 23)] = 3,
+            [new DateTime(2026, 9, 25)] = 3,
+        };
+
+        var result = ShiftsSolver.FindNearbyBusinessDayBelowCap(1, original, map, countByDate, maxPerDay: 3, holidays: new List<DateTime>());
+
+        // offset=1の両方が上限に達しているため、offset=2の火曜(空き)まで進む
+        Assert.Equal(new DateTime(2026, 9, 22), result);
+    }
+
+    [Fact]
+    public void Solve_SilverWeekStyleHolidayCluster_NoDayExceedsCompOffCap()
+    {
+        // 2026年9月: 敬老の日(21,月)・国民の休日(22,火)・秋分の日(23,水)の3連休。
+        // 連休前後の当直日(金/土/日/月)の代休が軒並み連休明け(9/24,木)に集中してしまう
+        // シルバーウィーク型のケースを再現する（実データで確認した実際の不具合パターン）。
+        var september = new DateTime(2026, 9, 1);
+        var employees = BuildSymmetricEmployees(cathCount: 10, nonCathCount: 10);
+        var holidays = new List<DateTime>
+        {
+            new DateTime(2026, 9, 21),
+            new DateTime(2026, 9, 22),
+            new DateTime(2026, 9, 23),
+        };
+
+        var solver = new ShiftsSolver(september, employees, new Dictionary<(int, DateTime), int>(), holidays,
+            StidDuty, StidAfterDuty, StidSubOff, StidOff, StidDayWork);
+
+        var writes = solver.Solve();
+        var compOffs = writes.Where(w => w.ShiftTypeId == StidSubOff).ToList();
+        Assert.NotEmpty(compOffs);
+
+        var maxPerDay = compOffs.GroupBy(w => w.Date).Max(g => g.Count());
+        Assert.True(maxPerDay <= 3, $"expected no day to exceed the cap of 3, but found {maxPerDay}");
     }
 }
