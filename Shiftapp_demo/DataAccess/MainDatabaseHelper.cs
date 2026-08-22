@@ -161,6 +161,40 @@ namespace Shiftapp_demo.DataAccess
             return result;
         }
 
+        // ソルバー向け：対象月を除く全期間の週末(土日)・祝日当直回数を職員ごとに集計する。
+        // 目的関数の「週末・祝日比率の平準化」項の実績オフセットとして使うため、比率や氏名は持たない。
+        public Dictionary<int, int> GetHistoricalWeekendHolidayDutyCounts(DateTime excludeMonth)
+        {
+            var result = new Dictionary<int, int>();
+            var monthStart = new DateTime(excludeMonth.Year, excludeMonth.Month, 1);
+            var monthEnd = monthStart.AddMonths(1);
+
+            using var con = new SqliteConnection(_connectionString);
+            con.Open();
+            using var cmd = con.CreateCommand();
+            cmd.CommandText = @"
+            SELECT
+              d.employee_id,
+              SUM(
+                CASE WHEN strftime('%w', d.shift_date) IN ('0','6')
+                       OR EXISTS (SELECT 1 FROM holiday h WHERE DATE(h.date) = DATE(d.shift_date))
+                     THEN 1 ELSE 0 END
+              ) AS weekend_holiday_duty
+            FROM daily_employee_shifts d
+            WHERE d.shift_type_id = @stidDuty
+              AND (DATE(d.shift_date) < DATE(@monthStart) OR DATE(d.shift_date) >= DATE(@monthEnd))
+            GROUP BY d.employee_id;";
+            cmd.Parameters.AddWithValue("@stidDuty", GetShiftTypeIdBySymbol("当"));
+            cmd.Parameters.AddWithValue("@monthStart", monthStart.ToString("yyyy-MM-dd"));
+            cmd.Parameters.AddWithValue("@monthEnd", monthEnd.ToString("yyyy-MM-dd"));
+
+            using var reader = cmd.ExecuteReader();
+            while (reader.Read())
+                result[reader.GetInt32(0)] = reader.IsDBNull(1) ? 0 : reader.GetInt32(1);
+
+            return result;
+        }
+
         //各シフトのシンボル取得
         public int GetShiftTypeIdBySymbol(string symbol)
         {

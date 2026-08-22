@@ -196,9 +196,20 @@ namespace Shiftapp_demo.ViewModels
                 Employees.Add(e);
             }
 
+            // 週末・祝日当直比率（全期間）を技師一覧にマージする（表示専用、DB保存対象外のプロパティ）
+            var ratios = _db.GetWeekendHolidayDutyRatios().ToDictionary(r => r.EmployeeId);
             foreach (var e in Employees)
             {
-                e.AcceptChanges();   
+                if (ratios.TryGetValue(e.EmployeeId, out var r))
+                {
+                    e.WeekendHolidayDutyCount = r.WeekendHolidayDutyCount;
+                    e.TotalDutyCountAllTime = r.TotalDutyCount;
+                }
+            }
+
+            foreach (var e in Employees)
+            {
+                e.AcceptChanges();
             }
 
             // --- 祝日（当月） ---

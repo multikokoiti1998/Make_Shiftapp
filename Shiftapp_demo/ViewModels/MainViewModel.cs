@@ -417,11 +417,13 @@ namespace Shiftapp_demo.ViewModels
             var existingMap = db.GetShiftMap(preloadStart, preloadEnd);
             var holidays = _business.GetHolidaysInMonth(month).Select(h => h.date).ToList();
             var preferences = db.GetAllActivePreferencesByEmployee();
+            var historicalWeekendHolidayDutyCounts = db.GetHistoricalWeekendHolidayDutyCounts(month);
 
             var solver = new ShiftsSolver(month, employees, existingMap, holidays,
                 _symbolToId["当"], _symbolToId["明"], _symbolToId["●"], _symbolToId["○"], _symbolToId["日"],
                 baselineIsA: false, // UpdateSaturdayShifts(GenerateOffShift)の既定"B"に合わせる
-                preferencesByEmployee: preferences);
+                preferencesByEmployee: preferences,
+                historicalWeekendHolidayDutyCounts: historicalWeekendHolidayDutyCounts);
 
             var writes = solver.Solve();
             db.BulkUpsert_Duty_Shifts(writes, month);

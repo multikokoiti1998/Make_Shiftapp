@@ -237,5 +237,61 @@ namespace Shiftapp_demo.DataAccess
             cmd.ExecuteNonQuery();
         }
 
+        // ====== 週末・祝日当直比率（管理者画面） ======
+
+        // シンボルに対応するシフト種別IDを取得（MainDatabaseHelper.GetShiftTypeIdBySymbolと同じ実装）
+        private int GetShiftTypeIdBySymbol(string symbol)
+        {
+            using var con = new SqliteConnection(_connectionString);
+            con.Open();
+            using var cmd = con.CreateCommand();
+            cmd.CommandText = @"SELECT shift_type_id FROM shift_types WHERE symbol = @sym;";
+            cmd.Parameters.AddWithValue("@sym", symbol);
+            var obj = cmd.ExecuteScalar();
+            if (obj == null || obj == DBNull.Value) throw new InvalidOperationException($"symbol '{symbol}' not found");
+            return Convert.ToInt32(obj);
+        }
+
+        // 在職（is_active=1）の職員ごとに、全期間の当直回数と、うち週末(土日)・祝日当直の回数を集計する
+        public List<EmployeeDutyRatio> GetWeekendHolidayDutyRatios()
+        {
+            var result = new List<EmployeeDutyRatio>();
+
+            using var con = new SqliteConnection(_connectionString);
+            con.Open();
+
+            using var cmd = con.CreateCommand();
+            cmd.CommandText = @"
+            SELECT
+              e.employee_id,
+              e.employee_name,
+              COUNT(*) AS total_duty,
+              SUM(
+                CASE WHEN strftime('%w', d.shift_date) IN ('0','6')
+                       OR EXISTS (SELECT 1 FROM holiday h WHERE DATE(h.date) = DATE(d.shift_date))
+                     THEN 1 ELSE 0 END
+              ) AS weekend_holiday_duty
+            FROM daily_employee_shifts d
+            JOIN employee e ON e.employee_id = d.employee_id AND e.is_active = 1
+            WHERE d.shift_type_id = @stidDuty
+            GROUP BY e.employee_id, e.employee_name
+            ORDER BY e.employee_id;";
+            cmd.Parameters.AddWithValue("@stidDuty", GetShiftTypeIdBySymbol("当"));
+
+            using var reader = cmd.ExecuteReader();
+            while (reader.Read())
+            {
+                result.Add(new EmployeeDutyRatio
+                {
+                    EmployeeId = reader.GetInt32(0),
+                    EmployeeName = reader.GetString(1),
+                    TotalDutyCount = reader.GetInt32(2),
+                    WeekendHolidayDutyCount = reader.IsDBNull(3) ? 0 : reader.GetInt32(3),
+                });
+            }
+
+            return result;
+        }
+
     }
 }

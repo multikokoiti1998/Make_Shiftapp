@@ -14,6 +14,7 @@ namespace Shiftapp_demo.Business
         private readonly List<DateTime> _holidays;
         private readonly bool _baselineIsA;
         private readonly Dictionary<int, List<EmployeePreference>>? _preferencesByEmployee;
+        private readonly Dictionary<int, int> _historicalWeekendHolidayDutyCounts;
 
         // --- シフトID設定 (コンストラクタで受け取る) ---
         private readonly int _stidDuty;
@@ -32,6 +33,12 @@ namespace Shiftapp_demo.Business
         // 公平性が同点となる解が複数あるときに限り、希望のペナルティで決着させる想定。
         private const int FairnessWeight = 100;
 
+        // 週末(土日)・祝日当直比率の平準化（全期間実績を考慮）の重み。優先度は最下位：
+        // FairnessWeightの項は daysCount(最大31) で頭打ちのため最大寄与は 100*31=3100 であり、
+        // これより確実に小さい値にしておけば、当直回数の平準化・希望のペナルティが同点/ほぼ同点の
+        // ときのタイブレーカーとしてのみ効く。
+        private const int WeekendHolidayFairnessWeight = 1;
+
         //コンストラクタで必要な情報を受け取る
         public ShiftsSolver(DateTime month,
             List<Employee> employees,
@@ -39,7 +46,8 @@ namespace Shiftapp_demo.Business
             List<DateTime> holidays,
             int stidDuty, int stidAfterDuty, int stidSubOff, int stidOff, int stidDayWork,
             bool baselineIsA = false,
-            Dictionary<int, List<EmployeePreference>>? preferencesByEmployee = null)
+            Dictionary<int, List<EmployeePreference>>? preferencesByEmployee = null,
+            Dictionary<int, int>? historicalWeekendHolidayDutyCounts = null)
         {
             _firstDate = new DateTime(month.Year, month.Month, 1);
             _lastDate = _firstDate.AddMonths(1).AddDays(-1);
@@ -53,6 +61,7 @@ namespace Shiftapp_demo.Business
             _stidDayWork = stidDayWork;
             _baselineIsA = baselineIsA;
             _preferencesByEmployee = preferencesByEmployee;
+            _historicalWeekendHolidayDutyCounts = historicalWeekendHolidayDutyCounts ?? new Dictionary<int, int>();
         }
 
         public List<ShiftWrite> Solve()
@@ -339,6 +348,37 @@ namespace Shiftapp_demo.Business
             }
 
             LinearExpr objective = FairnessWeight * (maxD - minD);
+
+            // ========= 8b) 目的関数：週末・祝日当直比率の平準化（全期間実績を考慮、max-min最小） =========
+            // 「今月新たに割り当てる週末(土日)・祝日の当直」に「全期間の実績（定数オフセット）」を
+            // 足した値でmax-minを取る。実績が多い職員は定数オフセットが高い位置からスタートするため、
+            // ソルバーは自然にその職員への新規割当を抑える方向に誘導される。優先度は最下位
+            // （WeekendHolidayFairnessWeightの定義コメント参照）。
+            int whUpper = Math.Max(31, daysCount) + (_historicalWeekendHolidayDutyCounts.Values.Count > 0 ? _historicalWeekendHolidayDutyCounts.Values.Max() : 0);
+            var minWH = model.NewIntVar(0, whUpper, "minWeekendHolidayDuty");
+            var maxWH = model.NewIntVar(0, whUpper, "maxWeekendHolidayDuty");
+
+            for (int e = 0; e < numEmp; e++)
+            {
+                if (!_employees[e].CanDoNightDuty) continue;
+
+                var whVars = new List<BoolVar>();
+                for (int d = 0; d < daysCount; d++)
+                {
+                    var dow = dates[d].DayOfWeek;
+                    bool isWeekendOrHoliday = dow == DayOfWeek.Saturday || dow == DayOfWeek.Sunday
+                        || _holidays.Contains(dates[d]);
+                    if (isWeekendOrHoliday) whVars.Add(x[e, d]);
+                }
+
+                int historical = _historicalWeekendHolidayDutyCounts.TryGetValue(_employees[e].EmployeeId, out var h) ? h : 0;
+
+                LinearExpr whSum = historical + LinearExpr.Sum(whVars.ToArray());
+                model.Add(whSum >= minWH);
+                model.Add(whSum <= maxWH);
+            }
+
+            objective += WeekendHolidayFairnessWeight * (maxWH - minWH);
 
             // 希望のペナルティ項を先に構築する。日勤(w)の優先度は「公平性・希望のペナルティが
             // どれだけ積み上がっても絶対に上回らない」重みにする必要があるため、先に希望側の

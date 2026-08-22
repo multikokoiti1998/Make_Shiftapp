@@ -39,6 +39,11 @@ namespace Shiftapp_demo.Models
 
         public int is_active { get; set; }
 
+        // --- 管理者画面表示専用（DBには保存しない）：全期間の週末(土日)・祝日当直比率 ---
+        public int WeekendHolidayDutyCount { get; set; }
+        public int TotalDutyCountAllTime { get; set; }
+        public double WeekendHolidayRatio => TotalDutyCountAllTime == 0 ? 0.0 : (double)WeekendHolidayDutyCount / TotalDutyCountAllTime;
+
         // --- シフト状況の辞書（動的データ） ---
         public Dictionary<DateTime, string> ShiftMap { get; set; } = new();
 
