@@ -47,20 +47,19 @@ namespace Shiftapp_demo.Views
         private void ShiftDataGrid_PreviewKeyDown(object sender, KeyEventArgs e)
         {
             if (e.Key != Key.Delete) return;
-            if (ShiftDataGrid.SelectedCells.Count == 0) return;
+
+            // 複数選択されていても、フォーカスしている1マスだけを消す（一括削除はしない）
+            var cellInfo = ShiftDataGrid.CurrentCell;
+            if (!cellInfo.IsValid) return;
+
+            int colIndex = ShiftDataGrid.Columns.IndexOf(cellInfo.Column);
+            if (colIndex < LeadingNonDateColumnCount) return; // ID・名前列はスキップ
+
+            if (cellInfo.Item is not ShiftDataLoader row) return;
 
             var firstOfMonth = new DateTime(ViewModel.DisplayDate.Year, ViewModel.DisplayDate.Month, 1);
-
-            foreach (var cellInfo in ShiftDataGrid.SelectedCells)
-            {
-                int colIndex = ShiftDataGrid.Columns.IndexOf(cellInfo.Column);
-                if (colIndex < LeadingNonDateColumnCount) continue; // ID・名前列はスキップ
-
-                if (cellInfo.Item is not ShiftDataLoader row) continue;
-
-                var date = firstOfMonth.AddDays(colIndex - LeadingNonDateColumnCount);
-                row[date.ToString("yyyy-MM-dd")] = "";
-            }
+            var date = firstOfMonth.AddDays(colIndex - LeadingNonDateColumnCount);
+            row[date.ToString("yyyy-MM-dd")] = "";
 
             e.Handled = true;
         }

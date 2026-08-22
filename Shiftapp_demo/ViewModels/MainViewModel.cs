@@ -471,6 +471,30 @@ namespace Shiftapp_demo.ViewModels
             // 2) 期間内の実シフトだけ取得（無い日は返らない）
             var shifts = db.GetShiftsOnly(firstDay, lastDay);
 
+            // 2-2) 祝日一覧（代休アテンション判定用）。GetHolidaysInMonthは代休の月またぎ計算のため
+            // 表示月＋翌月の2ヶ月分を返す仕様なので、そのままGetCompWorkOffの引数として使う。
+            var holidaysCurrentAndNext = _business.GetHolidaysInMonth(month)
+                .Select(h => h.date)
+                .ToList();
+
+            // 表示月内で「本来休みのはずの日」（祝日＋日曜）の一覧
+            var compOffCheckDates = new HashSet<string>(
+                holidaysCurrentAndNext
+                    .Where(d => d >= firstDay && d <= lastDay)
+                    .Select(d => d.ToString("yyyy-MM-dd")));
+            foreach (var sunday in ShiftBusiness.GetSundaysInMonth(month))
+                compOffCheckDates.Add(sunday.ToString("yyyy-MM-dd"));
+
+            // 2-3) 代休が翌月にずれ込むケース（金土日当直→翌月初め等）を検出するため、翌月分のシフトも取得しておく。
+            // OriginDateも一緒に持たせ、翌月の代休がどの当直/日勤に対応するか1対1で判定できるようにする。
+            var nextMonthFirst = firstDay.AddMonths(1);
+            var nextMonthLast = nextMonthFirst.AddMonths(1).AddDays(-1);
+            var nextMonthShiftsByEmployee = db.GetShiftsOnly(nextMonthFirst, nextMonthLast)
+                .GroupBy(s => s.EmployeeId)
+                .ToDictionary(
+                    g => g.Key,
+                    g => g.ToDictionary(s => s.ShiftDate.ToString("yyyy-MM-dd"), s => (Symbol: s.Symbol ?? string.Empty, OriginDate: s.OriginDate)));
+
             // 3) 社員ごとにまとめて、全日を空で初期化→存在するシフトだけ上書き
             var loaders = new List<ShiftDataLoader>(employees.Count);
 
@@ -484,6 +508,13 @@ namespace Shiftapp_demo.ViewModels
                     Role = e.Role
                 };
 
+                loader.SetAttentionContext(
+                    compOffCheckDates,
+                    holidaysCurrentAndNext,
+                    nextMonthShiftsByEmployee.TryGetValue(e.EmployeeId, out var nextMonthShifts)
+                        ? nextMonthShifts
+                        : new Dictionary<string, (string Symbol, DateTime? OriginDate)>());
+
                 // その月の全日付キーを空で用意
                 for (var d = firstDay; d <= lastDay; d = d.AddDays(1))
                 {
@@ -496,11 +527,20 @@ namespace Shiftapp_demo.ViewModels
                     var key = s.ShiftDate.ToString("yyyy-MM-dd");
                     loader[key] = s.Symbol ?? string.Empty;
                     loader.SetTooltip(key, BuildOriginTooltip(s.OriginDate, s.OriginSymbol));
+                    if (s.OriginDate.HasValue)
+                        loader.SetOrigin(key, s.OriginDate.Value);
                 }
 
                 loaders.Add(loader);
 
                 loader.AcceptChanges();
+
+                // 読み込みループ中は記号とOriginDateのセット順序の都合で正しく計算できないため、
+                // 全データが揃った状態で改めてアテンションを計算する
+                loader.RefreshAttention();
+
+                // 以降の手動編集から、当直/日勤の連動（明け・代休の自動セット/解除）を有効にする
+                loader.EnableCascade();
             }
 
             var ordered = loaders

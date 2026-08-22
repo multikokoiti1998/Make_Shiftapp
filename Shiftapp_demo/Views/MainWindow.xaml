@@ -156,6 +156,18 @@
               PreviewKeyDown="ShiftDataGrid_PreviewKeyDown"
               Style="{StaticResource MaterialDesignDataGrid}">
 
+                <DataGrid.RowStyle>
+                    <!-- 祝日当直に代休が付与されていない可能性がある行を赤くしてアテンションをかける -->
+                    <Style TargetType="DataGridRow" BasedOn="{StaticResource {x:Type DataGridRow}}">
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding NeedsAttention}" Value="True">
+                                <Setter Property="Background" Value="#FFCDD2"/>
+                                <Setter Property="ToolTip" Value="{Binding AttentionMessage}"/>
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </DataGrid.RowStyle>
+
                 <DataGrid.ColumnHeaderStyle>
                     <Style TargetType="DataGridColumnHeader">
                         <Setter Property="Background" Value="{DynamicResource MaterialDesignPaper}"/>

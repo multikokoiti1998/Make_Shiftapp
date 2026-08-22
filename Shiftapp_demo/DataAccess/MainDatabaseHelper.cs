@@ -853,9 +853,13 @@ namespace Shiftapp_demo.DataAccess
             con.Open();
             using var tx = con.BeginTransaction();
 
+            // 元になった当直/日勤（CompOffOrigin）を持つセルは、その親のshifts_idが確定してから
+            // origin_shifts_id付きでUpsertする必要があるため、後回しにする（2パス）。
+            var pendingLinked = new List<(ShiftDataLoader row, string dateKey, string symbol, DateTime date, DateTime originDate)>();
+
             foreach (var row in dirtyRows)
             {
-                foreach (var kv in row.Shifts) 
+                foreach (var kv in row.Shifts)
                 {
                     var dateKey = kv.Key;
                     var symbol = kv.Value ?? "";
@@ -863,6 +867,12 @@ namespace Shiftapp_demo.DataAccess
 
                     if (date < startDate || date > endDate)
                         continue;
+
+                    if (!string.IsNullOrEmpty(symbol) && row.CompOffOrigin.TryGetValue(dateKey, out var originDate))
+                    {
+                        pendingLinked.Add((row, dateKey, symbol, date, originDate));
+                        continue;
+                    }
 
                     if (string.IsNullOrEmpty(symbol))
                     {
@@ -894,6 +904,55 @@ namespace Shiftapp_demo.DataAccess
                         cmd.ExecuteNonQuery();
                     }
                 }
+            }
+
+            // 2パス目：親（元になった当直/日勤）は上のループで既にUpsert済みのはずなので、
+            // そのshifts_idを引いてorigin_shifts_id付きでUpsertする。親が見つからない場合
+            // （保存対象外の月にずれていた等）はorigin_shifts_idなしで通常通り保存する。
+            foreach (var (row, dateKey, symbol, date, originDate) in pendingLinked)
+            {
+                if (!symbolToId.TryGetValue(symbol, out var shiftTypeId))
+                    throw new Exception($"未知のシフト記号です: '{symbol}'");
+
+                long? originShiftsId = null;
+                using (var lookup = con.CreateCommand())
+                {
+                    lookup.Transaction = tx;
+                    lookup.CommandText = @"
+                    SELECT shifts_id FROM daily_employee_shifts
+                    WHERE employee_id = @eid AND shift_date = @odate;";
+                    lookup.Parameters.AddWithValue("@eid", row.EmployeeId);
+                    lookup.Parameters.AddWithValue("@odate", originDate.ToString("yyyy-MM-dd"));
+                    var result = lookup.ExecuteScalar();
+                    if (result != null && result != DBNull.Value)
+                        originShiftsId = Convert.ToInt64(result);
+                }
+
+                using var cmd = con.CreateCommand();
+                if (originShiftsId.HasValue)
+                {
+                    cmd.CommandText = @"
+                    INSERT INTO daily_employee_shifts
+                        (employee_id, shift_date, shift_type_id, origin_shifts_id)
+                    VALUES (@eid, @date, @sid, @oid)
+                    ON CONFLICT(employee_id, shift_date)
+                    DO UPDATE SET shift_type_id = excluded.shift_type_id, origin_shifts_id = excluded.origin_shifts_id;";
+                    cmd.Parameters.AddWithValue("@oid", originShiftsId.Value);
+                }
+                else
+                {
+                    cmd.CommandText = @"
+                    INSERT INTO daily_employee_shifts
+                        (employee_id, shift_date, shift_type_id)
+                    VALUES (@eid, @date, @sid)
+                    ON CONFLICT(employee_id, shift_date)
+                    DO UPDATE SET shift_type_id = excluded.shift_type_id;";
+                }
+
+                cmd.Parameters.AddWithValue("@eid", row.EmployeeId);
+                cmd.Parameters.AddWithValue("@date", date.ToString("yyyy-MM-dd"));
+                cmd.Parameters.AddWithValue("@sid", shiftTypeId);
+                cmd.ExecuteNonQuery();
             }
 
             tx.Commit();
