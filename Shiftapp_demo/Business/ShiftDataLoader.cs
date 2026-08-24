@@ -56,6 +56,15 @@ namespace Shiftapp_demo.Business
                 // モデルの更新フラグ
                 IsDirty = true;
 
+                // 手動編集時のみ：セルに直接「●」を選択した場合はCascadeDutyChangeを経由しないため
+                // 紐付け（CompOffOrigin）が行われない。代休が不足している当直/日勤の代休日と一致するなら
+                // その場で紐付け、アテーション判定（NeedsAttention）に正しく反映されるようにする。
+                if (_cascadeEnabled && value == CompOffSymbol && old != CompOffSymbol
+                    && DateTime.TryParseExact(key, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var compOffDate))
+                {
+                    TryAutoLinkManualCompOff(key, compOffDate);
+                }
+
                 // 当直/日勤/代休の記号が変わった場合のみ、代休アテンションを再計算する
                 if (value == DutySymbol || old == DutySymbol || value == DayWorkSymbol || old == DayWorkSymbol || value == CompOffSymbol || old == CompOffSymbol)
                     RecomputeAttention();
@@ -243,6 +252,45 @@ namespace Shiftapp_demo.Business
             AttentionMessage = NeedsAttention
                 ? string.Join("、", missingDutyDates.Select(FormatDateJp)) + " の当直/日勤に対する代休が未設定です"
                 : null;
+        }
+
+        // 手動で「●」を選択したセル(key/compOffDate)を、代休が不足している当直/日勤に紐付ける。
+        // 現場の都合で算出ルール通りの日に付与できないことがあるため、日付の一致は問わず、
+        // まだ必要数を満たしていない当直/日勤（かつ当直/日勤日以降）の中から最も日付が近いものを選ぶ。
+        // 該当する当直/日勤が無い場合（通常の日曜/祝日休みとして●を使った場合など）は何もしない。
+        private void TryAutoLinkManualCompOff(string key, DateTime compOffDate)
+        {
+            if (_compOffOrigin.ContainsKey(key)) return; // 既に紐付け済み（Cascade由来）
+
+            DateTime? bestDutyDate = null;
+            double bestDiff = double.MaxValue;
+
+            foreach (var kv in _shifts)
+            {
+                bool isDuty = kv.Value == DutySymbol || kv.Value == DayWorkSymbol;
+                if (!isDuty) continue;
+                if (!DateTime.TryParseExact(kv.Key, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var dutyDate)) continue;
+                if (compOffDate.Date < dutyDate.Date) continue; // 代休は当直/日勤日より前には置けない
+
+                var primary = ShiftBusiness.GetCompWorkOff(dutyDate, _holidays);
+                if (!primary.HasValue) continue; // この曜日・祝日区分の当直/日勤は代休不要
+
+                int required = 1;
+                if (kv.Value == DutySymbol && ShiftBusiness.AkeAlsoLandsOnHoliday(dutyDate, _holidays))
+                    required = 2;
+
+                if (CountLinkedCompOffFor(dutyDate) >= required) continue;
+
+                var diff = Math.Abs((dutyDate - compOffDate).TotalDays);
+                if (diff < bestDiff)
+                {
+                    bestDiff = diff;
+                    bestDutyDate = dutyDate;
+                }
+            }
+
+            if (bestDutyDate.HasValue)
+                _compOffOrigin[key] = bestDutyDate.Value;
         }
 
         // dutyDateに紐付いている（CompOffOriginで記録された）「●」の数を数える。
