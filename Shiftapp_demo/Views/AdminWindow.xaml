@@ -29,11 +29,12 @@
         </Style>
     </Window.Resources>
 
+    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
     <Grid Margin="16">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <!-- 見出し：技師 -->
-            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
             <!-- 技師 DataGrid -->
             <RowDefinition Height="Auto"/>
             <!-- 技師ボタン列 -->
@@ -47,7 +48,7 @@
             <!-- 見出し：祝日 -->
             <RowDefinition Height="Auto"/>
             <!-- 祝日操作バー -->
-            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
             <!-- 祝日 DataGrid -->
         </Grid.RowDefinitions>
 
@@ -68,6 +69,7 @@
           CanUserDeleteRows="False"
           IsReadOnly="False"
           SelectionMode="Single"
+          Height="260"
           Margin="0,8,0,8">
 
             <DataGrid.Columns>
@@ -130,6 +132,7 @@
                     <Run Text="{Binding SelectedEmployee.EmployeeName}"/>
                 </TextBlock>
 
+                <ScrollViewer MaxHeight="120" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                 <ItemsControl ItemsSource="{Binding SelectedEmployeePreferences}">
                     <ItemsControl.ItemsPanel>
                         <ItemsPanelTemplate>
@@ -154,6 +157,7 @@
                         </DataTemplate>
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
+                </ScrollViewer>
 
                 <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
                     <ComboBox Width="140" Margin="0,0,8,0"
@@ -227,7 +231,8 @@
               AutoGenerateColumns="False"
               CanUserAddRows="False"
               CanUserDeleteRows="False"
-              IsReadOnly="False">
+              IsReadOnly="False"
+              Height="280">
                 <DataGrid.Columns>
                     <DataGridTextColumn Header="日付"
                                 Binding="{Binding date, StringFormat=\{0:yyyy-MM-dd\}}"
@@ -253,4 +258,5 @@
               DisplayDateChanged="AdminCalendar_DisplayDateChanged"/>
         </Grid>
     </Grid>
+    </ScrollViewer>
 </Window>

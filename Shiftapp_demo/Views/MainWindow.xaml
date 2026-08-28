@@ -30,6 +30,7 @@
                 Background="{DynamicResource MaterialDesignPaper}"
                 materialDesign:ElevationAssist.Elevation="Dp1"
                 Padding="12">
+            <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
             <StackPanel>
                 <Calendar x:Name="ShiftCalendar"
                           FontSize="24"
@@ -115,6 +116,7 @@
                     </StackPanel>
                 </Border>
             </StackPanel>
+            </ScrollViewer>
         </Border>
 
         <Grid Grid.Column="1" Grid.Row="0" Grid.RowSpan="2">
