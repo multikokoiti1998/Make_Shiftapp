@@ -364,3 +364,7 @@ FodyWeavers.xsd
 /Shiftapp_demo/Data/shiftapp.db-shm
 /Shiftapp_demo/Data/shiftapp.db-wal
 /Shiftapp_demo/bin/
+
+# インストーラーのビルド成果物（100MB超でGitHubのファイルサイズ上限を超えるため追跡対象外にする）
+/Shiftapp_demo/Output/
+/Shiftapp_demo/redist/
