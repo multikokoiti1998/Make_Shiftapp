@@ -78,6 +78,35 @@ namespace Shiftapp_demo.DataAccess
             return result;
         }
 
+        // 在職中の職員を役職→職員コード順（管理者画面・Excel出力と同じ並び）で全員返す。
+        // その月のシフト実績が1件も無い新人・非正規等も含めるためのもの
+        // （GetShiftRowはdaily_employee_shiftsとのINNER JOINのため、実績が無い職員は出てこない）。
+        public List<Employee> GetActiveEmployeesOrdered()
+        {
+            var result = new List<Employee>();
+            using var connection = new SqliteConnection(_connectionString);
+            connection.Open();
+
+            var cmd = connection.CreateCommand();
+            cmd.CommandText = @"
+            SELECT employee_id, employee_name, Role
+            FROM employee
+            WHERE is_active = 1
+            ORDER BY Role, employee_id;";
+
+            using var reader = cmd.ExecuteReader();
+            while (reader.Read())
+            {
+                result.Add(new Employee
+                {
+                    EmployeeId = reader.GetInt32(0),
+                    EmployeeName = reader.GetString(1),
+                    Role = reader.GetInt32(2),
+                });
+            }
+            return result;
+        }
+
         public List<Shift> GetShiftsOnly(DateTime startDate, DateTime endDate)
         {
             var result = new List<Shift>();

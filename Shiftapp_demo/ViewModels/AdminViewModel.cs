@@ -242,8 +242,8 @@ namespace Shiftapp_demo.ViewModels
 
             var emp = new Employee
             {
-                EmployeeId = newId,   
-                ShiftId = 0,      
+                EmployeeId = newId,
+                ShiftId = 0,
                 EmployeeName = "",
                 CanDoCatheterization = false,
                 SaturdayClass = "A",
@@ -253,10 +253,26 @@ namespace Shiftapp_demo.ViewModels
                 CanDayDuty = false,
             };
 
-            Employees.Add(emp);
+            InsertEmployeeSorted(emp);
 
             // 選択中にするなら
             SelectedEmployee = emp;
+        }
+
+        /// <summary>
+        /// GetAllEmployees()と同じ並び順（Role昇順→employee_id昇順）を保つ位置に挿入する。
+        /// 末尾にAddするだけだと、新規追加した職員が役職順を無視して一番下に表示されてしまうため。
+        /// </summary>
+        private void InsertEmployeeSorted(Employee emp)
+        {
+            int index = 0;
+            while (index < Employees.Count &&
+                   (Employees[index].Role < emp.Role ||
+                    (Employees[index].Role == emp.Role && Employees[index].EmployeeId <= emp.EmployeeId)))
+            {
+                index++;
+            }
+            Employees.Insert(index, emp);
         }
 
         private void DeleteEmployee()

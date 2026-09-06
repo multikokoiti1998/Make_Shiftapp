@@ -208,6 +208,12 @@ namespace Shiftapp_demo.ViewModels
             admin.ShowDialog();
         }
 
+        private void OpenAdminForEmployee(int employeeId)
+        {
+            var admin = new AdminWindow(employeeId);
+            admin.ShowDialog();
+        }
+
         private void GenerateShift(object? param)
         {
             var targetMonth = param is DateTime displayDate ? displayDate : DateTime.Today;
@@ -401,7 +407,23 @@ namespace Shiftapp_demo.ViewModels
             if (unmatchedIds.Count > 0)
                 msg += $"\n未登録の職員コードのため取り込めなかった行: {string.Join(", ", unmatchedIds)}";
 
-            MessageBox.Show(msg, "Excel読込", MessageBoxButton.OK, MessageBoxImage.Information);
+            var icon = (newlyRegistered.Count > 0 || unmatchedIds.Count > 0)
+                ? MessageBoxImage.Warning
+                : MessageBoxImage.Information;
+            MessageBox.Show(msg, "Excel読込", MessageBoxButton.OK, icon);
+
+            if (newlyRegistered.Count > 0)
+            {
+                MessageBox.Show(
+                    "Excelに存在しますがDB未登録だった職員がいたため、仮登録しました。\n" +
+                    $"職員コード: {string.Join(", ", newlyRegistered)}\n\n" +
+                    "続けて管理者画面を開きます。氏名・役職などの詳細を確認・登録してください。",
+                    "未登録の職員を検出",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Warning);
+
+                OpenAdminForEmployee(newlyRegistered[0]);
+            }
         }
 
         private void LoadShiftTypes()

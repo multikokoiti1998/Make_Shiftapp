@@ -81,7 +81,7 @@ namespace Shiftapp_demo.Excel
             using var wb = new XLWorkbook(templatePath);
 
             WriteDailySheet(wb, rows);
-            FixStaffDisplayNameFormulas(wb);
+            FixStaffLookupFormulas(wb);
             WriteMonthDisplayHolidayFlags(wb, year, month, holidayDates);
 
             wb.SaveAs(outputPath);
@@ -115,20 +115,28 @@ namespace Shiftapp_demo.Excel
         }
 
         /// <summary>
-        /// 「スタッフ」シートのD列(氏)/E列(名)/F列(表示名)は共有数式(shared formula)で
-        /// 組まれているが、ClosedXMLで開いて保存し直すと、F列の共有数式内にある
-        /// 列全体参照 "D:D" が2行目以降のコピー先セルで "D" に壊れてしまう既知の問題があり、
-        /// 結果としてF4以降の表示名が正しく計算されなくなる（当直者/明/●等の各カレンダーシートは
-        /// この表示名をVLOOKUPで参照しているため、月表示の氏名表示も崩れる）。
-        /// 共有数式に頼らず、各行に個別の数式を明示的に書き込むことでこれを回避する。
+        /// 「スタッフ」シートのB:F列を全行分、明示的な数式で書き直す。
+        /// 理由は2つ:
+        /// 1) テンプレート自体に元からある不具合として、B43/C43/B44/C44
+        ///    （職員が42人目・43人目に達したときに該当する行）の数式が丸ごと欠落しており、
+        ///    在職者が42人を超えると必ずその2人だけ氏名が空欄になっていた。
+        /// 2) D列(氏)/E列(名)/F列(表示名)は共有数式(shared formula)で組まれているが、
+        ///    ClosedXMLで開いて保存し直すと、F列の共有数式内にある列全体参照 "D:D" が
+        ///    2行目以降のコピー先セルで "D" に壊れてしまう既知の問題があり、
+        ///    結果としてF4以降の表示名が正しく計算されなくなる（当直者/明/●等の各カレンダー
+        ///    シートはこの表示名をVLOOKUPで参照しているため、月表示の氏名表示も崩れる）。
+        /// どちらも、共有数式やテンプレートの既存数式に頼らず、各行に個別の数式を
+        /// 明示的に書き込むことで解消する。
         /// </summary>
-        private static void FixStaffDisplayNameFormulas(XLWorkbook wb)
+        private static void FixStaffLookupFormulas(XLWorkbook wb)
         {
             if (!wb.Worksheets.TryGetWorksheet(StaffSheetName, out var ws))
                 return;
 
             for (int r = StaffFirstDataRow; r <= StaffLastRow; r++)
             {
+                ws.Cell(r, 2).FormulaA1 = $"IFERROR(VLOOKUP(A{r},'デイリーデータ (2)'!G:I,2,FALSE),\"\")";
+                ws.Cell(r, 3).FormulaA1 = $"IFERROR(VLOOKUP(A{r},'デイリーデータ (2)'!G:I,3,FALSE),\"\")";
                 ws.Cell(r, 4).FormulaA1 = $"IFERROR(LEFT(C{r},FIND(\" \",C{r})-1),\"\")";
                 ws.Cell(r, 5).FormulaA1 = $"IFERROR(RIGHT(C{r},LEN(C{r})-FIND(\" \",C{r})),\"\")";
                 ws.Cell(r, 6).FormulaA1 = $"IF(COUNTIF(D:D,D{r})=1,D{r},D{r}&LEFT(E{r},1))";
