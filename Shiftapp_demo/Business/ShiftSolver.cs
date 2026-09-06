@@ -2,6 +2,8 @@ using Shiftapp_demo.DataAccess;
 using Shiftapp_demo.Models;
 using static Shiftapp_demo.DataAccess.MainDatabaseHelper;
 using Google.OrTools.Sat;
+using Serilog;
+using System.IO;
 
 namespace Shiftapp_demo.Business
 {
@@ -437,6 +439,25 @@ namespace Shiftapp_demo.Business
 
             // ========= 9) Solve =========
             var solver = new CpSolver();
+            // 一部のPC環境でCP-SATの内部並列探索ワーカーがネイティブ側のAccessViolationExceptionを
+            // 引き起こす既知の問題があるため、シングルスレッド実行に固定して回避する。
+            // （この規模の問題ならシングルスレッドでも十分な速度で解ける）
+            solver.StringParameters = "num_search_workers:1";
+
+            // モデル自体が不正（範囲が逆転した変数、空の制約など）だと、ネイティブ側にそのまま渡した
+            // 際にC#側の例外機構を経由しないAccessViolationExceptionでプロセスごと落ちてしまい、
+            // ログも残らない。Solveの前に検証し、不正であれば安全に捕捉可能な例外へ変換する。
+            var validationError = model.Validate();
+            if (!string.IsNullOrEmpty(validationError))
+            {
+                var dumpPath = Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                    "ShiftApp", "Logs", $"cp_model_invalid_{DateTime.Now:yyyyMMdd_HHmmss}.txt");
+                model.ExportToFile(dumpPath);
+                Log.Error("CP-SATモデルが不正です。{ValidationError} ダンプ: {DumpPath}", validationError, dumpPath);
+                throw new InvalidOperationException($"シフト作成モデルの構築に失敗しました:\n{validationError}");
+            }
+
             var status = solver.Solve(model);
 
             if (status != CpSolverStatus.Optimal && status != CpSolverStatus.Feasible)

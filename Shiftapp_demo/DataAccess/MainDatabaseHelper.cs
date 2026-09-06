@@ -237,12 +237,21 @@ namespace Shiftapp_demo.DataAccess
         // シフト種別IDマップ取得
         public Dictionary<(int EmployeeId, DateTime Date), int> GetShiftMap(DateTime start, DateTime end)
         {
-            var map = new Dictionary<(int, DateTime), int>();
-
             using var con = new SqliteConnection(_connectionString);
             con.Open();
+            return GetShiftMap(con, null, start, end);
+        }
+
+        /// <summary>
+        /// 呼び出し元が開いた接続（任意でトランザクション）上で読み取る。
+        /// シフト作成のように、削除〜ソルバー実行〜書き込みを1トランザクションにまとめたい場合に使う。
+        /// </summary>
+        internal Dictionary<(int EmployeeId, DateTime Date), int> GetShiftMap(SqliteConnection con, SqliteTransaction? tx, DateTime start, DateTime end)
+        {
+            var map = new Dictionary<(int, DateTime), int>();
 
             using var cmd = con.CreateCommand();
+            cmd.Transaction = tx;
             cmd.CommandText = @"
             SELECT
               b.employee_id,
@@ -274,19 +283,22 @@ namespace Shiftapp_demo.DataAccess
         }
         public void DeleteMonthDutyAndDayParentsWithCascade(DateTime monthFirst)
         {
+            using var con = OpenConnection();
+            using var tx = con.BeginTransaction();
+
+            DeleteMonthDutyAndDayParentsWithCascade(con, tx, monthFirst);
+
+            tx.Commit();
+        }
+
+        /// <summary>
+        /// 呼び出し元が開いた接続/トランザクション上で削除だけを行う（コミットは呼び出し元の責務）。
+        /// シフト作成のように、削除〜ソルバー実行〜書き込みを1トランザクションにまとめたい場合に使う。
+        /// </summary>
+        internal void DeleteMonthDutyAndDayParentsWithCascade(SqliteConnection con, SqliteTransaction tx, DateTime monthFirst)
+        {
             var first = new DateTime(monthFirst.Year, monthFirst.Month, 1);
             var next = first.AddMonths(1);
-
-            using var con = new SqliteConnection(_connectionString);
-            con.Open();
-
-            using var tx = con.BeginTransaction();
-            using (var pragma = con.CreateCommand())
-            {
-                pragma.Transaction = tx;
-                pragma.CommandText = "PRAGMA foreign_keys=ON; PRAGMA busy_timeout=5000;";
-                pragma.ExecuteNonQuery();
-            }
 
             using var cmd = con.CreateCommand();
             cmd.Transaction = tx;
@@ -333,7 +345,6 @@ namespace Shiftapp_demo.DataAccess
             cmd.ExecuteNonQuery();
 
             Log.Information($"{deleted_count} 件削除されました",deleted_count);
-            tx.Commit();
         }
 
         /// <summary>
@@ -462,6 +473,17 @@ namespace Shiftapp_demo.DataAccess
             con.Open();
             using var tx = con.BeginTransaction();
 
+            BulkUpsert_Duty_Shifts(con, tx, items, month);
+
+            tx.Commit();
+        }
+
+        /// <summary>
+        /// 呼び出し元が開いた接続/トランザクション上で書き込みだけを行う（コミットは呼び出し元の責務）。
+        /// シフト作成のように、削除〜ソルバー実行〜書き込みを1トランザクションにまとめたい場合に使う。
+        /// </summary>
+        internal void BulkUpsert_Duty_Shifts(SqliteConnection con, SqliteTransaction tx, IEnumerable<ShiftWrite> items, DateTime month)
+        {
             var raw = new Raw(
                 GetShiftTypeIdBySymbol("当"),
                 GetShiftTypeIdBySymbol("明"),
@@ -650,7 +672,6 @@ namespace Shiftapp_demo.DataAccess
                     cmd.ExecuteNonQuery();
                 }
             }
-            tx.Commit();
         }
 
 

@@ -232,6 +232,17 @@ namespace Shiftapp_demo.ViewModels
                 MessageBox.Show($"シフトの自動生成に失敗しました:\n{ex.Message}",
                     "エラー", MessageBoxButton.OK, MessageBoxImage.Error);
             }
+            catch (Exception ex)
+            {
+                // OrTools（ネイティブライブラリ）の読み込み失敗など、環境依存の予期しない失敗を
+                // アプリ全体の汎用ハンドラに落とさずここで捕捉する。
+                Log.Error(ex, "シフト自動生成中に予期しないエラーが発生しました。{targetMonth}", targetMonth);
+                MessageBox.Show(
+                    "シフトの自動生成中に予期しないエラーが発生しました。\n" +
+                    "このPCの環境（Visual C++ ランタイム未導入など）が原因の可能性があります。\n" +
+                    "ログを確認のうえ、管理者にご連絡ください。",
+                    "エラー", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
         }
 
         private void UpdateShift(object? param)
@@ -405,19 +416,28 @@ namespace Shiftapp_demo.ViewModels
 
         public void MakeNightDuty(DateTime month)
         {
-            db.DeleteMonthDutyAndDayParentsWithCascade(month);
-
             // _symbolToId はLoadShiftDataForMonth経由でしか埋まらないため、参照前に明示的にロードする
             LoadShiftTypes();
 
+            // 削除に影響されない読み取りは先に済ませておく
             var employees = db.GetActiveEmployeesForScheduling();
             var (first, last) = ShiftBusiness.GetMonthRange(month);
             var preloadStart = first.AddDays(-7);
             var preloadEnd = last.AddDays(21); // 週末代休を安全に見る
-            var existingMap = db.GetShiftMap(preloadStart, preloadEnd);
             var holidays = _business.GetHolidaysInMonth(month).Select(h => h.date).ToList();
             var preferences = db.GetAllActivePreferencesByEmployee();
             var historicalWeekendHolidayDutyCounts = db.GetHistoricalWeekendHolidayDutyCounts(month);
+
+            // 削除〜ソルバー実行〜書き込みまでを単一トランザクションにまとめる。
+            // ソルバー(ネイティブライブラリの読み込み失敗やINFEASIBLEを含む)が例外を投げた場合、
+            // tx.Commit() に到達せず using の Dispose で自動的にロールバックされ、
+            // 当月の既存データが削除されたままにならないようにする。
+            using var con = db.OpenConnection();
+            using var tx = con.BeginTransaction();
+
+            db.DeleteMonthDutyAndDayParentsWithCascade(con, tx, month);
+
+            var existingMap = db.GetShiftMap(con, tx, preloadStart, preloadEnd);
 
             var solver = new ShiftsSolver(month, employees, existingMap, holidays,
                 _symbolToId["当"], _symbolToId["明"], _symbolToId["●"], _symbolToId["○"], _symbolToId["日"],
@@ -426,7 +446,9 @@ namespace Shiftapp_demo.ViewModels
                 historicalWeekendHolidayDutyCounts: historicalWeekendHolidayDutyCounts);
 
             var writes = solver.Solve();
-            db.BulkUpsert_Duty_Shifts(writes, month);
+            db.BulkUpsert_Duty_Shifts(con, tx, writes, month);
+
+            tx.Commit();
 
             LoadShiftDataForMonth(month);
         }

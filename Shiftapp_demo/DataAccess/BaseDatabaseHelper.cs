@@ -20,6 +20,22 @@ namespace Shiftapp_demo.DataAccess
             EnsureSchema();
         }
 
+        /// <summary>
+        /// 複数の操作を1つのトランザクションにまとめたい呼び出し元向けに、開いた状態の接続を返す。
+        /// 呼び出し元が using で破棄すること。
+        /// </summary>
+        public SqliteConnection OpenConnection()
+        {
+            var con = new SqliteConnection(_connectionString);
+            con.Open();
+
+            using var pragma = con.CreateCommand();
+            pragma.CommandText = "PRAGMA foreign_keys=ON; PRAGMA busy_timeout=5000;";
+            pragma.ExecuteNonQuery();
+
+            return con;
+        }
+
         // 配布されたDBファイルにマイグレーション機構がないため、未作成のテーブルを起動のたびに
         // 冪等に用意する（CREATE TABLE IF NOT EXISTS のみ・既存テーブルには触れない）。
         private void EnsureSchema()
