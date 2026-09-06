@@ -1,4 +1,5 @@
 ﻿using Shiftapp_demo.DataAccess;
+using Shiftapp_demo.Excel;
 using Shiftapp_demo.Models;
 using System.Globalization;
 
@@ -76,6 +77,16 @@ namespace Shiftapp_demo.Csv
             var data = BuildMonthRows(year, month);
             var layout = new RowLayout_ForShiftCsvRow(); // ShiftCsvRow用レイアウト
             return _exporter.ExportAsync(data, layout, filePath, ct);
+        }
+
+        /// <summary>
+        /// 指定月のデータを勤務表テンプレートの「デイリーデータ」シートに書き込み、
+        /// 完成形の勤務表(xlsx)として出力する。
+        /// </summary>
+        public Task ExportMonthAsExcelAsync(int year, int month, string templatePath, string outputPath, CancellationToken ct = default)
+        {
+            var data = BuildMonthRows(year, month);
+            return Task.Run(() => ShiftExcelWriter.WriteDailyData(templatePath, outputPath, data), ct);
         }
     }
 

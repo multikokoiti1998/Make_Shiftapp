@@ -40,6 +40,8 @@ namespace Shiftapp_demo.ViewModels
 
         public ICommand ExportCsvRowsCommand { get; }
 
+        public ICommand ExportExcelCommand { get; }
+
         public ICommand ImportExcelCommand { get; }
 
         public ICommand GenerateShiftCommand { get; }
@@ -197,6 +199,8 @@ namespace Shiftapp_demo.ViewModels
 
             ExportCsvRowsCommand = new RelayCommand(async p => await ExportCsvRowsAsync(p));
 
+            ExportExcelCommand = new RelayCommand(async p => await ExportExcelAsync(p));
+
             ImportExcelCommand = new RelayCommand(_ => ImportExcel());
 
             OpenAdminCommand = new RelayCommand(OpenAdmin);
@@ -294,6 +298,47 @@ namespace Shiftapp_demo.ViewModels
             if (sfd.ShowDialog() == true)
             {
                 await _csvBiz.ExportMonthAsRowsAsync(year, month, sfd.FileName);
+            }
+        }
+
+        private async Task ExportExcelAsync(object? param)
+        {
+            if (param is not DateTime displayDate)
+                return;
+
+            int year = displayDate.Year;
+            int month = displayDate.Month;
+
+            string templatePath;
+            try
+            {
+                templatePath = ShiftExcelWriter.GetTemplatePath();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"テンプレートの取得に失敗しました:\n{ex.Message}",
+                    "エラー", MessageBoxButton.OK, MessageBoxImage.Error);
+                return;
+            }
+
+            var sfd = new SaveFileDialog
+            {
+                Filter = "Excelファイル (*.xlsx)|*.xlsx",
+                FileName = $"勤務表({year:0000}{month:00}).xlsx"
+            };
+
+            if (sfd.ShowDialog() != true) return;
+
+            try
+            {
+                await _csvBiz.ExportMonthAsExcelAsync(year, month, templatePath, sfd.FileName);
+                MessageBox.Show("勤務表Excelを出力しました。", "完了",
+                    MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Excel出力中にエラーが発生しました:\n{ex.Message}",
+                    "エラー", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
