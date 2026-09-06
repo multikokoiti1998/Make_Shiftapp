@@ -9,12 +9,10 @@ namespace Shiftapp_demo.Csv
     public sealed class CsvBusiness
     {
         private readonly MainDatabaseHelper _db;
-        private readonly IShiftCsvExporter _exporter;
 
-        public CsvBusiness(MainDatabaseHelper db, IShiftCsvExporter exporter)
+        public CsvBusiness(MainDatabaseHelper db)
         {
             _db = db ?? throw new ArgumentNullException(nameof(db));
-            _exporter = exporter ?? throw new ArgumentNullException(nameof(exporter));
         }
 
         /// <summary>
@@ -70,23 +68,18 @@ namespace Shiftapp_demo.Csv
         }
 
         /// <summary>
-        /// 指定月のCSVを縦形式で出力（1行＝1社員×1日）
-        /// </summary>
-        public Task ExportMonthAsRowsAsync(int year, int month, string filePath, CancellationToken ct = default)
-        {
-            var data = BuildMonthRows(year, month);
-            var layout = new RowLayout_ForShiftCsvRow(); // ShiftCsvRow用レイアウト
-            return _exporter.ExportAsync(data, layout, filePath, ct);
-        }
-
-        /// <summary>
         /// 指定月のデータを勤務表テンプレートの「デイリーデータ」シートに書き込み、
         /// 完成形の勤務表(xlsx)として出力する。
         /// </summary>
         public Task ExportMonthAsExcelAsync(int year, int month, string templatePath, string outputPath, CancellationToken ct = default)
         {
             var data = BuildMonthRows(year, month);
-            return Task.Run(() => ShiftExcelWriter.WriteDailyData(templatePath, outputPath, data), ct);
+
+            var start = new DateTime(year, month, 1);
+            var end = start.AddMonths(1).AddDays(-1);
+            var holidayDates = _db.GetHolidays(start, end).Select(h => h.date.Date).ToList();
+
+            return Task.Run(() => ShiftExcelWriter.WriteMonthlyData(templatePath, outputPath, year, month, data, holidayDates), ct);
         }
     }
 

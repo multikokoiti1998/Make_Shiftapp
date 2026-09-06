@@ -58,17 +58,6 @@
                 VerticalAlignment="Top"
                 >
 
-                    <!-- CSV出力ボタン -->
-                    <Button Content="CSV出力"
-                Style="{StaticResource MaterialDesignOutlinedButton}"
-                Command="{Binding ExportCsvRowsCommand}"
-                CommandParameter="{Binding ElementName=ShiftCalendar, Path=DisplayDate}"
-                Width="150" Height="70"
-                FontSize="18"
-                Margin="0,15,15,0"
-                Padding="10"
-                />
-
                     <!-- 勤務表Excel出力ボタン -->
                     <Button Content="勤務表Excel出力"
                 Style="{StaticResource MaterialDesignOutlinedButton}"

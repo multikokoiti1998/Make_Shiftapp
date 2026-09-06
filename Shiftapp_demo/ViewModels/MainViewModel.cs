@@ -34,11 +34,7 @@ namespace Shiftapp_demo.ViewModels
 
         private readonly CsvBusiness _csvBiz;
 
-        private readonly IShiftCsvExporter _exporter;
-
         public ICommand OpenAdminCommand { get; }
-
-        public ICommand ExportCsvRowsCommand { get; }
 
         public ICommand ExportExcelCommand { get; }
 
@@ -193,11 +189,7 @@ namespace Shiftapp_demo.ViewModels
 
             _business = new ShiftBusiness(db);
 
-            _exporter = new CsvHelperExporter();
-
-            _csvBiz = new CsvBusiness(db, _exporter);
-
-            ExportCsvRowsCommand = new RelayCommand(async p => await ExportCsvRowsAsync(p));
+            _csvBiz = new CsvBusiness(db);
 
             ExportExcelCommand = new RelayCommand(async p => await ExportExcelAsync(p));
 
@@ -279,26 +271,6 @@ namespace Shiftapp_demo.ViewModels
                     "エラー", MessageBoxButton.OK, MessageBoxImage.Error);
             }
 
-        }
-
-        private async Task ExportCsvRowsAsync(object? param)
-        {
-            if (param is not DateTime displayDate)
-                return;
-
-            int year = displayDate.Year;
-            int month = displayDate.Month;
-
-            var sfd = new SaveFileDialog
-            {
-                Filter = "CSVファイル (*.csv)|*.csv",
-                FileName = $"shifts_{year:0000}{month:00}_rows.csv"
-            };
-
-            if (sfd.ShowDialog() == true)
-            {
-                await _csvBiz.ExportMonthAsRowsAsync(year, month, sfd.FileName);
-            }
         }
 
         private async Task ExportExcelAsync(object? param)
