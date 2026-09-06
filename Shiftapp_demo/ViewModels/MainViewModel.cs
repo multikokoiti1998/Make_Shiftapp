@@ -247,7 +247,8 @@ namespace Shiftapp_demo.ViewModels
 
         private void UpdateShift(object? param)
         {
-            var dirty = ShiftDataCollection.Where(e => e.IsDirty).ToList();
+            // 末尾の当直/明け/代休 人数集計行は保存対象外（念のため二重に除外しておく）
+            var dirty = ShiftDataCollection.Where(e => e.IsDirty && !e.IsSummaryRow).ToList();
             if (dirty.Count == 0)
             {
                 MessageBox.Show("保存する変更がありません。",
@@ -350,7 +351,8 @@ namespace Shiftapp_demo.ViewModels
             // 対象月を表示（グリッドがDBの現状で作り直される。新規登録した職員もここで反映される）
             DisplayDate = new DateTime(result.Year, result.Month, 1);
 
-            var loaderById = ShiftDataCollection.ToDictionary(l => l.EmployeeId);
+            // 末尾の当直/明け/代休 人数集計行は職員ではない（EmployeeIdが全て既定値の0で重複する）ため除外する
+            var loaderById = ShiftDataCollection.Where(l => !l.IsSummaryRow).ToDictionary(l => l.EmployeeId);
             var unmatchedIds = new List<int>();
 
             foreach (var entry in result.Entries)
@@ -622,7 +624,34 @@ namespace Shiftapp_demo.ViewModels
                    .ThenBy(x => x.ShiftId)
                    .ToList();
 
-            ShiftDataCollection = new ObservableCollection<ShiftDataLoader>(ordered);
+            // 4) 末尾に、その日の当直/明け/代休の人数を集計した行を追加する。
+            // 代休(●)は当直/日勤に紐づく本物の代休のみをカウントし、日曜/祝日の通常の休みマーカー
+            // （●だがTooltipが無い＝紐づけ無し）は除く（SelectedEmployeeCompOffDatesと同じ判定基準）。
+            var dutyCountRow = new ShiftDataLoader { EmployeeName = "当直人数", IsSummaryRow = true };
+            var akeCountRow = new ShiftDataLoader { EmployeeName = "明け人数", IsSummaryRow = true };
+            var compOffCountRow = new ShiftDataLoader { EmployeeName = "代休人数", IsSummaryRow = true };
+
+            for (var d = firstDay; d <= lastDay; d = d.AddDays(1))
+            {
+                var key = d.ToString("yyyy-MM-dd");
+                dutyCountRow[key] = ordered.Count(l => l[key] == "当").ToString();
+                akeCountRow[key] = ordered.Count(l => l[key] == "明").ToString();
+                compOffCountRow[key] = ordered.Count(l => l[key] == "●" && l.Tooltip[key] != null).ToString();
+            }
+
+            // EmployeeNameのセッターはIsSummaryRowに関係なく無条件にIsDirty=trueにするため、
+            // このままだと「シフト修正」保存時にダミーの集計行まで保存対象に紛れ込んでしまう
+            // （行の値が"2"等の数字でシフト記号ではないため保存時に例外になる）。明示的にクリアする。
+            dutyCountRow.AcceptChanges();
+            akeCountRow.AcceptChanges();
+            compOffCountRow.AcceptChanges();
+
+            ShiftDataCollection = new ObservableCollection<ShiftDataLoader>(ordered)
+            {
+                dutyCountRow,
+                akeCountRow,
+                compOffCountRow
+            };
 
             // 5) 列（ID/名前＋1..末日）
             // baselineIsA: UpdateSaturdayShifts(GenerateOffShift)の既定"B"に合わせる

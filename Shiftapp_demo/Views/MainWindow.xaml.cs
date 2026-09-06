@@ -56,12 +56,22 @@ namespace Shiftapp_demo.Views
             if (colIndex < LeadingNonDateColumnCount) return; // ID・名前列はスキップ
 
             if (cellInfo.Item is not ShiftDataLoader row) return;
+            if (row.IsSummaryRow) return; // 末尾の人数集計行は編集不可
 
             var firstOfMonth = new DateTime(ViewModel.DisplayDate.Year, ViewModel.DisplayDate.Month, 1);
             var date = firstOfMonth.AddDays(colIndex - LeadingNonDateColumnCount);
             row[date.ToString("yyyy-MM-dd")] = "";
 
             e.Handled = true;
+        }
+
+        // 末尾の当直/明け/代休 人数集計行はセル編集そのものを開始させない（表示専用行）
+        private void ShiftDataGrid_BeginningEdit(object sender, DataGridBeginningEditEventArgs e)
+        {
+            if (e.Row.Item is ShiftDataLoader { IsSummaryRow: true })
+            {
+                e.Cancel = true;
+            }
         }
 
         private void ShiftCalendar_DisplayDateChanged(object sender, CalendarDateChangedEventArgs e)

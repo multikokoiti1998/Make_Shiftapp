@@ -100,8 +100,8 @@ public class ShiftsSolverTests
 
         var (first, last) = ShiftBusiness.GetMonthRange(Month);
 
-        // 最終日を除く毎日、カテ可1名+カテ不可1名の当直が立っていること
-        for (var day = first; day < last; day = day.AddDays(1))
+        // 最終日も含め毎日、カテ可1名+カテ不可1名の当直が立っていること
+        for (var day = first; day <= last; day = day.AddDays(1))
         {
             var dutiesOnDay = duties.Where(w => w.Date == day).ToList();
             Assert.Equal(2, dutiesOnDay.Count);
@@ -142,6 +142,59 @@ public class ShiftsSolverTests
         {
             Assert.Single(group);
         }
+    }
+
+    [Fact]
+    public void Solve_LastDayOfMonth_StillGetsDutyCoverage()
+    {
+        // 以前は月末日をハード制約でx=0固定していたため、月末日には当直が一人も
+        // 立たなかった（明けが翌月にはみ出すことへの対処を避けるための簡略化）。
+        // ConvertToShiftWritesはdutyDate.AddDays(1)へ月をまたいでも明けを書き込めるため、
+        // 月末日も他の日と同様にカテ可1名+カテ不可1名の当直が立つべきことを確認する。
+        var employees = BuildSymmetricEmployees();
+        var (_, last) = ShiftBusiness.GetMonthRange(Month);
+
+        var solver = new ShiftsSolver(Month, employees, new Dictionary<(int, DateTime), int>(), new List<DateTime>(),
+            StidDuty, StidAfterDuty, StidSubOff, StidOff, StidDayWork);
+
+        var writes = solver.Solve();
+        var dutiesOnLastDay = writes.Where(w => w.ShiftTypeId == StidDuty && w.Date == last).ToList();
+
+        Assert.Equal(2, dutiesOnLastDay.Count);
+
+        // 明けは翌月の1日目に正しく書き込まれること（ConvertToShiftWritesが月範囲を
+        // 意識せずdutyDate.AddDays(1)へ直接書き込むことの回帰確認）。
+        var nextMonthFirstDay = last.AddDays(1);
+        foreach (var duty in dutiesOnLastDay)
+        {
+            Assert.Contains(writes, w =>
+                w.ShiftTypeId == StidAfterDuty && w.EmployeeId == duty.EmployeeId && w.Date == nextMonthFirstDay);
+        }
+    }
+
+    [Fact]
+    public void Solve_PriorMonthLastDayDuty_BlocksEarlyThisMonthAssignments()
+    {
+        // 前月末（今月1日の前日）に当直があった職員は、月をまたいでも4日間隔ルールを
+        // 守る必要がある。月末日にも当直を割り当てられるようにしたことで新たに必要になった
+        // 境界チェック（セクション2の月境界ガード）の回帰確認。
+        var employees = BuildSymmetricEmployees();
+        var targetEmployee = employees.First(e => e.CanDoCatheterization);
+
+        var priorMonthLastDay = Month.AddDays(-1); // 前月末日
+        var existingMap = new Dictionary<(int, DateTime), int>
+        {
+            [(targetEmployee.EmployeeId, priorMonthLastDay)] = StidDuty,
+        };
+
+        var solver = new ShiftsSolver(Month, employees, existingMap, new List<DateTime>(),
+            StidDuty, StidAfterDuty, StidSubOff, StidOff, StidDayWork);
+
+        var writes = solver.Solve();
+        var duties = writes.Where(w => w.ShiftTypeId == StidDuty && w.EmployeeId == targetEmployee.EmployeeId).ToList();
+
+        // 前月末日(=今月1日の前日)から中4日空けるには、今月1〜3日には当直を入れられないはず。
+        Assert.DoesNotContain(duties, d => d.Date < Month.AddDays(3));
     }
 
     [Fact]

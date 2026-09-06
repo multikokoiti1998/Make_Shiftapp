@@ -156,6 +156,7 @@
               EnableColumnVirtualization="True"
               CanUserDeleteRows="False"
               PreviewKeyDown="ShiftDataGrid_PreviewKeyDown"
+              BeginningEdit="ShiftDataGrid_BeginningEdit"
               Style="{StaticResource MaterialDesignDataGrid}">
 
                 <DataGrid.RowStyle>
@@ -165,6 +166,11 @@
                             <DataTrigger Binding="{Binding NeedsAttention}" Value="True">
                                 <Setter Property="Background" Value="#FFCDD2"/>
                                 <Setter Property="ToolTip" Value="{Binding AttentionMessage}"/>
+                            </DataTrigger>
+                            <!-- 末尾の当直/明け/代休 人数集計行は見た目で区別する（編集不可はBeginningEditで制御） -->
+                            <DataTrigger Binding="{Binding IsSummaryRow}" Value="True">
+                                <Setter Property="Background" Value="{DynamicResource MaterialDesignDivider}"/>
+                                <Setter Property="FontWeight" Value="Bold"/>
                             </DataTrigger>
                         </Style.Triggers>
                     </Style>

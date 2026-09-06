@@ -197,6 +197,26 @@ namespace Shiftapp_demo.Business
                         }
                     }
                 }
+
+                // 前月末の当直履歴を考慮し、月境界をまたいでも4日間隔ルール（セクション6と同じ
+                // MinDutyGapDays）を守る。月末日にも当直を割り当てられるようにした際、翌月側の
+                // モデルはこの職員の前月末当直を知らないと月初め数日にも重ねて当直/日勤を
+                // 割り当ててしまう恐れがあるため、_existingMap（前月分もプリロード済み）から
+                // 直近の前月当直日を探し、該当する場合は今月冒頭の対象日数をx/wともに禁止する。
+                for (int k = 1; k <= MinDutyGapDays; k++)
+                {
+                    var priorDate = _firstDate.AddDays(-k);
+                    if (_existingMap.TryGetValue((emp.EmployeeId, priorDate), out var priorStid) && priorStid == _stidDuty)
+                    {
+                        int blockUntilIndex = MinDutyGapDays - k; // 0始まりで、このインデックスまで禁止
+                        for (int d = 0; d <= blockUntilIndex && d < daysCount; d++)
+                        {
+                            model.Add(x[e, d] == 0);
+                            model.Add(w[e, d] == 0);
+                        }
+                        break; // 直近（kが最小）の前月当直が最も厳しい制約になるため、それで確定
+                    }
+                }
             }
 
             // ========= 3) 当直・日勤の人数制約（毎日：当直=カテ可1+カテ不可1、日勤は0～1） =========
@@ -204,14 +224,6 @@ namespace Shiftapp_demo.Business
             {
                 var dayWorkVars = new List<BoolVar>();
                 for (int e = 0; e < numEmp; e++) dayWorkVars.Add(w[e, d]);
-
-                // 月最終日はセクション4で全員 x=0 に固定されるため、その日も当直必須(==1)にすると
-                // 必ずINFEASIBLEになる。最終日は当直なし（要運用調整）とし、日勤のみ対象とする。
-                if (d == daysCount - 1)
-                {
-                    model.Add(LinearExpr.Sum(dayWorkVars) <= 1);
-                    continue;
-                }
 
                 var cath = new List<BoolVar>();
                 var nonCath = new List<BoolVar>();
@@ -230,12 +242,15 @@ namespace Shiftapp_demo.Business
             }
 
             // ========= 4) 当直→明け（翌日） =========
+            // 最終日の当直は「明け」が翌月の1日目になる。aは月内のみのモデル内部変数
+            // （ConvertToShiftWritesは実際のDB書き込みをdutyDate.AddDays(1)から直接計算するため、
+            // 月をまたいでも正しく書き込まれる。単に本モデルでは最終日の明けを表現しないだけ）。
             for (int e = 0; e < numEmp; e++)
             {
-                // 最終日に当直を置くと明けが期間外になるので禁止（運用により調整）
-                model.Add(x[e, daysCount - 1] == 0);
-
-                // 前月持ち越しを考えないなら初日は明け0固定
+                // 前月持ち越しを考えないなら初日は明け0固定（前月末に当直があった場合の実際の
+                // 「明け」はDB上には書き込まれるが、本モデルの内部変数aはあくまで当月内の
+                // 当直→明けの対応付けにのみ使うため、初日をここで無理に1にする必要はない。
+                // 代わりにセクション2の月境界チェックでx/wを直接禁止し、実質的な休養を確保する）。
                 model.Add(a[e, 0] == 0);
 
                 for (int d = 0; d < daysCount - 1; d++)
@@ -563,12 +578,12 @@ namespace Shiftapp_demo.Business
 
         // カテ可/カテ不可それぞれの当直対応可能プールの実効キャパシティ（各職員のMonthlyDutyLimit、
         // 未設定(0以下)の場合は間隔制約(4日に1回まで)による実質上限で近似）を合計し、
-        // 必要人日数（毎日カテ可1名+カテ不可1名、最終日を除く）を満たせるか事前にチェックする。
+        // 必要人日数（毎日カテ可1名+カテ不可1名）を満たせるか事前にチェックする。
         // 未設定時にdaysCountをそのまま使うと（間隔制約を無視するため）実際の約4倍のキャパシティを
         // 見積もってしまい検知漏れの原因になるため使わない。
         private void ValidateCapacityOrThrow(int daysCount)
         {
-            int requiredPerCategory = daysCount - 1;
+            int requiredPerCategory = daysCount;
 
             int PracticalCap(Employee e) =>
                 e.MonthlyDutyLimit > 0

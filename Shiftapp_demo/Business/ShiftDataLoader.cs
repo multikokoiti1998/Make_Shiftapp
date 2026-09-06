@@ -28,6 +28,10 @@ namespace Shiftapp_demo.Business
         private Dictionary<string, string> _shifts = new();
         public IReadOnlyDictionary<string, string> Shifts => _shifts;
 
+        // シフト表末尾の集計行（当直/明け/代休の日別人数）かどうか。trueの場合、実職員の行と
+        // 異なり保存対象にしない・カスケード処理やアテンション判定を行わない単純な表示専用行になる。
+        public bool IsSummaryRow { get; init; }
+
         // UI 編集はすべてこのインデクサを通す
         public string this[string key]
         {
@@ -36,6 +40,15 @@ namespace Shiftapp_demo.Business
             {
                 if (_shifts.TryGetValue(key, out var old) && old == value)
                     return;
+
+                // 集計行は表示専用：値をそのまま反映するだけで、保存対象(IsDirty)にせず、
+                // 4日間隔チェックやカスケード処理・アテンション判定も行わない。
+                if (IsSummaryRow)
+                {
+                    _shifts[key] = value;
+                    Raise("Item[]");
+                    return;
+                }
 
                 // 手動編集時のみ：当直/日勤を新規に設定する際、前後4日以内に既に当直/日勤が
                 // 無いかを確認する（ShiftSolverの4日間隔ハード制約と同じルールを手動編集にも適用）。
