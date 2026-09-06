@@ -809,7 +809,7 @@ namespace Shiftapp_demo.DataAccess
 
             var cmd = connection.CreateCommand();
             cmd.CommandText = @"
-            SELECT employee_id, CanDoNightDuty, CanDoCatheterization, CanDoDayduty, saturday_class
+            SELECT employee_id, CanDoNightDuty, CanDoCatheterization, CanDoDayduty, saturday_class, MonthlyDutyLimit
             FROM employee
             WHERE is_active=1 AND (CanDoNightDuty=1 OR CanDoDayduty=1)";
 
@@ -823,6 +823,7 @@ namespace Shiftapp_demo.DataAccess
                     CanDoCatheterization = reader.GetInt32(2) == 1,
                     CanDayDuty = reader.GetInt32(3) == 1,
                     SaturdayClass = reader.IsDBNull(4) ? "" : reader.GetString(4),
+                    MonthlyDutyLimit = reader.GetInt32(5),
                 });
             }
             return result;

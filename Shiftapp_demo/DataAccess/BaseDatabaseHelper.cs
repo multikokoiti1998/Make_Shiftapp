@@ -139,7 +139,7 @@ namespace Shiftapp_demo.DataAccess
             SELECT employee_id, Shift_id,employee_name,CanDoCatheterization,saturday_class,
             MonthlyDutyLimit,CanDoNightDuty,Role, CanDoDayduty, IsShortTime
             FROM employee
-            ORDER BY Role";
+            ORDER BY Role, employee_id";
 
             using var reader = cmd.ExecuteReader();
             while (reader.Read())

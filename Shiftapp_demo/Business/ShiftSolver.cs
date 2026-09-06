@@ -82,6 +82,12 @@ namespace Shiftapp_demo.Business
             var dates = Enumerable.Range(0, daysCount).Select(i => _firstDate.AddDays(i).Date).ToList();
             int numEmp = _employees.Count;
 
+            // CP-SATはINFEASIBLEの原因（どの制約が衝突したか）を簡単には教えてくれないため、
+            // 「そもそも当直対応可能な人数が足りない」という最も典型的な原因だけ先に検出し、
+            // 具体的なアラートを出す。ここで検出できない infeasibility（土曜班フィルタ等の
+            // 個別条件によるもの）は、従来通りSolve失敗時の汎用メッセージにフォールバックする。
+            ValidateCapacityOrThrow(daysCount);
+
             bool IsWeekday(DateTime dt)
                 => dt.DayOfWeek >= DayOfWeek.Monday && dt.DayOfWeek <= DayOfWeek.Friday && !_holidays.Contains(dt.Date);
 
@@ -247,14 +253,21 @@ namespace Shiftapp_demo.Business
                 }
             }
 
-            // ========= 6) 当直は最低3日はあける（4日窓に当直は最大1回） =========
+            // ========= 6) 当直・日勤は最低3日はあける（4日窓に当直/日勤は合計最大1回） =========
+            // 当直(x)同士だけでなく、日勤(w)との組み合わせ（当直→日勤、日勤→当直、日勤→日勤）も
+            // 同じ4日間隔を満たす必要があるため、ウィンドウの合計にwも含める。
+            // wには他に下限制約が無い（section 3・6bともに<=1のみ）ため、この変更で新たに
+            // INFEASIBLEになることはなく、該当日の日勤が割り当てられなくなるだけで済む。
             for (int e = 0; e < numEmp; e++)
             {
                 for (int d = 0; d < daysCount - MinDutyGapDays; d++)
                 {
                     var window = new List<BoolVar>();
                     for (int i = 0; i <= MinDutyGapDays; i++)
+                    {
                         window.Add(x[e, d + i]);
+                        window.Add(w[e, d + i]);
+                    }
 
                     model.Add(LinearExpr.Sum(window) <= 1);
                 }
@@ -270,6 +283,18 @@ namespace Shiftapp_demo.Business
             {
                 var monthlyDayWorkVars = Enumerable.Range(0, daysCount).Select(d => w[e, d]).ToArray();
                 model.Add(LinearExpr.Sum(monthlyDayWorkVars) <= 1);
+            }
+
+            // ========= 6c) 月間当直回数の上限（employee.MonthlyDutyLimit）をハード制約にする =========
+            // 0以下は「上限未設定」として扱いスキップする（既存データでは当直対応可能な職員は
+            // 全員正の値を持つため実運用上は問題ないが、将来的にCanDoNightDuty=1かつ
+            // MonthlyDutyLimit=0という組み合わせが発生しないよう管理者画面側での注意が必要）。
+            for (int e = 0; e < numEmp; e++)
+            {
+                if (_employees[e].MonthlyDutyLimit <= 0) continue;
+
+                var dutyVars = Enumerable.Range(0, daysCount).Select(d => x[e, d]).ToArray();
+                model.Add(LinearExpr.Sum(dutyVars) <= _employees[e].MonthlyDutyLimit);
             }
 
             // ========= 7) 代休を ShiftBusiness.GetCompWorkOff と同一ルールで固定 =========
@@ -535,6 +560,30 @@ namespace Shiftapp_demo.Business
         }
 
         // --- Helper Methods (内部利用) ---
+
+        // カテ可/カテ不可それぞれの当直対応可能プールの実効キャパシティ（各職員のMonthlyDutyLimit、
+        // 未設定(0以下)の場合は間隔制約(4日に1回まで)による実質上限で近似）を合計し、
+        // 必要人日数（毎日カテ可1名+カテ不可1名、最終日を除く）を満たせるか事前にチェックする。
+        // 未設定時にdaysCountをそのまま使うと（間隔制約を無視するため）実際の約4倍のキャパシティを
+        // 見積もってしまい検知漏れの原因になるため使わない。
+        private void ValidateCapacityOrThrow(int daysCount)
+        {
+            int requiredPerCategory = daysCount - 1;
+
+            int PracticalCap(Employee e) =>
+                e.MonthlyDutyLimit > 0
+                    ? e.MonthlyDutyLimit
+                    : (int)Math.Ceiling(daysCount / (double)(MinDutyGapDays + 1));
+
+            int cathCapacity = _employees.Where(e => e.CanDoNightDuty && e.CanDoCatheterization).Sum(PracticalCap);
+            int nonCathCapacity = _employees.Where(e => e.CanDoNightDuty && !e.CanDoCatheterization).Sum(PracticalCap);
+
+            if (cathCapacity < requiredPerCategory || nonCathCapacity < requiredPerCategory)
+            {
+                throw new InvalidOperationException(
+                    "当直可能なメンバーが足りません。対応可能な職員数または月最大当直数の設定を確認してください。");
+            }
+        }
 
         // 同じ日に集中しすぎた代休(_stidSubstituteOff)を、近くの空いている平日にずらす。
         // 上限を超えた分だけを対象にし、職員ID順で先頭maxPerDay件は元の日のまま据え置く

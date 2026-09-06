@@ -453,6 +453,17 @@ namespace Shiftapp_demo.ViewModels
             LoadShiftDataForMonth(month);
         }
 
+        // 手動で「●」を入力した際、紐づけ先の当直/日勤を選ばせるダイアログを表示する
+        private static DateTime? ShowCompOffDutyPicker(List<(DateTime DutyDate, string Symbol)> candidates)
+        {
+            var dialog = new CompOffDutyPickerDialog(candidates)
+            {
+                Owner = Application.Current?.MainWindow
+            };
+
+            return dialog.ShowDialog() == true ? dialog.SelectedDutyDate : null;
+        }
+
         // 代休/明けセルのツールチップ用テキストを組み立てる（例: "9/18(金)の当直の代休"）
         private static string? BuildOriginTooltip(DateTime? originDate, string? originSymbol)
         {
@@ -495,15 +506,23 @@ namespace Shiftapp_demo.ViewModels
             // 2) 期間内の実シフトだけ取得（無い日は返らない）
             var shifts = db.GetShiftsOnly(firstDay, lastDay);
 
-            // 2-2) 祝日一覧（代休アテンション判定用）。GetHolidaysInMonthは代休の月またぎ計算のため
-            // 表示月＋翌月の2ヶ月分を返す仕様なので、そのままGetCompWorkOffの引数として使う。
+            // 2-2) 祝日一覧（代休アテンション判定用）。GetHolidaysInMonthは表示月＋翌月の2ヶ月分を返す
+            // 仕様のため、前月分（前月＋当月）も別途取得して合算し、前月〜翌月の3ヶ月分をカバーする。
+            // これが無いと、前月末の「月〜木祝日当直」がGetCompWorkOffの判定で祝日と認識されず、
+            // 代休不要と誤判定されてしまう（前月分の当直をアテンション判定に含める今回の変更で必要になった）。
+            var holidaysPreviousAndCurrent = _business.GetHolidaysInMonth(month.AddMonths(-1))
+                .Select(h => h.date)
+                .ToList();
             var holidaysCurrentAndNext = _business.GetHolidaysInMonth(month)
                 .Select(h => h.date)
+                .ToList();
+            var holidaysAcrossThreeMonths = holidaysPreviousAndCurrent
+                .Union(holidaysCurrentAndNext)
                 .ToList();
 
             // 表示月内で「本来休みのはずの日」（祝日＋日曜）の一覧
             var compOffCheckDates = new HashSet<string>(
-                holidaysCurrentAndNext
+                holidaysAcrossThreeMonths
                     .Where(d => d >= firstDay && d <= lastDay)
                     .Select(d => d.ToString("yyyy-MM-dd")));
             foreach (var sunday in ShiftBusiness.GetSundaysInMonth(month))
@@ -514,6 +533,28 @@ namespace Shiftapp_demo.ViewModels
             var nextMonthFirst = firstDay.AddMonths(1);
             var nextMonthLast = nextMonthFirst.AddMonths(1).AddDays(-1);
             var nextMonthShiftsByEmployee = db.GetShiftsOnly(nextMonthFirst, nextMonthLast)
+                .GroupBy(s => s.EmployeeId)
+                .ToDictionary(
+                    g => g.Key,
+                    g => g.ToDictionary(s => s.ShiftDate.ToString("yyyy-MM-dd"), s => (Symbol: s.Symbol ?? string.Empty, OriginDate: s.OriginDate)));
+
+            // 2-4) 前月分のシフトを丸ごと取得しておく（nextMonthFirst/nextMonthLastと対称に、
+            // 前月全体を対象にする。以前は「前月末10日分」に絞っていたが、代休を手動で紐づける際の
+            // 候補（TryAutoLinkManualCompOff）が前月の当直をすべて拾えるようにするため、
+            // 月全体に広げた）。
+            var previousMonthFirst = firstDay.AddMonths(-1);
+            var previousMonthLast = firstDay.AddDays(-1);
+            var previousMonthShiftsRaw = db.GetShiftsOnly(previousMonthFirst, previousMonthLast);
+            var previousMonthDutiesByEmployee = previousMonthShiftsRaw
+                .Where(s => s.Symbol == "当" || s.Symbol == "日")
+                .GroupBy(s => s.EmployeeId)
+                .ToDictionary(
+                    g => g.Key,
+                    g => g.Select(s => (DutyDate: s.ShiftDate, Symbol: s.Symbol ?? string.Empty)).ToList());
+
+            // 今月の当直/日勤の代休が前月側（再分散で前倒しされた等）に付いているケースを
+            // CountLinkedCompOffForが検出できるよう、nextMonthShiftsByEmployeeと同じ形で保持する。
+            var previousMonthShiftsByEmployee = previousMonthShiftsRaw
                 .GroupBy(s => s.EmployeeId)
                 .ToDictionary(
                     g => g.Key,
@@ -534,10 +575,19 @@ namespace Shiftapp_demo.ViewModels
 
                 loader.SetAttentionContext(
                     compOffCheckDates,
-                    holidaysCurrentAndNext,
+                    holidaysAcrossThreeMonths,
                     nextMonthShiftsByEmployee.TryGetValue(e.EmployeeId, out var nextMonthShifts)
                         ? nextMonthShifts
+                        : new Dictionary<string, (string Symbol, DateTime? OriginDate)>(),
+                    previousMonthDutiesByEmployee.TryGetValue(e.EmployeeId, out var previousMonthDuties)
+                        ? previousMonthDuties
+                        : new List<(DateTime DutyDate, string Symbol)>(),
+                    previousMonthShiftsByEmployee.TryGetValue(e.EmployeeId, out var previousMonthShifts)
+                        ? previousMonthShifts
                         : new Dictionary<string, (string Symbol, DateTime? OriginDate)>());
+
+                // 手動で「●」を入力した際、紐づけ先の当直/日勤を管理者に選ばせるダイアログを開く
+                loader.RequestCompOffLinkSelection = candidates => ShowCompOffDutyPicker(candidates);
 
                 // その月の全日付キーを空で用意
                 for (var d = firstDay; d <= lastDay; d = d.AddDays(1))
