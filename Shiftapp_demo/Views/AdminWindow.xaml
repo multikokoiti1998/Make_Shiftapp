@@ -4,7 +4,8 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:Shiftapp_demo"
-        xmlns:vm="clr-namespace:Shiftapp_demo.ViewModels" 
+        xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
+        xmlns:vm="clr-namespace:Shiftapp_demo.ViewModels"
         d:DataContext="{d:DesignInstance Type=vm:AdminViewModel}"
         mc:Ignorable="d"
         Title="管理者ウィンドウ"
@@ -28,14 +29,18 @@
         </Style>
     </Window.Resources>
 
+    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
     <Grid Margin="16">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <!-- 見出し：技師 -->
-            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
             <!-- 技師 DataGrid -->
             <RowDefinition Height="Auto"/>
             <!-- 技師ボタン列 -->
+
+            <RowDefinition Height="Auto"/>
+            <!-- 選択技師の勤務希望 -->
 
             <RowDefinition Height="20"/>
             <!-- スペーサ -->
@@ -43,16 +48,20 @@
             <!-- 見出し：祝日 -->
             <RowDefinition Height="Auto"/>
             <!-- 祝日操作バー -->
-            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
             <!-- 祝日 DataGrid -->
         </Grid.RowDefinitions>
 
         <!-- 見出し：技師 -->
-        <TextBlock Grid.Row="0" Text="技師情報管理" FontSize="20" FontWeight="Bold" />
+        <StackPanel Grid.Row="0">
+            <TextBlock Text="技師情報管理" FontSize="20" FontWeight="Bold" />
+            <Border Height="1" Background="{DynamicResource MaterialDesignDivider}" Margin="0,4,0,0"/>
+        </StackPanel>
 
         <!-- 技師一覧 -->
         <DataGrid Grid.Row="1"
           x:Name="TechniciansDataGrid"
+          Style="{StaticResource MaterialDesignDataGrid}"
           AutoGenerateColumns="False"
           ItemsSource="{Binding Employees}"
           SelectedItem="{Binding SelectedEmployee, Mode=TwoWay}"
@@ -60,6 +69,7 @@
           CanUserDeleteRows="False"
           IsReadOnly="False"
           SelectionMode="Single"
+          Height="260"
           Margin="0,8,0,8">
 
             <DataGrid.Columns>
@@ -105,16 +115,72 @@
 
         <!-- 技師操作ボタン -->
         <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" >
-            <Button Content="新規技師追加" Padding="12,6" Margin="4" Command="{Binding AddEmployeeCommand}"/>
-            <Button Content="選択技師削除" Padding="12,6" Margin="4" Command="{Binding DeleteEmployeeCommand}"/>
-            <Button Content="保存（一覧の変更をDBへ）" Padding="12,6" Margin="4" Command="{Binding SaveEmployeeCommand}"/>
+            <Button Content="新規技師追加" Style="{StaticResource MaterialDesignOutlinedButton}" Padding="12,6" Margin="4" Command="{Binding AddEmployeeCommand}"/>
+            <Button Content="選択技師削除" Padding="12,6" Margin="4" Command="{Binding DeleteEmployeeCommand}"
+                    Style="{StaticResource MaterialDesignOutlinedButton}"
+                    Foreground="{DynamicResource MaterialDesignValidationErrorBrush}"
+                    BorderBrush="{DynamicResource MaterialDesignValidationErrorBrush}"/>
+            <Button Content="保存（一覧の変更をDBへ）" Style="{StaticResource MaterialDesignRaisedButton}" Padding="12,6" Margin="4" Command="{Binding SaveEmployeeCommand}"/>
         </StackPanel>
 
+        <!-- 選択技師の勤務希望 -->
+        <Border Grid.Row="3" BorderBrush="{DynamicResource MaterialDesignDivider}" BorderThickness="1" Padding="8" Margin="0,0,0,8">
+            <StackPanel>
+                <TextBlock FontWeight="Bold" Margin="0,0,0,4">
+                    <Run Text="勤務希望"/>
+                    <Run Text=" - "/>
+                    <Run Text="{Binding SelectedEmployee.EmployeeName}"/>
+                </TextBlock>
+
+                <ScrollViewer MaxHeight="120" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                <ItemsControl ItemsSource="{Binding SelectedEmployeePreferences}">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <WrapPanel/>
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Border BorderBrush="{DynamicResource MaterialDesignDivider}" Background="{DynamicResource MaterialDesignPaper}"
+                                    materialDesign:ElevationAssist.Elevation="Dp1"
+                                    BorderThickness="1" CornerRadius="4" Padding="6,2" Margin="0,0,6,6">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="{Binding DisplayLabel}" Margin="0,0,4,0"/>
+                                    <TextBlock Text="{Binding Polarity}" Margin="0,0,4,0"/>
+                                    <Button Content="削除" Padding="4,0"
+                                            Style="{StaticResource MaterialDesignFlatButton}"
+                                            Foreground="{DynamicResource MaterialDesignValidationErrorBrush}"
+                                            Command="{Binding DataContext.RemovePreferenceCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                            CommandParameter="{Binding}"/>
+                                </StackPanel>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+                </ScrollViewer>
+
+                <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+                    <ComboBox Width="140" Margin="0,0,8,0"
+                              ItemsSource="{Binding PreferenceDayOptions}"
+                              DisplayMemberPath="Label"
+                              SelectedItem="{Binding NewPreferenceDay}"/>
+                    <ComboBox Width="120" Margin="0,0,8,0"
+                              ItemsSource="{Binding PreferencePolarityOptions}"
+                              DisplayMemberPath="Label"
+                              SelectedItem="{Binding NewPreferencePolarity}"/>
+                    <Button Content="希望を追加" Style="{StaticResource MaterialDesignRaisedButton}" Padding="12,4" Command="{Binding AddPreferenceCommand}"/>
+                </StackPanel>
+            </StackPanel>
+        </Border>
+
         <!-- 見出し：祝日 -->
-        <TextBlock Grid.Row="4" Text="祝日設定" FontSize="20" FontWeight="Bold" />
+        <StackPanel Grid.Row="5">
+            <TextBlock Text="祝日設定" FontSize="20" FontWeight="Bold" />
+            <Border Height="1" Background="{DynamicResource MaterialDesignDivider}" Margin="0,4,0,0"/>
+        </StackPanel>
 
         <!-- 祝日操作バー -->
-        <StackPanel Grid.Row="5" Orientation="Horizontal" Margin="0,8,0,8">
+        <StackPanel Grid.Row="6" Orientation="Horizontal" Margin="0,8,0,8">
 
             <TextBlock Text="日付：" VerticalAlignment="Center" Margin="0,0,8,0"/>
             <DatePicker
@@ -131,19 +197,23 @@
 
             <Button
             Content="追加"
+            Style="{StaticResource MaterialDesignRaisedButton}"
             Padding="12,6"
             Margin="0,0,8,0"
             Command="{Binding AddHolidaysCommand}" />
 
             <Button
             Content="選択削除"
+            Style="{StaticResource MaterialDesignOutlinedButton}"
+            Foreground="{DynamicResource MaterialDesignValidationErrorBrush}"
+            BorderBrush="{DynamicResource MaterialDesignValidationErrorBrush}"
             Padding="12,6"
             Margin="0,0,8,0"
             Command="{Binding DeleteHolidayCommand}"  />
 
         </StackPanel>
 
-        <Grid Grid.Row="6" Margin="10">
+        <Grid Grid.Row="7" Margin="10">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="2*" />
                 <ColumnDefinition Width="*" />
@@ -155,12 +225,14 @@
             <!-- 左：祝日一覧 -->
             <DataGrid Grid.Column="0"
               x:Name="HolidaysDataGrid"
+              Style="{StaticResource MaterialDesignDataGrid}"
               ItemsSource="{Binding Holidays}"
               SelectedItem="{Binding SelectedHoliday, Mode=TwoWay}"
               AutoGenerateColumns="False"
               CanUserAddRows="False"
               CanUserDeleteRows="False"
-              IsReadOnly="False">
+              IsReadOnly="False"
+              Height="280">
                 <DataGrid.Columns>
                     <DataGridTextColumn Header="日付"
                                 Binding="{Binding date, StringFormat=\{0:yyyy-MM-dd\}}"
@@ -186,4 +258,5 @@
               DisplayDateChanged="AdminCalendar_DisplayDateChanged"/>
         </Grid>
     </Grid>
+    </ScrollViewer>
 </Window>

@@ -135,6 +135,18 @@ namespace Shiftapp_demo.Helper
                 IsReadOnly = false
             });
 
+            columns.Add(new DataGridCheckBoxColumn
+            {
+                Header = "時短勤務",
+                Binding = b("IsShortTime"),
+                Width = 180,
+                MinWidth = 120,
+                ElementStyle = centerCheck,
+                EditingElementStyle = centerCheck,
+                CellStyle = centerCell,
+                IsReadOnly = false
+            });
+
             columns.Add(new DataGridComboBoxColumn
             {
                 Header = "役職",
@@ -148,6 +160,18 @@ namespace Shiftapp_demo.Helper
                 EditingElementStyle = centerCombo,
                 CellStyle = centerCell,
                 IsReadOnly = false
+            });
+
+            // 週末(土日)・祝日当直比率（全期間、DBには保存しない編集不可の表示専用列）
+            columns.Add(new DataGridTextColumn
+            {
+                Header = "週末・祝日当直比率",
+                Binding = new Binding("WeekendHolidayRatio") { Mode = BindingMode.OneWay, StringFormat = "P1" },
+                Width = 150,
+                MinWidth = 120,
+                ElementStyle = centerText,
+                CellStyle = centerCell,
+                IsReadOnly = true
             });
 
             return columns;

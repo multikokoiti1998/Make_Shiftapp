@@ -1,4 +1,6 @@
-﻿using System.Collections.ObjectModel;
+﻿using Shiftapp_demo.Business;
+using System.Collections.ObjectModel;
+using System.Globalization;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Data;
@@ -9,7 +11,8 @@ namespace Shiftapp_demo.Helper
 {
     class GridHelperClass
     {
-        public static ObservableCollection<DataGridColumn> GenerateColumnsForMonth(DateTime month)
+        // baselineIsA: UpdateSaturdayShifts(GenerateOffShift)の既定"B"に合わせる（MainViewModel.MakeNightDutyと同じ前提）
+        public static ObservableCollection<DataGridColumn> GenerateColumnsForMonth(DateTime month, bool baselineIsA = false)
         {
             var columns = new ObservableCollection<DataGridColumn>();
 
@@ -60,11 +63,16 @@ namespace Shiftapp_demo.Helper
             {
                 var key = d.ToString("yyyy-MM-dd");
 
+                var youbi = d.ToString("ddd", CultureInfo.GetCultureInfo("ja-JP"));
+                var header = d.DayOfWeek == DayOfWeek.Saturday
+                    ? $"{d.Day}({youbi}/{ShiftBusiness.GetWorkingClass(d, baselineIsA)})"
+                    : $"{d.Day}({youbi})";
                 var col = new DataGridTemplateColumn
                 {
-                    Header = d.Day.ToString(),
+                    Header = header,
                     Width = new DataGridLength(1, DataGridLengthUnitType.Star),
-                    MinWidth = 28,
+                    // 土曜列は"16(土/B)"のように班の文字が付き横幅が必要なため、見切れないよう広めに確保する
+                    MinWidth = d.DayOfWeek == DayOfWeek.Saturday ? 46 : 28,
                     CellStyle = centerCell,
                     IsReadOnly = false
                 };
@@ -77,6 +85,12 @@ namespace Shiftapp_demo.Helper
                     tbFactory.SetBinding(TextBlock.TextProperty, b);
                     tbFactory.SetValue(TextBlock.HorizontalAlignmentProperty, HorizontalAlignment.Center);
                     tbFactory.SetValue(TextBlock.VerticalAlignmentProperty, VerticalAlignment.Center);
+
+                    // 代休/明けなど、元になった当直/日勤の日付をツールチップで表示する
+                    // （値が無いセルはToolTipがnullのままなのでツールチップ自体が出ない）
+                    var tooltipBinding = new Binding($"Tooltip[{key}]") { Mode = BindingMode.OneWay };
+                    tbFactory.SetBinding(FrameworkElement.ToolTipProperty, tooltipBinding);
+
                     col.CellTemplate = new DataTemplate { VisualTree = tbFactory };
                 }
 

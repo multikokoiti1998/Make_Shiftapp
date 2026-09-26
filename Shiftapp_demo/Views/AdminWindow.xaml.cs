@@ -16,7 +16,7 @@ namespace Shiftapp_demo.Views
         private readonly AdminViewModel _vm;
         public ObservableCollection<Employee> Employees { get; set; } = new();
         public ObservableCollection<Holiday> Holidays { get; set; } = new();       // 祝日一覧（当月）
-        public AdminWindow()
+        public AdminWindow(int? preselectEmployeeId = null)
         {
             InitializeComponent();
 
@@ -33,6 +33,18 @@ namespace Shiftapp_demo.Views
 
                 foreach (var c in _vm.TechniciansDataGridColumns)
                     TechniciansDataGrid.Columns.Add(c);
+
+                if (preselectEmployeeId.HasValue)
+                {
+                    var match = _vm.Employees.FirstOrDefault(x => x.EmployeeId == preselectEmployeeId.Value);
+                    if (match != null)
+                    {
+                        _vm.SelectedEmployee = match;
+                        TechniciansDataGrid.SelectedItem = match;
+                        TechniciansDataGrid.ScrollIntoView(match);
+                        TechniciansDataGrid.Focus();
+                    }
+                }
             };
 
 

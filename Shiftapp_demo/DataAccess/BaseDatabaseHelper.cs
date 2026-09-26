@@ -17,6 +17,65 @@ namespace Shiftapp_demo.DataAccess
         {
             var dbPath = GetDbPath();
             _connectionString = $"Data Source={dbPath}";
+            EnsureSchema();
+        }
+
+        /// <summary>
+        /// 複数の操作を1つのトランザクションにまとめたい呼び出し元向けに、開いた状態の接続を返す。
+        /// 呼び出し元が using で破棄すること。
+        /// </summary>
+        public SqliteConnection OpenConnection()
+        {
+            var con = new SqliteConnection(_connectionString);
+            con.Open();
+
+            using var pragma = con.CreateCommand();
+            pragma.CommandText = "PRAGMA foreign_keys=ON; PRAGMA busy_timeout=5000;";
+            pragma.ExecuteNonQuery();
+
+            return con;
+        }
+
+        // 配布されたDBファイルにマイグレーション機構がないため、未作成のテーブルを起動のたびに
+        // 冪等に用意する（CREATE TABLE IF NOT EXISTS のみ・既存テーブルには触れない）。
+        private void EnsureSchema()
+        {
+            using var connection = new SqliteConnection(_connectionString);
+            connection.Open();
+
+            var cmd = connection.CreateCommand();
+            cmd.CommandText = @"
+            CREATE TABLE IF NOT EXISTS employee_preference (
+                preference_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                employee_id   INTEGER NOT NULL,
+                day_of_week   INTEGER NULL,
+                is_weekend    INTEGER NOT NULL DEFAULT 0,
+                polarity      INTEGER NOT NULL,
+                weight        INTEGER NOT NULL DEFAULT 1,
+                is_active     INTEGER NOT NULL DEFAULT 1,
+                FOREIGN KEY (employee_id) REFERENCES employee(employee_id)
+            );";
+            cmd.ExecuteNonQuery();
+
+            // 配布済みDBには無い列を冪等に追加する（既に列があれば何もしない）
+            EnsureColumn(connection, "employee", "IsShortTime", "INTEGER NOT NULL DEFAULT 0");
+        }
+
+        // "ALTER TABLE ... ADD COLUMN" は列が既に存在するとエラーになるため、
+        // PRAGMA table_info で存在確認してから冪等に追加する。
+        private static void EnsureColumn(SqliteConnection connection, string table, string column, string columnDefinition)
+        {
+            using (var check = connection.CreateCommand())
+            {
+                check.CommandText = $"SELECT COUNT(*) FROM pragma_table_info('{table}') WHERE name = @col;";
+                check.Parameters.AddWithValue("@col", column);
+                var count = Convert.ToInt32(check.ExecuteScalar());
+                if (count > 0) return;
+            }
+
+            using var alter = connection.CreateCommand();
+            alter.CommandText = $"ALTER TABLE {table} ADD COLUMN {column} {columnDefinition};";
+            alter.ExecuteNonQuery();
         }
 
         /// <summary>
@@ -77,10 +136,10 @@ namespace Shiftapp_demo.DataAccess
 
             var cmd = connection.CreateCommand();
             cmd.CommandText = @"
-            SELECT employee_id, Shift_id,employee_name,CanDoCatheterization,saturday_class, 
-            MonthlyDutyLimit,CanDoNightDuty,Role, CanDoDayduty
+            SELECT employee_id, Shift_id,employee_name,CanDoCatheterization,saturday_class,
+            MonthlyDutyLimit,CanDoNightDuty,Role, CanDoDayduty, IsShortTime
             FROM employee
-            ORDER BY Role";
+            ORDER BY Role, employee_id";
 
             using var reader = cmd.ExecuteReader();
             while (reader.Read())
@@ -96,6 +155,7 @@ namespace Shiftapp_demo.DataAccess
                     CanDoNightDuty = reader.GetInt32(6) == 1,
                     Role = reader.GetInt32(7),
                     CanDayDuty = reader.GetInt32(8) == 1,
+                    IsShortTime = reader.GetInt32(9) == 1,
                 });
             }
             return employees;

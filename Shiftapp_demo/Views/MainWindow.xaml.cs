@@ -1,7 +1,9 @@
 ﻿// MainWindow.xaml.cs
+using Shiftapp_demo.Business;
 using Shiftapp_demo.ViewModels;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
 
 namespace Shiftapp_demo.Views
 {
@@ -35,6 +37,41 @@ namespace Shiftapp_demo.Views
                 ShiftDataGrid.Columns.Add(col);
             }
 
+        }
+
+        // GridHelperClass.GenerateColumnsForMonth が生成する先頭の非日付列（ID・名前）の数。
+        // Columns内の並び順（DisplayIndexではない）はこの生成順から変わらないため、
+        // 「列インデックス - この値」を月初日に加算すれば、その列が表す日付を復元できる。
+        private const int LeadingNonDateColumnCount = 2;
+
+        private void ShiftDataGrid_PreviewKeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.Key != Key.Delete) return;
+
+            // 複数選択されていても、フォーカスしている1マスだけを消す（一括削除はしない）
+            var cellInfo = ShiftDataGrid.CurrentCell;
+            if (!cellInfo.IsValid) return;
+
+            int colIndex = ShiftDataGrid.Columns.IndexOf(cellInfo.Column);
+            if (colIndex < LeadingNonDateColumnCount) return; // ID・名前列はスキップ
+
+            if (cellInfo.Item is not ShiftDataLoader row) return;
+            if (row.IsSummaryRow) return; // 末尾の人数集計行は編集不可
+
+            var firstOfMonth = new DateTime(ViewModel.DisplayDate.Year, ViewModel.DisplayDate.Month, 1);
+            var date = firstOfMonth.AddDays(colIndex - LeadingNonDateColumnCount);
+            row[date.ToString("yyyy-MM-dd")] = "";
+
+            e.Handled = true;
+        }
+
+        // 末尾の当直/明け/代休 人数集計行はセル編集そのものを開始させない（表示専用行）
+        private void ShiftDataGrid_BeginningEdit(object sender, DataGridBeginningEditEventArgs e)
+        {
+            if (e.Row.Item is ShiftDataLoader { IsSummaryRow: true })
+            {
+                e.Cancel = true;
+            }
         }
 
         private void ShiftCalendar_DisplayDateChanged(object sender, CalendarDateChangedEventArgs e)
