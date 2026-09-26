@@ -51,13 +51,17 @@ namespace Shiftapp_demo.Business
                 }
 
                 // 手動編集時のみ：当直/日勤を新規に設定する際、前後4日以内に既に当直/日勤が
-                // 無いかを確認する（ShiftSolverの4日間隔ハード制約と同じルールを手動編集にも適用）。
+                // 無いかを確認する（ShiftSolverの4日間隔ハード制約と同じルール）。
+                // 手動編集ではやむを得ない場合もあるため、警告のうえ「はい」なら入力を許可する。
                 if (_cascadeEnabled && (value == DutySymbol || value == DayWorkSymbol) && HasNearbyDutyOrDayWork(key))
                 {
-                    MessageBox.Show("当直/日勤は前後4日以上あける必要があります（近い日に既に当直または日勤が設定されています）。",
-                        "設定できません", MessageBoxButton.OK, MessageBoxImage.Warning);
-                    Raise("Item[]"); // 選択を元の値に戻す（データは変更していないため再評価させるだけ）
-                    return;
+                    var result = MessageBox.Show("当直/日勤は前後4日以上あける必要があります（近い日に既に当直または日勤が設定されています）。\n\nそれでも設定しますか？",
+                        "確認", MessageBoxButton.YesNo, MessageBoxImage.Warning, MessageBoxResult.No);
+                    if (result != MessageBoxResult.Yes)
+                    {
+                        Raise("Item[]"); // 選択を元の値に戻す（データは変更していないため再評価させるだけ）
+                        return;
+                    }
                 }
 
                 _shifts[key] = value;
