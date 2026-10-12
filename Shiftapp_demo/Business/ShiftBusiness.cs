@@ -107,6 +107,24 @@ namespace Shiftapp_demo.Business
                 : (baselineIsA ? ClassB : ClassA);
         }
 
+        // 月のシフト作成時（UpdateSaturdayShifts / UpdateSundayShifts / UpdateShortTimeShifts）に
+        // その職員・その日へ入る既定の記号を返す（何も入らない日は null）。
+        // 日曜・祝日→●（土曜の祝日も●）、土曜→出勤班なら「/」・休み班なら○（班未設定は null）、
+        // 平日→時短勤務者のみ「短」。DB非依存の純粋関数（テスト容易性のためinternal static）。
+        internal static string? GetDefaultMarkerSymbol(DateTime day, bool isHoliday, string? saturdayClass, bool isShortTime, bool baselineIsA)
+        {
+            if (day.DayOfWeek == DayOfWeek.Sunday || isHoliday)
+                return "●";
+
+            if (day.DayOfWeek == DayOfWeek.Saturday)
+            {
+                if (string.IsNullOrWhiteSpace(saturdayClass)) return null;
+                return saturdayClass.Equals(GetWorkingClass(day, baselineIsA), StringComparison.OrdinalIgnoreCase) ? "/" : "○";
+            }
+
+            return isShortTime ? "短" : null;
+        }
+
         //START---------------------------代休付与のヘルパー関数-----------------
         // 平日の営業日 (Mon-Fri かつ 祝日でない)
         internal static bool IsBusinessDay(DateTime d, List<DateTime> holidays)

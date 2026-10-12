@@ -343,6 +343,24 @@ namespace Shiftapp_demo.DataAccess
             cmd.Parameters.AddWithValue("@stidSatWork", GetShiftTypeIdBySymbol("/"));
             cmd.Parameters.AddWithValue("@stidSubOff", GetShiftTypeIdBySymbol("●"));
 
+            // 0) 当月の当直/日勤に紐づく「月外」の子（例: 月末当直の翌月1日の明け・翌月の代休）を控えておく。
+            // 下の親削除で ON DELETE CASCADE により一緒に消えるが、その月は作り直さないため、
+            // 日曜なのに空欄のまま残ってしまう。削除後に既定の記号（●/○/「/」/短）を入れ直す。
+            var cascadedOutsideMonth = new List<(int EmployeeId, DateTime Date)>();
+            cmd.CommandText = @"
+            SELECT c.employee_id, c.shift_date
+            FROM daily_employee_shifts AS c
+            JOIN daily_employee_shifts AS p ON p.shifts_id = c.origin_shifts_id
+            WHERE p.origin_shifts_id IS NULL
+              AND p.shift_type_id IN (@sidDuty, @sidDay)
+              AND p.shift_date >= @first AND p.shift_date < @next
+              AND (c.shift_date < @first OR c.shift_date >= @next);";
+            using (var rd = cmd.ExecuteReader())
+            {
+                while (rd.Read())
+                    cascadedOutsideMonth.Add((rd.GetInt32(0), DateTime.Parse(rd.GetString(1)).Date));
+            }
+
             // 1) 親のシンプル削除：origin_shifts_id IS NULL AND type IN (当/日)
             cmd.CommandText = @"
             DELETE FROM daily_employee_shifts
@@ -374,7 +392,64 @@ namespace Shiftapp_demo.DataAccess
               AND shift_date <  @next;";
             cmd.ExecuteNonQuery();
 
+            RestoreDefaultMarkers(con, tx, cascadedOutsideMonth);
+
             Log.Information($"{deleted_count} 件削除されました",deleted_count);
+        }
+
+        // 連鎖削除で空いた月外のセルに、月のシフト作成時と同じ既定の記号を入れ直す
+        // （ShiftBusiness.GetDefaultMarkerSymbol）。既に何か入っているセルには触れない。
+        // 土曜の班判定の基準は UpdateSaturdayShifts の既定（"B"）に合わせる。
+        private void RestoreDefaultMarkers(SqliteConnection con, SqliteTransaction tx, List<(int EmployeeId, DateTime Date)> cells)
+        {
+            if (cells.Count == 0) return;
+
+            var employees = new Dictionary<int, (string SaturdayClass, bool IsShortTime)>();
+            using (var q = con.CreateCommand())
+            {
+                q.Transaction = tx;
+                q.CommandText = "SELECT employee_id, saturday_class, IsShortTime FROM employee;";
+                using var rd = q.ExecuteReader();
+                while (rd.Read())
+                    employees[rd.GetInt32(0)] = (rd.IsDBNull(1) ? "" : rd.GetString(1), !rd.IsDBNull(2) && rd.GetInt32(2) == 1);
+            }
+
+            var holidays = new HashSet<DateTime>();
+            using (var q = con.CreateCommand())
+            {
+                q.Transaction = tx;
+                q.CommandText = "SELECT date FROM holiday WHERE DATE(date) BETWEEN DATE(@min) AND DATE(@max);";
+                q.Parameters.AddWithValue("@min", cells.Min(c => c.Date).ToString("yyyy-MM-dd"));
+                q.Parameters.AddWithValue("@max", cells.Max(c => c.Date).ToString("yyyy-MM-dd"));
+                using var rd = q.ExecuteReader();
+                while (rd.Read())
+                    holidays.Add(DateTime.Parse(rd.GetString(0)).Date);
+            }
+
+            using var ins = con.CreateCommand();
+            ins.Transaction = tx;
+            ins.CommandText = @"
+            INSERT INTO daily_employee_shifts (employee_id, shift_date, shift_type_id)
+            SELECT @eid, @date, shift_type_id FROM shift_types WHERE symbol = @symbol
+            ON CONFLICT(employee_id, shift_date) DO NOTHING;";
+            var pEid = ins.Parameters.Add("@eid", SqliteType.Integer);
+            var pDate = ins.Parameters.Add("@date", SqliteType.Text);
+            var pSymbol = ins.Parameters.Add("@symbol", SqliteType.Text);
+
+            foreach (var (eid, date) in cells.Distinct())
+            {
+                if (!employees.TryGetValue(eid, out var emp)) continue;
+
+                var symbol = ShiftBusiness.GetDefaultMarkerSymbol(date, holidays.Contains(date), emp.SaturdayClass, emp.IsShortTime, baselineIsA: false);
+                if (symbol == null) continue; // 平日など、元々何も入らない日は空欄のままでよい
+
+                pEid.Value = eid;
+                pDate.Value = date.ToString("yyyy-MM-dd");
+                pSymbol.Value = symbol;
+                ins.ExecuteNonQuery();
+
+                Log.Information("連鎖削除で空いたセルを復元: {EmployeeId} {Date} {Symbol}", eid, date.ToString("yyyy-MM-dd"), symbol);
+            }
         }
 
         /// <summary>
