@@ -78,7 +78,8 @@ namespace Shiftapp_demo.DataAccess
             return result;
         }
 
-        // 在職中の職員を役職→職員コード順（管理者画面・Excel出力と同じ並び）で全員返す。
+        // 在職中の職員を管理者画面で設定した並び順（display_order。同順位は役職→職員コード順）で全員返す。
+        // シフト表の表示・Excel出力（デイリーデータ/勤務変更のdeta）の行順になる。
         // その月のシフト実績が1件も無い新人・非正規等も含めるためのもの
         // （GetShiftRowはdaily_employee_shiftsとのINNER JOINのため、実績が無い職員は出てこない）。
         public List<Employee> GetActiveEmployeesOrdered()
@@ -92,7 +93,7 @@ namespace Shiftapp_demo.DataAccess
             SELECT employee_id, employee_name, Role
             FROM employee
             WHERE is_active = 1
-            ORDER BY Role, employee_id;";
+            ORDER BY display_order, Role, employee_id;";
 
             using var reader = cmd.ExecuteReader();
             while (reader.Read())
@@ -778,9 +779,11 @@ namespace Shiftapp_demo.DataAccess
             cmd.CommandText = @"
             INSERT INTO employee (
               employee_id, Shift_id, employee_name, CanDoCatheterization,
-              saturday_class, MonthlyDutyLimit, CanDoNightDuty, Role, CanDoDayduty, IsShortTime, is_active
+              saturday_class, MonthlyDutyLimit, CanDoNightDuty, Role, CanDoDayduty, IsShortTime, is_active,
+              display_order
             ) VALUES (
-              @id, 0, @name, 0, 'A', 0, 0, 0, 0, 0, 1
+              @id, 0, @name, 0, 'A', 0, 0, 0, 0, 0, 1,
+              " + NextDisplayOrderSql + @"
             );";
             cmd.Parameters.AddWithValue("@id", employeeId);
             cmd.Parameters.AddWithValue("@name", employeeName);

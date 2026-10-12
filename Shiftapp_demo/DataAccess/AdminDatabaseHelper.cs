@@ -34,7 +34,8 @@ namespace Shiftapp_demo.DataAccess
               Role,
               CanDoDayduty,
               IsShortTime,
-              is_active
+              is_active,
+              display_order
             )
                 VALUES (
                    0,          -- 初期シフトID
@@ -46,7 +47,8 @@ namespace Shiftapp_demo.DataAccess
                   0,
                   0,
                   0,           -- 時短勤務ではない
-                  1
+                  1,
+                  " + NextDisplayOrderSql + @"   -- 一覧の末尾
                 );
             ";
 
@@ -56,6 +58,29 @@ namespace Shiftapp_demo.DataAccess
             return Convert.ToInt32(cmd.ExecuteScalar());
         }
 
+
+        // 管理者画面のドラッグ＆ドロップ後の並び（先頭から順）を display_order に保存する
+        public void UpdateDisplayOrders(IReadOnlyList<int> employeeIdsInOrder)
+        {
+            using var con = new SqliteConnection(_connectionString);
+            con.Open();
+            using var tx = con.BeginTransaction();
+
+            using var cmd = con.CreateCommand();
+            cmd.Transaction = tx;
+            cmd.CommandText = "UPDATE employee SET display_order = @order WHERE employee_id = @id;";
+            var pOrder = cmd.Parameters.Add("@order", SqliteType.Integer);
+            var pId = cmd.Parameters.Add("@id", SqliteType.Integer);
+
+            for (int i = 0; i < employeeIdsInOrder.Count; i++)
+            {
+                pOrder.Value = i + 1;
+                pId.Value = employeeIdsInOrder[i];
+                cmd.ExecuteNonQuery();
+            }
+
+            tx.Commit();
+        }
 
         public void DeleteEmployee(int id)
         {

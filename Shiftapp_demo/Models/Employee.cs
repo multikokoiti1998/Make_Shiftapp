@@ -39,6 +39,10 @@ namespace Shiftapp_demo.Models
 
         public int is_active { get; set; }
 
+        // 管理者画面のドラッグ＆ドロップで決める並び順（シフト表の表示・Excel出力の行順）。
+        // 並べ替えは専用の保存処理で即時DBへ書くため、IsDirty（一覧の保存ボタン）の対象にはしない。
+        public int DisplayOrder { get; set; }
+
         // --- 管理者画面表示専用（DBには保存しない）：全期間の週末(土日)・祝日当直比率 ---
         public int WeekendHolidayDutyCount { get; set; }
         public int TotalDutyCountAllTime { get; set; }

@@ -634,7 +634,8 @@ namespace Shiftapp_demo.ViewModels
             // 3) 社員ごとにまとめて、全日を空で初期化→存在するシフトだけ上書き
             var loaders = new List<ShiftDataLoader>(employees.Count);
 
-            foreach (var e in employees.OrderBy(x => x.ShiftId))
+            // 行の並びは管理者画面で設定した順（display_order。同順位は役職→職員コード順）
+            foreach (var e in employees.OrderBy(x => x.DisplayOrder).ThenBy(x => x.Role).ThenBy(x => x.EmployeeId))
             {
                 var loader = new ShiftDataLoader
                 {
@@ -688,10 +689,7 @@ namespace Shiftapp_demo.ViewModels
                 loader.EnableCascade();
             }
 
-            var ordered = loaders
-                   .OrderBy(x => x.Role)
-                   .ThenBy(x => x.ShiftId)
-                   .ToList();
+            var ordered = loaders.ToList();
 
             // 4) 末尾に、その日の当直/明け/代休の人数を集計した行を追加する。
             // 代休(●)は当直/日勤に紐づく本物の代休のみをカウントし、日曜/祝日の通常の休みマーカー

@@ -190,7 +190,8 @@ namespace Shiftapp_demo.ViewModels
         {
             // --- 技師一覧 ---
             Employees.Clear();
-            foreach (var e in _db.GetAllEmployees())
+            foreach (var e in _db.GetAllEmployees()
+                         .OrderBy(x => x.DisplayOrder).ThenBy(x => x.Role).ThenBy(x => x.EmployeeId))
             {
                 if (ct.IsCancellationRequested) return;
                 Employees.Add(e);
@@ -253,26 +254,38 @@ namespace Shiftapp_demo.ViewModels
                 CanDayDuty = false,
             };
 
-            InsertEmployeeSorted(emp);
+            // DB側でも一覧の末尾（display_order = 最大+1）として登録している
+            Employees.Add(emp);
 
             // 選択中にするなら
             SelectedEmployee = emp;
         }
 
         /// <summary>
-        /// GetAllEmployees()と同じ並び順（Role昇順→employee_id昇順）を保つ位置に挿入する。
-        /// 末尾にAddするだけだと、新規追加した職員が役職順を無視して一番下に表示されてしまうため。
+        /// ドラッグ＆ドロップで職員 source を target の位置へ移動し、並び順を即時DBに保存する。
+        /// この並びがシフト表の表示・Excel出力の行順になる。
         /// </summary>
-        private void InsertEmployeeSorted(Employee emp)
+        public void MoveEmployee(Employee source, Employee target)
         {
-            int index = 0;
-            while (index < Employees.Count &&
-                   (Employees[index].Role < emp.Role ||
-                    (Employees[index].Role == emp.Role && Employees[index].EmployeeId <= emp.EmployeeId)))
+            var from = Employees.IndexOf(source);
+            var to = Employees.IndexOf(target);
+            if (from < 0 || to < 0 || from == to) return;
+
+            Employees.Move(from, to);
+
+            try
             {
-                index++;
+                var ids = Employees.Select(e => e.EmployeeId).ToList();
+                _db.UpdateDisplayOrders(ids);
+                for (int i = 0; i < Employees.Count; i++)
+                    Employees[i].DisplayOrder = i + 1;
             }
-            Employees.Insert(index, emp);
+            catch (Exception ex)
+            {
+                Employees.Move(to, from);
+                MessageBox.Show($"並び順の保存中にエラーが発生しました:\n{ex.Message}",
+                    "エラー", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
         }
 
         private void DeleteEmployee()

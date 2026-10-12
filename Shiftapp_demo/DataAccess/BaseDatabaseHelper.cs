@@ -59,24 +59,42 @@ namespace Shiftapp_demo.DataAccess
 
             // 配布済みDBには無い列を冪等に追加する（既に列があれば何もしない）
             EnsureColumn(connection, "employee", "IsShortTime", "INTEGER NOT NULL DEFAULT 0");
+
+            // 管理者画面でドラッグ＆ドロップした職員の並び順。シフト表の表示・Excel出力もこの順にする。
+            // 列を追加したときは、それまでの並び（役職→職員コード順）で初期化して見た目を変えない。
+            if (EnsureColumn(connection, "employee", "display_order", "INTEGER NOT NULL DEFAULT 0"))
+            {
+                using var init = connection.CreateCommand();
+                init.CommandText = @"
+                UPDATE employee SET display_order = (
+                    SELECT COUNT(*) FROM employee e2
+                    WHERE e2.Role < employee.Role
+                       OR (e2.Role = employee.Role AND e2.employee_id <= employee.employee_id)
+                );";
+                init.ExecuteNonQuery();
+            }
         }
 
         // "ALTER TABLE ... ADD COLUMN" は列が既に存在するとエラーになるため、
-        // PRAGMA table_info で存在確認してから冪等に追加する。
-        private static void EnsureColumn(SqliteConnection connection, string table, string column, string columnDefinition)
+        // PRAGMA table_info で存在確認してから冪等に追加する。列を新たに追加した場合は true を返す。
+        private static bool EnsureColumn(SqliteConnection connection, string table, string column, string columnDefinition)
         {
             using (var check = connection.CreateCommand())
             {
                 check.CommandText = $"SELECT COUNT(*) FROM pragma_table_info('{table}') WHERE name = @col;";
                 check.Parameters.AddWithValue("@col", column);
                 var count = Convert.ToInt32(check.ExecuteScalar());
-                if (count > 0) return;
+                if (count > 0) return false;
             }
 
             using var alter = connection.CreateCommand();
             alter.CommandText = $"ALTER TABLE {table} ADD COLUMN {column} {columnDefinition};";
             alter.ExecuteNonQuery();
+            return true;
         }
+
+        // 新規職員を一覧の末尾に置くための並び順の値（INSERT 文に埋め込む）
+        protected const string NextDisplayOrderSql = "(SELECT COALESCE(MAX(display_order), 0) + 1 FROM employee)";
 
         /// <summary>
         /// 実際に使用する DB ファイルのフルパスを返す。
@@ -137,7 +155,7 @@ namespace Shiftapp_demo.DataAccess
             var cmd = connection.CreateCommand();
             cmd.CommandText = @"
             SELECT employee_id, Shift_id,employee_name,CanDoCatheterization,saturday_class,
-            MonthlyDutyLimit,CanDoNightDuty,Role, CanDoDayduty, IsShortTime
+            MonthlyDutyLimit,CanDoNightDuty,Role, CanDoDayduty, IsShortTime, display_order
             FROM employee
             ORDER BY Role, employee_id";
 
@@ -156,6 +174,7 @@ namespace Shiftapp_demo.DataAccess
                     Role = reader.GetInt32(7),
                     CanDayDuty = reader.GetInt32(8) == 1,
                     IsShortTime = reader.GetInt32(9) == 1,
+                    DisplayOrder = reader.GetInt32(10),
                 });
             }
             return employees;
