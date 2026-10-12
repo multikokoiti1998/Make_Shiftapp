@@ -64,6 +64,26 @@ namespace Shiftapp_demo.Business
                     }
                 }
 
+                // 手動編集時のみ：代休(●)を手入力する場合、紐づけ先の当直/日勤（今月分）を先に入力して
+                // おく運用のため、候補が無ければリマインドする。日曜/祝日は通常の休みマーカーとして
+                // ●を使うので対象外。「はい」なら紐づけ無しの●として入力を許可する。
+                List<(DateTime DutyDate, string Symbol)>? compOffCandidates = null;
+                if (_cascadeEnabled && value == CompOffSymbol && old != CompOffSymbol && !_compOffOrigin.ContainsKey(key)
+                    && DateTime.TryParseExact(key, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var compOffDate))
+                {
+                    compOffCandidates = CollectCompOffLinkCandidates(compOffDate);
+                    if (compOffCandidates.Count == 0 && !_compOffCheckDates.Contains(key))
+                    {
+                        var result = MessageBox.Show("今月に代休が未設定の当直/日勤がありません。\n代休は当直/日勤を先に入力してから設定してください。\n\nこのまま●（紐づけ無しの休み）として入力しますか？",
+                            "確認", MessageBoxButton.YesNo, MessageBoxImage.Warning, MessageBoxResult.No);
+                        if (result != MessageBoxResult.Yes)
+                        {
+                            Raise("Item[]"); // 選択を元の値に戻す
+                            return;
+                        }
+                    }
+                }
+
                 _shifts[key] = value;
 
                 // DataGrid のセル更新通知
@@ -75,12 +95,11 @@ namespace Shiftapp_demo.Business
                 IsDirty = true;
 
                 // 手動編集時のみ：セルに直接「●」を選択した場合はCascadeDutyChangeを経由しないため
-                // 紐付け（CompOffOrigin）が行われない。代休が不足している当直/日勤の代休日と一致するなら
+                // 紐付け（CompOffOrigin）が行われない。代休が不足している当直/日勤があれば
                 // その場で紐付け、アテーション判定（NeedsAttention）に正しく反映されるようにする。
-                if (_cascadeEnabled && value == CompOffSymbol && old != CompOffSymbol
-                    && DateTime.TryParseExact(key, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var compOffDate))
+                if (compOffCandidates is { Count: > 0 })
                 {
-                    TryAutoLinkManualCompOff(key, compOffDate);
+                    TryAutoLinkManualCompOff(key, compOffCandidates);
                 }
 
                 // 当直/日勤/代休の記号が変わった場合のみ、代休アテンションを再計算する
@@ -236,8 +255,8 @@ namespace Shiftapp_demo.Business
         //   この職員の翌月分シフト（記号とOriginDate）。CountLinkedCompOffForが検索する
         // ・previousMonthDuties: 前月の当直/日勤一覧（当/日のみ）。NeedsAttentionの判定対象には
         //   含めない（当直/日勤自身の月の画面で判定済みのため、翌月側で重複してリマインドしない
-        //   ようにする意図的な設計）。4日間隔の手動編集ガード（HasNearbyDutyOrDayWork）と、
-        //   代休を手動付与する際の紐づけ候補（TryAutoLinkManualCompOff）にのみ使う
+        //   ようにする意図的な設計）。4日間隔の手動編集ガード（HasNearbyDutyOrDayWork）にのみ使う
+        //   （代休の手動紐づけ候補は月を跨がない運用のため表示月分のみで、前月分は使わない）
         // ・previousMonthShifts: 今月の当直/日勤の代休が前月側に繰り戻された（再分散で前倒しされた
         //   等の）ケースを検出するための、この職員の前月分シフト全種別（nextMonthShiftsと同じ形。
         //   CountLinkedCompOffForが検索する）
@@ -286,7 +305,7 @@ namespace Shiftapp_demo.Business
         // _previousMonthShiftsを見て正しく判定できるため、当月の画面を開いた時点で漏れなく
         // 検出できる。_previousMonthDutiesをここでも重複してチェックすると、同じ当直が
         // 翌月の画面でも二重にリマインドされてしまうため、意図的にチェック対象から外している
-        // （_previousMonthDutiesは4日間隔チェックと代休手動紐づけ候補の用途にのみ使う）。
+        // （_previousMonthDutiesは4日間隔チェックの用途にのみ使う）。
         private void RecomputeAttention()
         {
             var missingDutyDates = new List<DateTime>();
@@ -327,18 +346,17 @@ namespace Shiftapp_demo.Business
         // ●を使った場合など、紐づけ無しの単なる休みマーカーとして扱う）。
         public Func<List<(DateTime DutyDate, string Symbol)>, DateTime?>? RequestCompOffLinkSelection { get; set; }
 
-        // 手動で「●」を選択したセル(key/compOffDate)を、代休が不足している当直/日勤に紐付ける。
-        // 現場の都合で算出ルール通りの日に付与できないことがあるため、日付の一致は問わず、
-        // まだ必要数を満たしていない当直/日勤（かつ当直/日勤日以降）の中から候補を集める。
-        private void TryAutoLinkManualCompOff(string key, DateTime compOffDate)
+        // 手動で「●」を選択した日(compOffDate)の紐づけ候補を集める。
+        // 現場の都合で算出ルール通りの日に付与できないことがあるため、日付の一致や前後は問わず
+        // （当直/日勤より前の日に代休を取るのも可）、まだ必要数を満たしていない当直/日勤を候補にする。
+        // 代休はできるだけ月を跨がない運用のため、候補は表示月の当直/日勤のみ（前月分は含めない）。
+        private List<(DateTime DutyDate, string Symbol)> CollectCompOffLinkCandidates(DateTime compOffDate)
         {
-            if (_compOffOrigin.ContainsKey(key)) return; // 既に紐付け済み（Cascade由来）
-
             var candidates = new List<(DateTime DutyDate, string Symbol)>();
 
             void CollectCandidate(DateTime dutyDate, string symbol)
             {
-                if (compOffDate.Date < dutyDate.Date) return; // 代休は当直/日勤日より前には置けない
+                if (compOffDate.Date == dutyDate.Date) return;
 
                 var primary = ShiftBusiness.GetCompWorkOff(dutyDate, _holidays);
                 if (!primary.HasValue) return; // この曜日・祝日区分の当直/日勤は代休不要
@@ -360,15 +378,15 @@ namespace Shiftapp_demo.Business
                 CollectCandidate(dutyDate, kv.Value);
             }
 
-            foreach (var (dutyDate, symbol) in _previousMonthDuties)
-                CollectCandidate(dutyDate, symbol);
-
-            if (candidates.Count == 0) return;
-
-            var ordered = candidates
+            return candidates
                 .OrderBy(c => Math.Abs((c.DutyDate - compOffDate).TotalDays))
                 .ToList();
+        }
 
+        // 手動で「●」を選択したセル(key)を、候補（CollectCompOffLinkCandidates、近い順）の中から
+        // 管理者が選んだ当直/日勤に紐付ける。
+        private void TryAutoLinkManualCompOff(string key, List<(DateTime DutyDate, string Symbol)> ordered)
+        {
             DateTime? chosen = RequestCompOffLinkSelection != null
                 ? RequestCompOffLinkSelection(ordered)
                 : ordered[0].DutyDate;

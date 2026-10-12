@@ -611,9 +611,8 @@ namespace Shiftapp_demo.ViewModels
                     g => g.ToDictionary(s => s.ShiftDate.ToString("yyyy-MM-dd"), s => (Symbol: s.Symbol ?? string.Empty, OriginDate: s.OriginDate)));
 
             // 2-4) 前月分のシフトを丸ごと取得しておく（nextMonthFirst/nextMonthLastと対称に、
-            // 前月全体を対象にする。以前は「前月末10日分」に絞っていたが、代休を手動で紐づける際の
-            // 候補（TryAutoLinkManualCompOff）が前月の当直をすべて拾えるようにするため、
-            // 月全体に広げた）。
+            // 前月全体を対象にする。前月の当直への4日間隔チェックと、前月側に付いた今月分の代休の
+            // 検出（CountLinkedCompOffFor）に使う。代休の手動紐づけ候補には前月分は含めない）。
             var previousMonthFirst = firstDay.AddMonths(-1);
             var previousMonthLast = firstDay.AddDays(-1);
             var previousMonthShiftsRaw = db.GetShiftsOnly(previousMonthFirst, previousMonthLast);
