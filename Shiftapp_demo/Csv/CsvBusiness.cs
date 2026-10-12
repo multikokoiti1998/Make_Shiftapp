@@ -83,6 +83,15 @@ namespace Shiftapp_demo.Csv
 
             return Task.Run(() => ShiftExcelWriter.WriteMonthlyData(templatePath, outputPath, year, month, data, holidayDates), ct);
         }
+
+        /// <summary>
+        /// 指定月の勤務記号を勤務変更テンプレート(xlsm)の「deta」シートに書き込んで出力する。
+        /// </summary>
+        public Task ExportMonthAsShiftChangeAsync(int year, int month, string templatePath, string outputPath, CancellationToken ct = default)
+        {
+            var data = BuildMonthRows(year, month);
+            return Task.Run(() => ShiftChangeExcelWriter.WriteDetaSheet(templatePath, outputPath, data), ct);
+        }
     }
 
 }

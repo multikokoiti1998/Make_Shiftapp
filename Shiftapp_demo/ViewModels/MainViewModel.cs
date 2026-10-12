@@ -12,6 +12,7 @@ using Shiftapp_demo.Models;
 using Shiftapp_demo.Views;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.IO;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -310,13 +311,43 @@ namespace Shiftapp_demo.ViewModels
             try
             {
                 await _csvBiz.ExportMonthAsExcelAsync(year, month, templatePath, sfd.FileName);
-                MessageBox.Show("勤務表Excelを出力しました。", "完了",
-                    MessageBoxButton.OK, MessageBoxImage.Information);
             }
             catch (Exception ex)
             {
                 MessageBox.Show($"Excel出力中にエラーが発生しました:\n{ex.Message}",
                     "エラー", MessageBoxButton.OK, MessageBoxImage.Error);
+                return;
+            }
+
+            // 同じフォルダに勤務変更(xlsm)も出力し、deta シートへ同じシフトを反映する
+            var changePath = Path.Combine(
+                Path.GetDirectoryName(sfd.FileName) ?? "",
+                $"勤務変更({year:0000}{month:00}).xlsm");
+            var changeMessage = await ExportShiftChangeAsync(year, month, changePath);
+
+            MessageBox.Show($"勤務表Excelを出力しました。\n{changeMessage}", "完了",
+                MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+
+        private async Task<string> ExportShiftChangeAsync(int year, int month, string outputPath)
+        {
+            // 既存の勤務変更ファイルは手入力の変更を含み得るため、上書き前に確認する
+            if (File.Exists(outputPath) &&
+                MessageBox.Show($"{Path.GetFileName(outputPath)} は既に存在します。\n上書きして deta を作り直しますか？\n（勤務変更シートに入力済みの内容も失われます）",
+                    "確認", MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes)
+            {
+                return "勤務変更ファイルは上書きしませんでした。";
+            }
+
+            try
+            {
+                var templatePath = ShiftChangeExcelWriter.GetTemplatePath();
+                await _csvBiz.ExportMonthAsShiftChangeAsync(year, month, templatePath, outputPath);
+                return $"{Path.GetFileName(outputPath)} の deta シートにも反映しました。";
+            }
+            catch (Exception ex)
+            {
+                return $"勤務変更ファイルの出力に失敗しました:\n{ex.Message}";
             }
         }
 
